@@ -1,0 +1,3 @@
+foreign module StringFFI
+
+spec concat = { s1: rawstring, s2: rawstring } -> rawstring
