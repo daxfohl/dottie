@@ -1,7 +1,12 @@
-﻿// Learn more about F# at http://fsharp.org
-// See the 'F# Tutorial' project for more help.
+﻿open System.IO
 
 [<EntryPoint>]
 let main argv = 
     printfn "%A" argv
-    0 // return an integer exit code
+    let sourceDir = "../../../../../samples/hello/src"
+    let targetDir = Path.Combine(sourceDir, "../output")
+    for sourcePath in Directory.GetFiles(sourceDir, "*.js") do
+        let fileName = Path.GetFileName sourcePath
+        let targetPath = Path.Combine(targetDir, fileName)
+        File.Copy(sourcePath, targetPath, true)
+    0
