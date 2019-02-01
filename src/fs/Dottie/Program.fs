@@ -40,7 +40,7 @@ type Module =
     definitions: list<Definition> }
  
 type DefinitionParseState =
-  | Root
+  | Start
   | UrModule of ModuleType
   | OpenModule of Module
   | ClosedModule of Module
@@ -48,6 +48,7 @@ type DefinitionParseState =
 
 let rec parseDefinition (tokens: string list) (state: DefinitionParseState) =
   ()
+
 type ModuleParseState =
   | Root
   | UrModule of ModuleType
@@ -77,7 +78,7 @@ let rec parseModule (tokens: string list) (state: ModuleParseState) =
       match h with
       | "}" -> ClosedModule m
       | _ ->
-        let definition, tokens = parseDefinition tokens
+        let definition, tokens = parseDefinition tokens Start
         let m = { m with definitions = definition::m.definitions }
         parseModule tokens (OpenModule m)
 type CharType = AlphaNumeric | Symbol
