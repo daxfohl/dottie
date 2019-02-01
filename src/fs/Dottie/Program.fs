@@ -1,14 +1,85 @@
 ﻿open System
 open System.IO
 open System.Collections.Generic
-open System.Runtime.InteropServices
 
 let fileStringFFI = """
 foreign module StringFFI {
-  spec concat = { s1: rawstring, s2: rawstring } -> rawstring
+  declare concat: { s1: rawstring, s2: rawstring } -> rawstring;
 }
 """
+type RawType =
+  | RawString
+  | RawNumber
+  
+type TypeSpec =
+  | Raw of RawType
+  | Object of ObjectSpec
+  | Function of FunctionSpec
+and ObjectSpec = list<PropertySpec>
+and PropertySpec =
+  { name: string
+    spec: TypeSpec }
+and FunctionSpec =
+  { input: TypeSpec
+    output: TypeSpec }
 
+type Spec =
+  { name: string
+    definition: TypeSpec }
+
+type Definition =
+  | Spec of Spec
+
+type ModuleType =
+  | Local
+  | Foreign
+  
+type Module =
+  { foreign: ModuleType
+    name: string
+    definitions: list<Definition> }
+ 
+type DefinitionParseState =
+  | Root
+  | UrModule of ModuleType
+  | OpenModule of Module
+  | ClosedModule of Module
+  | Error of string
+
+let rec parseDefinition (tokens: string list) (state: DefinitionParseState) =
+  ()
+type ModuleParseState =
+  | Root
+  | UrModule of ModuleType
+  | OpenModule of Module
+  | ClosedModule of Module
+  | Error of string
+
+let rec parseModule (tokens: string list) (state: ModuleParseState) =
+  match tokens with
+  | [] -> state
+  | h::t ->
+    match state with
+    | Error s -> Error s
+    | Root ->
+      match h with
+      | "foreign" ->
+        match t with
+        | h::t when h = "module" -> parseModule t (UrModule Foreign)
+        | _ -> Error "Expected 'module'"
+      | "module" -> parseModule t (UrModule Local)
+      | _ -> Error "Module must start with 'foreign' or 'module'"
+    | UrModule foreign ->
+      match t with
+        | h::t when h = "{" -> parseModule t (OpenModule { foreign = foreign; name = h; definitions = [] } )
+        | _ ->  Error "Expected '{'"
+    | OpenModule m ->
+      match h with
+      | "}" -> ClosedModule m
+      | _ ->
+        let definition, tokens = parseDefinition tokens
+        let m = { m with definitions = definition::m.definitions }
+        parseModule tokens (OpenModule m)
 type CharType = AlphaNumeric | Symbol
 
 let tokenize (file: string) =
