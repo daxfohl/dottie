@@ -1,10 +1,11 @@
 ﻿open System
 open System.IO
 open System.Collections.Generic
+open System.CodeDom
 
 let fileStringFFI = """
 foreign module StringFFI {
-  declare concat: { s1: rawstring, s2: rawstring } -> rawstring;
+  concat: { s1: rawstring, s2: rawstring } -> rawstring;
 }
 """
 type RawType =
@@ -23,31 +24,25 @@ and FunctionSpec =
   { input: TypeSpec
     output: TypeSpec }
 
-type Spec =
+type Declaration =
   { name: string
     definition: TypeSpec }
 
-type Definition =
-  | Spec of Spec
+type ForeignModule =
+  { name: string
+    definitions: list<Declaration> }
+
+type LocalModule =
+  { name: string
+    definitions: list<Declaration> }
+
+type Module =
+  | ForeignModule of ForeignModule
+  | LocalModule of LocalModule
 
 type ModuleType =
-  | Local
   | Foreign
-  
-type Module =
-  { foreign: ModuleType
-    name: string
-    definitions: list<Definition> }
- 
-type DefinitionParseState =
-  | Start
-  | UrModule of ModuleType
-  | OpenModule of Module
-  | ClosedModule of Module
-  | Error of string
-
-let rec parseDefinition (tokens: string list) (state: DefinitionParseState) =
-  ()
+  | Local
 
 type ModuleParseState =
   | Root
@@ -70,10 +65,15 @@ let rec parseModule (tokens: string list) (state: ModuleParseState) =
         | _ -> Error "Expected 'module'"
       | "module" -> parseModule t (UrModule Local)
       | _ -> Error "Module must start with 'foreign' or 'module'"
-    | UrModule foreign ->
+    | UrModule mtype ->
       match t with
-        | h::t when h = "{" -> parseModule t (OpenModule { foreign = foreign; name = h; definitions = [] } )
-        | _ ->  Error "Expected '{'"
+      | h'::t when h' = "{" ->
+        let m =
+          match mtype with
+          | Foreign -> ForeignModule { name = h; definitions = [] }
+          | Local -> LocalModule { name = h; definitions = [] }
+        parseModule t (OpenModule m)
+      | _ ->  Error "Expected '{'"
     | OpenModule m ->
       match h with
       | "}" -> ClosedModule m
