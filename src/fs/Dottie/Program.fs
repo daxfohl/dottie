@@ -1,7 +1,7 @@
 ﻿open System
 open System.IO
 open System.Collections.Generic
-open System.CodeDom
+open FSharpx.Option
 
 let fileStringFFI = """
 foreign module StringFFI {
@@ -32,55 +32,34 @@ type ForeignModule =
   { name: string
     definitions: list<Declaration> }
 
-type LocalModule =
-  { name: string
-    definitions: list<Declaration> }
+type ForeignModuleParseState =
+| Start
+| Error of string
+
+let parseDeclaration (tokens: list<string>) =
+  Some (tokens, { name = "hisf"; definition = Raw RawString })
+
+let parseForeignModule (tokens: string list) =
+  let rec parseDeclarations = fun tokens declarations ->
+    match parseDeclaration tokens with
+    | None -> None
+    | Some (tokens, declaration) ->
+      let declarations = declaration::declarations
+      match tokens with
+      | "}"::t -> Some(t, declarations)
+      | _ -> parseDeclarations tokens declarations
+  parseDeclarations tokens []
 
 type Module =
   | ForeignModule of ForeignModule
-  | LocalModule of LocalModule
 
-type ModuleType =
-  | Foreign
-  | Local
-
-type ModuleParseState =
-  | Root
-  | UrModule of ModuleType
-  | OpenModule of Module
-  | ClosedModule of Module
-  | Error of string
-
-let rec parseModule (tokens: string list) (state: ModuleParseState) =
-  match tokens with
-  | [] -> state
-  | h::t ->
-    match state with
-    | Error s -> Error s
-    | Root ->
-      match h with
-      | "foreign" ->
-        match t with
-        | h::t when h = "module" -> parseModule t (UrModule Foreign)
-        | _ -> Error "Expected 'module'"
-      | "module" -> parseModule t (UrModule Local)
-      | _ -> Error "Module must start with 'foreign' or 'module'"
-    | UrModule mtype ->
-      match t with
-      | h'::t when h' = "{" ->
-        let m =
-          match mtype with
-          | Foreign -> ForeignModule { name = h; definitions = [] }
-          | Local -> LocalModule { name = h; definitions = [] }
-        parseModule t (OpenModule m)
-      | _ ->  Error "Expected '{'"
-    | OpenModule m ->
-      match h with
-      | "}" -> ClosedModule m
-      | _ ->
-        let definition, tokens = parseDefinition tokens Start
-        let m = { m with definitions = definition::m.definitions }
-        parseModule tokens (OpenModule m)
+let parseModule = function
+  | "foreign"::"module"::name::"{"::t ->
+    match parseForeignModule t with
+    | None -> None
+    | Some (t, declarations) ->
+      Some (t, ForeignModule {name = name; definitions = declarations})
+  | _ -> None
 type CharType = AlphaNumeric | Symbol
 
 let tokenize (file: string) =
