@@ -36,8 +36,9 @@ type ForeignModuleParseState =
 | Start
 | Error of string
 
-let parseDeclaration (tokens: list<string>) =
-  Some (tokens, { name = "hisf"; definition = Raw RawString })
+let parseDeclaration = function
+  name::":"::t ->
+  Some (tokens, { name = name; definition = Raw RawString })
 
 let parseForeignModule (tokens: string list) =
   let rec parseDeclarations = fun tokens declarations ->
