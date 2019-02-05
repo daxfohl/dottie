@@ -6,7 +6,7 @@ open FSharpx.Option
 
 let fileStringFFI = """
 foreign module StringFFI {
-  concat: fun { s1: rawstring, s2: rawstring } -> rawstring
+  concat: fun { s1: rawstring s2: rawstring } -> rawstring
 }
 """
 type RawType =
@@ -41,7 +41,9 @@ let rec parseDeclaration (tokens: string list) : Choice<PropertySpec * string li
     | Choice1Of2 (spec, t) ->
       Choice1Of2({name=name; spec=spec}, t)
     | Choice2Of2 x -> Choice2Of2 x
-  | _ -> Choice2Of2 ""
+  | h::m::t -> Choice2Of2 <| sprintf "parseDeclaration got %s %s" h m
+  | h::t -> Choice2Of2 <| sprintf "parseDeclaration got %s end" h
+  | [] -> Choice2Of2 "parseDeclaration got empty list"
 and parseSpec (tokens: string list) : Choice<TypeSpec * string list, string> =
   match tokens with
   | "rawstring"::t -> Choice1Of2(Raw RawString, t)
@@ -62,7 +64,8 @@ and parseSpec (tokens: string list) : Choice<TypeSpec * string list, string> =
     | Choice1Of2 (properties, t) ->
       Choice1Of2 (Object properties, t)
     | Choice2Of2 x -> Choice2Of2 x
-  | _ -> Choice2Of2 ""
+  | h::t -> Choice2Of2 <| sprintf "parseSpec got %s" h
+  | [] -> Choice2Of2 "parseSpec got empty list"
 and parseObject (tokens: string list) : Choice<ObjectSpec * string list, string> =
   let rec addFields = fun tokens fields ->
     match parseDeclaration tokens with
@@ -112,7 +115,7 @@ let tokenize (file: string) =
         else
           complete()
           start(c)
-  tokens
+  tokens |> List.ofSeq
 
 let move() =
   let sourceDir = "../../../../../samples/hello/src"
@@ -122,11 +125,15 @@ let move() =
     let targetPath = Path.Combine(targetDir, fileName)
     File.Copy(sourcePath, targetPath, true)
 
+let parse x =
+  let tokens = tokenize x
+  parseModule tokens
+
 let run() =
-  tokenize fileStringFFI
+  parse fileStringFFI
 
 [<EntryPoint>]
 let main argv =
   let x = run()
-  printfn "%A" (x |> List.ofSeq)
+  printfn "%A" x
   0
