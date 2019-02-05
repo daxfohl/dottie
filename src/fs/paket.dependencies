@@ -1,0 +1,7 @@
+source https://api.nuget.org/v3/index.json
+
+nuget FSharpx.Extras 2.2.1 prerelease restriction: >= net471
+nuget System.ValueTuple 4.5.0 prerelease restriction: >= net471
+nuget xunit 2.4.1 prerelease restriction: >= net471
+nuget xunit.runner.console 2.4.1 prerelease restriction: >= net471
+nuget xunit.runner.visualstudio 2.4.1 prerelease restriction: >= net471

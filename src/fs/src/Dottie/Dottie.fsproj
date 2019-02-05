@@ -58,31 +58,13 @@
     <Compile Include="AssemblyInfo.fs" />
     <Compile Include="Program.fs" />
     <None Include="App.config" />
-    <Content Include="packages.config" />
+    <Content Include="paket.references" />
   </ItemGroup>
   <ItemGroup>
-    <Reference Include="FSharp.Control.AsyncSeq">
-      <HintPath>..\..\packages\FSharp.Control.AsyncSeq.2.0.21\lib\net45\FSharp.Control.AsyncSeq.dll</HintPath>
-    </Reference>
-    <Reference Include="FSharp.Core">
-      <HintPath>..\packages\FSharp.Core.4.6.1\lib\net45\FSharp.Core.dll</HintPath>
-    </Reference>
-    <Reference Include="FSharpx.Async">
-      <HintPath>..\..\packages\FSharpx.Async.1.13.2\lib\net45\FSharpx.Async.dll</HintPath>
-    </Reference>
-    <Reference Include="FSharpx.Collections">
-      <HintPath>..\..\packages\FSharpx.Collections.1.17.0\lib\net40\FSharpx.Collections.dll</HintPath>
-    </Reference>
-    <Reference Include="FSharpx.Extras">
-      <HintPath>..\..\packages\FSharpx.Extras.2.2.1\lib\net45\FSharpx.Extras.dll</HintPath>
-    </Reference>
     <Reference Include="mscorlib" />
     <Reference Include="System" />
     <Reference Include="System.Core" />
     <Reference Include="System.Numerics" />
-    <Reference Include="System.ValueTuple">
-      <Private>True</Private>
-    </Reference>
   </ItemGroup>
   <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 
        Other similar extension points exist, see Microsoft.Common.targets.
@@ -91,4 +73,70 @@
   <Target Name="AfterBuild">
   </Target>
   -->
+  <Choose>
+    <When Condition="$(TargetFrameworkIdentifier) == '.NETFramework' And ($(TargetFrameworkVersion) == 'v4.7.1' Or $(TargetFrameworkVersion) == 'v4.7.2')">
+      <ItemGroup>
+        <Reference Include="FSharp.Control.AsyncSeq">
+          <HintPath>..\..\packages\FSharp.Control.AsyncSeq\lib\net45\FSharp.Control.AsyncSeq.dll</HintPath>
+          <Private>True</Private>
+          <Paket>True</Paket>
+        </Reference>
+      </ItemGroup>
+    </When>
+  </Choose>
+  <Choose>
+    <When Condition="$(TargetFrameworkIdentifier) == '.NETFramework' And ($(TargetFrameworkVersion) == 'v4.7.1' Or $(TargetFrameworkVersion) == 'v4.7.2')">
+      <ItemGroup>
+        <Reference Include="FSharp.Core">
+          <HintPath>..\..\packages\FSharp.Core\lib\net45\FSharp.Core.dll</HintPath>
+          <Private>True</Private>
+          <Paket>True</Paket>
+        </Reference>
+      </ItemGroup>
+    </When>
+  </Choose>
+  <Choose>
+    <When Condition="$(TargetFrameworkIdentifier) == '.NETFramework' And ($(TargetFrameworkVersion) == 'v4.7.1' Or $(TargetFrameworkVersion) == 'v4.7.2')">
+      <ItemGroup>
+        <Reference Include="FSharpx.Async">
+          <HintPath>..\..\packages\FSharpx.Async\lib\net45\FSharpx.Async.dll</HintPath>
+          <Private>True</Private>
+          <Paket>True</Paket>
+        </Reference>
+      </ItemGroup>
+    </When>
+  </Choose>
+  <Choose>
+    <When Condition="$(TargetFrameworkIdentifier) == '.NETFramework' And ($(TargetFrameworkVersion) == 'v4.7.1' Or $(TargetFrameworkVersion) == 'v4.7.2')">
+      <ItemGroup>
+        <Reference Include="FSharpx.Collections">
+          <HintPath>..\..\packages\FSharpx.Collections\lib\net40\FSharpx.Collections.dll</HintPath>
+          <Private>True</Private>
+          <Paket>True</Paket>
+        </Reference>
+      </ItemGroup>
+    </When>
+  </Choose>
+  <Choose>
+    <When Condition="$(TargetFrameworkIdentifier) == '.NETFramework' And ($(TargetFrameworkVersion) == 'v4.7.1' Or $(TargetFrameworkVersion) == 'v4.7.2')">
+      <ItemGroup>
+        <Reference Include="FSharpx.Extras">
+          <HintPath>..\..\packages\FSharpx.Extras\lib\net45\FSharpx.Extras.dll</HintPath>
+          <Private>True</Private>
+          <Paket>True</Paket>
+        </Reference>
+      </ItemGroup>
+    </When>
+  </Choose>
+  <Choose>
+    <When Condition="$(TargetFrameworkIdentifier) == '.NETFramework' And ($(TargetFrameworkVersion) == 'v4.7.1' Or $(TargetFrameworkVersion) == 'v4.7.2')">
+      <ItemGroup>
+        <Reference Include="System.ValueTuple">
+          <HintPath>..\..\packages\System.ValueTuple\lib\net47\System.ValueTuple.dll</HintPath>
+          <Private>True</Private>
+          <Paket>True</Paket>
+        </Reference>
+      </ItemGroup>
+    </When>
+  </Choose>
 </Project>
