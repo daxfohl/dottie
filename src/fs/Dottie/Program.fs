@@ -3,9 +3,10 @@ open System.IO
 open System.Collections.Generic
 open FSharpx.Option
 
+
 let fileStringFFI = """
 foreign module StringFFI {
-  concat: { s1: rawstring, s2: rawstring } -> rawstring;
+  concat: fun { s1: rawstring, s2: rawstring } -> rawstring
 }
 """
 type RawType =
@@ -24,43 +25,66 @@ and FunctionSpec =
   { input: TypeSpec
     output: TypeSpec }
 
-type Declaration =
-  { name: string
-    definition: TypeSpec }
-
 type ForeignModule =
   { name: string
-    definitions: list<Declaration> }
+    definitions: ObjectSpec }
 
 type ForeignModuleParseState =
 | Start
 | Error of string
 
-let parseDeclaration = function
-  name::":"::t ->
-  Some (tokens, { name = name; definition = Raw RawString })
 
-let parseForeignModule (tokens: string list) =
-  let rec parseDeclarations = fun tokens declarations ->
+let rec parseDeclaration (tokens: string list) : Choice<PropertySpec * string list, string> =
+  match tokens with
+  | name::":"::t ->
+    match parseSpec t with
+    | Choice1Of2 (spec, t) ->
+      Choice1Of2({name=name; spec=spec}, t)
+    | Choice2Of2 x -> Choice2Of2 x
+  | _ -> Choice2Of2 ""
+and parseSpec (tokens: string list) : Choice<TypeSpec * string list, string> =
+  match tokens with
+  | "rawstring"::t -> Choice1Of2(Raw RawString, t)
+  | "rawnumber"::t -> Choice1Of2(Raw RawNumber, t)
+  | "fun"::t ->
+    match parseSpec t with
+    | Choice1Of2 (inputSpec, t) ->
+      match t with
+      | "->"::t ->
+        match parseSpec t with
+        | Choice1Of2 (outputSpec, t) ->
+          Choice1Of2(Function {input = inputSpec; output = outputSpec}, t)
+        | Choice2Of2 x -> Choice2Of2 x
+      | _ -> Choice2Of2 "Expected -> in function declaration"
+    | Choice2Of2 x -> Choice2Of2 x
+  | "{"::t ->
+    match parseObject t with
+    | Choice1Of2 (properties, t) ->
+      Choice1Of2 (Object properties, t)
+    | Choice2Of2 x -> Choice2Of2 x
+  | _ -> Choice2Of2 ""
+and parseObject (tokens: string list) : Choice<ObjectSpec * string list, string> =
+  let rec addFields = fun tokens fields ->
     match parseDeclaration tokens with
-    | None -> None
-    | Some (tokens, declaration) ->
-      let declarations = declaration::declarations
+    | Choice2Of2 x -> Choice2Of2 x
+    | Choice1Of2 (declaration, tokens) ->
+      let declarations = declaration::fields
       match tokens with
-      | "}"::t -> Some(t, declarations)
-      | _ -> parseDeclarations tokens declarations
-  parseDeclarations tokens []
+      | "}"::t -> Choice1Of2(declarations, t)
+      | _ -> addFields tokens declarations
+  addFields tokens []
 
 type Module =
   | ForeignModule of ForeignModule
 
 let parseModule = function
   | "foreign"::"module"::name::"{"::t ->
-    match parseForeignModule t with
-    | None -> None
-    | Some (t, declarations) ->
-      Some (t, ForeignModule {name = name; definitions = declarations})
-  | _ -> None
+    match parseObject t with
+    | Choice1Of2 (declarations, t) ->
+      Choice1Of2 (ForeignModule {name = name; definitions = declarations}, t)
+    | Choice2Of2 x -> Choice2Of2 x
+  | _ -> Choice2Of2 "Error declaring module"
+
 type CharType = AlphaNumeric | Symbol
 
 let tokenize (file: string) =
