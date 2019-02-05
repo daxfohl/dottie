@@ -3,3 +3,4 @@ xunit
 xunit.runner.console
 xunit.runner.visualstudio
 FSharp.Core
+FSharpx.Extras
