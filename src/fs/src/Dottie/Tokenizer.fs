@@ -1,7 +1,6 @@
 ﻿module Tokenizer
 
 open System
-open System.IO
 open System.Collections.Generic
 
 type CharType = AlphaNumeric | Symbol
@@ -33,11 +32,3 @@ let tokenize (file: string) =
           start(c)
   if currentToken.Count <> 0 then complete()
   tokens |> List.ofSeq
-
-let move() =
-  let sourceDir = "../../../../../samples/hello/src"
-  let targetDir = Path.Combine(sourceDir, "../output")
-  for sourcePath in Directory.GetFiles(sourceDir, "*.js") do
-    let fileName = Path.GetFileName(sourcePath)
-    let targetPath = Path.Combine(targetDir, fileName)
-    File.Copy(sourcePath, targetPath, true)

@@ -1,7 +1,6 @@
 ﻿module Parser
 
 open System
-open System.IO
 open System.Collections.Generic
 open FSharpx.Option
 open Tokenizer
@@ -25,11 +24,6 @@ and FunctionSpec =
 type ForeignModule =
   { name: string
     definitions: ObjectSpec }
-
-type ForeignModuleParseState =
-| Start
-| Error of string
-
 
 let rec parseDeclaration (tokens: string list) : Choice<PropertySpec * string list, string> =
   match tokens with
