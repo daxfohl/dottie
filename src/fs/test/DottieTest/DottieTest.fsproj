@@ -62,7 +62,7 @@
   <Import Project="..\..\packages\xunit.runner.visualstudio\build\$(__paket__xunit_runner_visualstudio_props).props" Condition="Exists('..\..\packages\xunit.runner.visualstudio\build\$(__paket__xunit_runner_visualstudio_props).props')" Label="Paket" />
   <ItemGroup>
     <Compile Include="AssemblyInfo.fs" />
-    <Compile Include="Test1.fs" />
+    <Compile Include="CompilerTester.fs" />
     <Content Include="paket.references" />
   </ItemGroup>
   <ItemGroup>
