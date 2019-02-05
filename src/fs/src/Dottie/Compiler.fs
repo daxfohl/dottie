@@ -117,6 +117,7 @@ let tokenize (file: string) =
         else
           complete()
           start(c)
+  if currentToken.Count <> 0 then complete()
   tokens |> List.ofSeq
 
 let move() =

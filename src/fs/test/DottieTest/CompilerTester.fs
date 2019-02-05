@@ -7,7 +7,7 @@ let ``Test Compiler``() =
   let fileStringFFI = """
   foreign module StringFFI {
     concat: fun { s1: rawstring s2: rawstring } -> rawstring
-  } """
+  }"""
   let parsed = parse fileStringFFI
   let expected =
     Choice1Of2
