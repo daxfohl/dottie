@@ -1,6 +1,6 @@
 ﻿module ``Tokenizer tester``
 open Xunit
-open Compiler
+open Tokenizer
 
 [<Fact>]
 let ``Single token``() =

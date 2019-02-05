@@ -2,7 +2,7 @@
 open System.IO
 open System.Collections.Generic
 open FSharpx.Option
-open Compiler
+open Parser
 
 let fileStringFFI = """
 foreign module StringFFI {

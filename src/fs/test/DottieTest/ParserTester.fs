@@ -1,9 +1,9 @@
-﻿module ``Compiler tester``
+﻿module ``Parser tester``
 open Xunit
-open Compiler
+open Parser
 
 [<Fact>]
-let ``Test Compiler``() =
+let ``Test Parser``() =
   let fileStringFFI = """
   foreign module StringFFI {
     concat: fun { s1: rawstring s2: rawstring } -> rawstring
