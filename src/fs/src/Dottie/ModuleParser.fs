@@ -19,39 +19,40 @@ and Expression =
   | Constant of RawType
   | FunctionApplication of string * string
   | Subfield of string * string
+  | Variable of string
 and Statement =
   | Assignment of Definition
 
 
-let rec parseDeclaration (tokens: string list) : Choice<PropertySpec * string list, string> =
+let rec parseDefinition (tokens: string list) : Choice<Definition * string list, string> =
   match tokens with
-  | name::":"::t ->
-    match parseSpec t with
+  | "let"::name::"="::t ->
+    match parseExpression t with
     | Choice1Of2 (spec, t) ->
       Choice1Of2({name=name; spec=spec}, t)
     | Choice2Of2 x -> Choice2Of2 x
-  | h::m::t -> Choice2Of2 <| sprintf "parseDeclaration got %s %s" h m
-  | h::t -> Choice2Of2 <| sprintf "parseDeclaration got %s end" h
-  | [] -> Choice2Of2 "parseDeclaration got empty list"
-and parseSpec (tokens: string list) : Choice<TypeSpec * string list, string> =
+  | h::m::_ -> Choice2Of2 <| sprintf "parseDefinition got %s %s" h m
+  | h::_ -> Choice2Of2 <| sprintf "parseDefinition got %s end" h
+  | [] -> Choice2Of2 "parseDefinition got empty list"
+and parseExpression (tokens: string list) : Choice<Expression * string list, string> =
   match tokens with
-  | "rawstring"::t -> Choice1Of2(Raw RawString, t)
-  | "rawnumber"::t -> Choice1Of2(Raw RawNumber, t)
-  | "fun"::t ->
-    match parseSpec t with
-    | Choice1Of2 (inputSpec, t) ->
-      match t with
-      | "->"::t ->
-        match parseSpec t with
-        | Choice1Of2 (outputSpec, t) ->
-          Choice1Of2(Function {input = inputSpec; output = outputSpec}, t)
-        | Choice2Of2 x -> Choice2Of2 x
-      | _ -> Choice2Of2 "Expected -> in function declaration"
-    | Choice2Of2 x -> Choice2Of2 x
+  | object::"."::field::t -> Choice1Of2(Subfield(object, field), t)
   | "{"::t ->
     match parseObject t with
     | Choice1Of2 (properties, t) ->
       Choice1Of2 (Object properties, t)
+    | Choice2Of2 x -> Choice2Of2 x
+  | "rawnumber"::t -> Choice1Of2(Raw RawNumber, t)
+  | "fun"::t ->
+    match parseExpression t with
+    | Choice1Of2 (inputSpec, t) ->
+      match t with
+      | "->"::t ->
+        match parseExpression t with
+        | Choice1Of2 (outputSpec, t) ->
+          Choice1Of2(Function {input = inputSpec; output = outputSpec}, t)
+        | Choice2Of2 x -> Choice2Of2 x
+      | _ -> Choice2Of2 "Expected -> in function declaration"
     | Choice2Of2 x -> Choice2Of2 x
   | h::t -> Choice2Of2 <| sprintf "parseSpec got %s" h
   | [] -> Choice2Of2 "parseSpec got empty list"
