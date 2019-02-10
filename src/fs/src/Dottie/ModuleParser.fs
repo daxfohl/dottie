@@ -1,24 +1,22 @@
 ﻿module ModuleParser
 
 open System
-open System.Collections.Generic
-open FSharpx.Option
 open Tokenizer
 
 type RawType =
-  | RawString
-  | RawNumber
+  | RawString of string
+  | RawNumber of double
 
 type Definition =
   { name: string
     expression: Expression }
 and Expression =
   | Import of string
-  | Object of list<Definition>
-  | FunctionDefintion of list<Statement>
-  | Constant of RawType
-  | FunctionApplication of string * string
   | Subfield of string * string
+  | Object of list<Definition>
+  | FunctionDefintion of string * list<Statement> * string
+  | FunctionApplication of string * string
+  | Constant of RawType
   | Variable of string
 and Statement =
   | Assignment of Definition
@@ -28,40 +26,45 @@ let rec parseDefinition (tokens: string list) : Choice<Definition * string list,
   match tokens with
   | "let"::name::"="::t ->
     match parseExpression t with
-    | Choice1Of2 (spec, t) ->
-      Choice1Of2({name=name; spec=spec}, t)
+    | Choice1Of2 (expression, t) ->
+      Choice1Of2({name=name; expression=expression}, t)
     | Choice2Of2 x -> Choice2Of2 x
   | h::m::_ -> Choice2Of2 <| sprintf "parseDefinition got %s %s" h m
   | h::_ -> Choice2Of2 <| sprintf "parseDefinition got %s end" h
   | [] -> Choice2Of2 "parseDefinition got empty list"
 and parseExpression (tokens: string list) : Choice<Expression * string list, string> =
   match tokens with
-  | object::"."::field::t -> Choice1Of2(Subfield(object, field), t)
+  | "import"::name::";"::t -> Choice1Of2(Import name, t)
+  | object::"."::field::";"::t -> Choice1Of2(Subfield(object, field), t)
   | "{"::t ->
     match parseObject t with
-    | Choice1Of2 (properties, t) ->
-      Choice1Of2 (Object properties, t)
+    | Choice1Of2 (properties, t) -> Choice1Of2 (Object properties, t)
     | Choice2Of2 x -> Choice2Of2 x
-  | "rawnumber"::t -> Choice1Of2(Raw RawNumber, t)
-  | "fun"::t ->
-    match parseExpression t with
-    | Choice1Of2 (inputSpec, t) ->
-      match t with
-      | "->"::t ->
-        match parseExpression t with
-        | Choice1Of2 (outputSpec, t) ->
-          Choice1Of2(Function {input = inputSpec; output = outputSpec}, t)
-        | Choice2Of2 x -> Choice2Of2 x
-      | _ -> Choice2Of2 "Expected -> in function declaration"
+  | "fun"::input::"->"::"{"::t ->
+    match parseFunction t with
     | Choice2Of2 x -> Choice2Of2 x
+    | Choice1Of2 (statements, retval, t) -> Choice1Of2(FunctionDefintion(input, statements, retval), t)
+  | f::name::";"::t -> Choice1Of2(FunctionApplication(f, name), t)
+  | "\""::s::"\""::";"::t -> Choice1Of2(Constant(RawString s), t)
+  | s::";"::t when let b, _ = Double.TryParse s in b -> Choice1Of2(Constant(RawNumber(Double.Parse s)), t)
+  | s::";"::t -> Choice1Of2(Variable s, t)
   | h::t -> Choice2Of2 <| sprintf "parseSpec got %s" h
   | [] -> Choice2Of2 "parseSpec got empty list"
-and parseObject (tokens: string list) : Choice<ObjectSpec * string list, string> =
+and parseFunction (tokens: string list) : Choice<list<Statement> * string * string list, string> =
+  let rec addStatements = fun tokens statements ->
+    match tokens with
+    | retval::"}"::";"::t -> Choice1Of2(statements, retval, t)
+    | _ ->
+      match parseDefinition tokens with
+      | Choice2Of2 x -> Choice2Of2 x
+      | Choice1Of2 (definition, tokens) -> addStatements tokens ((Assignment definition)::statements)
+  addStatements tokens []
+and parseObject (tokens: string list) : Choice<list<Definition> * string list, string> =
   let rec addFields = fun tokens fields ->
-    match parseDeclaration tokens with
+    match parseDefinition tokens with
     | Choice2Of2 x -> Choice2Of2 x
-    | Choice1Of2 (declaration, tokens) ->
-      let declarations = declaration::fields
+    | Choice1Of2 (definition, tokens) ->
+      let declarations = definition::fields
       match tokens with
       | "}"::t -> Choice1Of2(declarations, t)
       | _ -> addFields tokens declarations
@@ -69,7 +72,7 @@ and parseObject (tokens: string list) : Choice<ObjectSpec * string list, string>
   
 type Module =
   { name: string
-    definitions: ObjectSpec }
+    definitions: Object }
 
 let parseModule = function
   | "module"::name::"{"::t ->

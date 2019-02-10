@@ -30,7 +30,11 @@ let rec parseDeclaration (tokens: string list) : Choice<PropertySpec * string li
   | name::":"::t ->
     match parseSpec t with
     | Choice1Of2 (spec, t) ->
-      Choice1Of2({name=name; spec=spec}, t)
+      match t with
+      | ";"::t ->
+        Choice1Of2({name=name; spec=spec}, t)
+      | h::_ -> Choice2Of2 <| sprintf "Expected ;, got %s" h
+      | [] -> Choice2Of2 <| sprintf "Expected ;, got end of list"
     | Choice2Of2 x -> Choice2Of2 x
   | h::m::t -> Choice2Of2 <| sprintf "parseDeclaration got %s %s" h m
   | h::t -> Choice2Of2 <| sprintf "parseDeclaration got %s end" h

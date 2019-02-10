@@ -63,6 +63,7 @@
   <ItemGroup>
     <Compile Include="AssemblyInfo.fs" />
     <Compile Include="TokenizerTester.fs" />
+    <Compile Include="ModuleParserTester.fs" />
     <Compile Include="ParserTester.fs" />
     <Content Include="paket.references" />
   </ItemGroup>
