@@ -24,10 +24,10 @@ let ``Test concat``() =
         let s2 = ss.s2
         let s1raw = s1.raw
         let s2raw = s2.raw
-        let concatinput = { s1: s1raw; s2: s2raw; }
+        let concatinput = { s1: s1raw, s2: s2raw }
         let concat = ffi.concat
         let sout = concat concatinput
-        let out = { s1 with raw: sout; }
+        let out = { s1 with raw: sout }
         out
       }
     }"""

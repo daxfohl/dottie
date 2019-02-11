@@ -12,6 +12,8 @@ let tokenize (file: string) =
   let mutable state = None
   let complete() =
     let token = String(currentToken.ToArray())
+    let token = if token = "," then ";" else token
+    if tokens.Count <> 0 && tokens.[tokens.Count - 1] <> ";" && token = "}" then tokens.Add(";")
     tokens.Add(token)
     currentToken.Clear()
     state <- None
