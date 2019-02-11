@@ -11,15 +11,19 @@ let tokenize (file: string) =
   let charType c = if Char.IsLetterOrDigit(c) then AlphaNumeric else Symbol
   let mutable state = None
   let complete() =
-    tokens.Add(String(currentToken.ToArray()))
+    let token = String(currentToken.ToArray())
+    tokens.Add(token)
     currentToken.Clear()
     state <- None
+    token
   let start c =
     currentToken.Add(c)
     state <- Some(charType(c))
   for c in file do
     if Char.IsWhiteSpace(c) then
-      if state <> None then complete()
+      if state <> None then
+        let token = complete()
+        if c = '\r' && token <> ";" && token <> "{" then tokens.Add(";") 
     else
       match state with
       | None -> start(c)
@@ -28,7 +32,8 @@ let tokenize (file: string) =
         if charType = tokenType then
           currentToken.Add(c)
         else
-          complete()
+          complete() |> ignore
           start(c)
-  if currentToken.Count <> 0 then complete()
+  if currentToken.Count <> 0 then complete() |> ignore
+  if tokens.[tokens.Count - 1] <> ";" then tokens.Add(";")
   tokens |> List.ofSeq
