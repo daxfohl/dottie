@@ -20,6 +20,7 @@ and Expression =
   | Variable of string
 and Statement =
   | Assignment of Definition
+  | Return of Expression
 
 
 let rec parseDefinition (tokens: string list) : Choice<Definition * string list, string> =
@@ -53,13 +54,34 @@ and parseExpression (tokens: string list) : Choice<Expression * string list, str
 and parseFunction (tokens: string list) : Choice<list<Statement> * string * string list, string> =
   let rec addStatements = fun tokens statements ->
     match tokens with
-    | retval::"}"::";"::t -> Choice1Of2(statements, retval, t)
+    | retval::";"::"}"::";"::t -> Choice1Of2(statements, retval, t)
     | _ ->
       match parseDefinition tokens with
       | Choice2Of2 x -> Choice2Of2 x
       | Choice1Of2 (definition, tokens) -> addStatements tokens ((Assignment definition)::statements)
   addStatements tokens []
 and parseObject (tokens: string list) : Choice<list<Definition> * string list, string> =
+  let rec addFields = fun tokens fields ->
+    match parseField tokens with
+    | Choice2Of2 x -> Choice2Of2 x
+    | Choice1Of2 (definition, tokens) ->
+      let declarations = definition::fields
+      match tokens with
+      | "}"::";"::t -> Choice1Of2(declarations, t)
+      | _ -> addFields tokens declarations
+  addFields tokens []
+and parseField (tokens: string list) : Choice<Definition * string list, string> =
+  match tokens with
+  | name::":"::t ->
+    match parseExpression t with
+    | Choice1Of2 (expression, t) ->
+      Choice1Of2({name=name; expression=expression}, t)
+    | Choice2Of2 x -> Choice2Of2 x
+  | h::m::_ -> Choice2Of2 <| sprintf "parseField got %s %s" h m
+  | h::_ -> Choice2Of2 <| sprintf "parseField got %s end" h
+  | [] -> Choice2Of2 "parseField got empty list"
+  
+let parseModule' (tokens: string list) : Choice<list<Definition> * string list, string> =
   let rec addFields = fun tokens fields ->
     match parseDefinition tokens with
     | Choice2Of2 x -> Choice2Of2 x
@@ -69,14 +91,14 @@ and parseObject (tokens: string list) : Choice<list<Definition> * string list, s
       | "}"::";"::t -> Choice1Of2(declarations, t)
       | _ -> addFields tokens declarations
   addFields tokens []
-  
+
 type Module =
   { name: string
     definitions: Object }
 
 let parseModule = function
   | "module"::name::"{"::t ->
-    match parseObject t with
+    match parseModule' t with
     | Choice1Of2 (declarations, t) ->
       Choice1Of2 ({name = name; definitions = declarations}, t)
     | Choice2Of2 x -> Choice2Of2 x
