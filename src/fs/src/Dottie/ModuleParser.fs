@@ -66,7 +66,7 @@ and parseObject (tokens: string list) : Choice<list<Definition> * string list, s
     | Choice1Of2 (definition, tokens) ->
       let declarations = definition::fields
       match tokens with
-      | "}"::t -> Choice1Of2(declarations, t)
+      | "}"::";"::t -> Choice1Of2(declarations, t)
       | _ -> addFields tokens declarations
   addFields tokens []
   
