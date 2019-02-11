@@ -39,14 +39,16 @@ let ``Test concat``() =
                     expression =
                       FunctionDefintion(
                         "ss",
-                        [Assignment{name = "out"; expression = ObjectWith("s1", [{name = "raw"; expression = Variable "sout"}])}
-                         Assignment{name = "sout"; expression = FunctionApplication("concat","concatinput")}
-                         Assignment{name = "concat"; expression = Subfield("ffi","concat")}
+                        [
+                         Assignment{name = "s1"; expression = Subfield("ss","s1")}
+                         Assignment{name = "s2"; expression = Subfield("ss","s2")}
+                         Assignment{name = "s1raw"; expression = Subfield("s1","raw")}
+                         Assignment{name = "s2raw"; expression = Subfield("s2","raw")}
                          Assignment{name = "concatinput"; expression = Object[{name = "s2"; expression = Variable "s2raw"}
                                                                               {name = "s1"; expression = Variable "s1raw"}]}
-                         Assignment{name = "s2raw"; expression = Subfield("s2","raw")}
-                         Assignment{name = "s1raw"; expression = Subfield("s1","raw")}
-                         Assignment{name = "s2"; expression = Subfield("ss","s2")}
-                         Assignment{name = "s1"; expression = Subfield("ss","s1")}],
+                         Assignment{name = "concat"; expression = Subfield("ffi","concat")}
+                         Assignment{name = "sout"; expression = FunctionApplication("concat","concatinput")}
+                         Assignment{name = "out"; expression = ObjectWith("s1", [{name = "raw"; expression = Variable "sout"}])}
+                         ],
                         "out")}]}, [])
   Assert.Equal(expected, parsed)

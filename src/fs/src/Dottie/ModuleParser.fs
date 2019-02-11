@@ -49,7 +49,7 @@ and parseExpression (tokens: string list) : Choice<Expression * string list, str
   | "fun"::input::"->"::"{"::t ->
     match parseFunction t with
     | Choice2Of2 x -> Choice2Of2 x
-    | Choice1Of2 (statements, retval, t) -> Choice1Of2(FunctionDefintion(input, statements, retval), t)
+    | Choice1Of2 (statements, retval, t) -> Choice1Of2(FunctionDefintion(input, List.rev statements, retval), t)
   | f::name::";"::t -> Choice1Of2(FunctionApplication(f, name), t)
   | "\""::s::"\""::";"::t -> Choice1Of2(Constant(RawString s), t)
   | s::";"::t when let b, _ = Double.TryParse s in b -> Choice1Of2(Constant(RawNumber(Double.Parse s)), t)
