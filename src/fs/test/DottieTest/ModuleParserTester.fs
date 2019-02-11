@@ -27,23 +27,26 @@ let ``Test concat``() =
         let concatinput = { s1: s1raw; s2: s2raw; } ;
         let concat = ffi.concat;
         let sout = concat concatinput;
-        sout;
+        let out = { s1 with raw: sout; } ;
+        out;
       } ;
     } ;"""
   let parsed = parse strings
   let expected =
-    Choice1Of2 ({name = "Strings"
-                 definitions =
+    Choice1Of2({name = "Strings"
+                definitions =
                   [{name = "concat"
                     expression =
-                      FunctionDefintion (
+                      FunctionDefintion(
                         "ss",
-                        [ Assignment {name = "sout"; expression = FunctionApplication ("concat","concatinput")}
-                          Assignment {name = "concat"; expression = Subfield ("ffi","concat")}
-                          Assignment {name = "concatinput"; expression = Object[{name = "s2"; expression = Variable "s2raw"}; {name = "s1"; expression = Variable "s1raw"}]}
-                          Assignment {name = "s2raw"; expression = Subfield ("s2","raw")}
-                          Assignment {name = "s1raw"; expression = Subfield ("s1","raw")}
-                          Assignment {name = "s2"; expression = Subfield ("ss","s2")}
-                          Assignment {name = "s1"; expression = Subfield ("ss","s1")}],
-                        "sout")}]}, [])
+                        [Assignment{name = "out"; expression = ObjectWith("s1", [{name = "raw"; expression = Variable "sout"}])}
+                         Assignment{name = "sout"; expression = FunctionApplication("concat","concatinput")}
+                         Assignment{name = "concat"; expression = Subfield("ffi","concat")}
+                         Assignment{name = "concatinput"; expression = Object[{name = "s2"; expression = Variable "s2raw"}
+                                                                              {name = "s1"; expression = Variable "s1raw"}]}
+                         Assignment{name = "s2raw"; expression = Subfield("s2","raw")}
+                         Assignment{name = "s1raw"; expression = Subfield("s1","raw")}
+                         Assignment{name = "s2"; expression = Subfield("ss","s2")}
+                         Assignment{name = "s1"; expression = Subfield("ss","s1")}],
+                        "out")}]}, [])
   Assert.Equal(expected, parsed)

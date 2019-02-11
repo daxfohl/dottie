@@ -14,6 +14,7 @@ and Expression =
   | Import of string
   | Subfield of string * string
   | Object of list<Definition>
+  | ObjectWith of string * list<Definition>
   | FunctionDefintion of string * list<Statement> * string
   | FunctionApplication of string * string
   | Constant of RawType
@@ -37,6 +38,10 @@ and parseExpression (tokens: string list) : Choice<Expression * string list, str
   match tokens with
   | "import"::name::";"::t -> Choice1Of2(Import name, t)
   | object::"."::field::";"::t -> Choice1Of2(Subfield(object, field), t)
+  | "{"::name::"with"::t ->
+    match parseObject t with
+    | Choice1Of2 (properties, t) -> Choice1Of2 (ObjectWith(name, properties), t)
+    | Choice2Of2 x -> Choice2Of2 x
   | "{"::t ->
     match parseObject t with
     | Choice1Of2 (properties, t) -> Choice1Of2 (Object properties, t)
