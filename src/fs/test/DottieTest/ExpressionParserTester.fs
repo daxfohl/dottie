@@ -72,12 +72,26 @@ let ``Test number``() =
   let parsed = parseExpression strings
   let expected = Choice1Of2 (Constant(RawNumber 2), [])
   Assert.Equal(expected, parsed)
-  
+
 [<Fact>]
 let ``Test string``() =
   let strings = tokenize "\"test\""
   let parsed = parseExpression strings
   let expected = Choice1Of2 (Constant(RawString "test"), [])
+  Assert.Equal(expected, parsed)
+
+[<Fact>]
+let ``Test const subfield``() =
+  let strings = tokenize "2.inverse"
+  let parsed = parseExpression strings
+  let expected = Choice1Of2 (Subfield(Constant(RawNumber 2), "inverse"), [])
+  Assert.Equal(expected, parsed)
+
+[<Fact>]
+let ``Test function on const``() =
+  let strings = tokenize "inverse 2"
+  let parsed = parseExpression strings
+  let expected = Choice1Of2 (FunctionApplication(Variable "inverse", Constant(RawNumber 2)), [])
   Assert.Equal(expected, parsed)
 
 [<Fact>]

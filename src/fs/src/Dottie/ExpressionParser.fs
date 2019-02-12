@@ -50,7 +50,7 @@ let parseExpression (tokens: string list) : Choice<Expression * string list, str
     | "import"::_ -> Choice1Of2(expr, tokens)
     | ";"::t -> Choice1Of2(expr, t)
     | "."::s::t when validIdentifier s -> parseExpression t (Subfield (expr, s))
-    | s::t when validIdentifier s ->
+    | s::t when s <> ";" ->
       match parseExpression' tokens with
       | Choice1Of2(e, t) -> parseExpression t (FunctionApplication(expr, e))
       | x -> x
