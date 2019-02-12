@@ -16,10 +16,38 @@ let ``Test subfield``() =
   let parsed = parseExpression strings
   let expected = Choice1Of2 (Subfield(Variable "x", "y"), [])
   Assert.Equal(expected, parsed)
-
+  
 [<Fact>]
 let ``Test sub-subfield``() =
   let strings = tokenize """x.y.z"""
   let parsed = parseExpression strings
   let expected = Choice1Of2 (Subfield(Subfield(Variable "x", "y"), "z"), [])
+  Assert.Equal(expected, parsed)
+
+[<Fact>]
+let ``Test function``() =
+  let strings = tokenize """f x"""
+  let parsed = parseExpression strings
+  let expected = Choice1Of2 (FunctionApplication(Variable "f", Variable "x"), [])
+  Assert.Equal(expected, parsed)
+  
+[<Fact>]
+let ``Test function field``() =
+  let strings = tokenize """a.f x"""
+  let parsed = parseExpression strings
+  let expected = Choice1Of2 (FunctionApplication(Subfield(Variable "a", "f"), Variable "x"), [])
+  Assert.Equal(expected, parsed)
+  
+[<Fact>]
+let ``Test function on field``() =
+  let strings = tokenize """f x.y"""
+  let parsed = parseExpression strings
+  let expected = Choice1Of2 (FunctionApplication(Variable"f", Subfield(Variable "x", "y")), [])
+  Assert.Equal(expected, parsed)
+
+[<Fact>]
+let ``Test function deep``() =
+  let strings = tokenize """a.b.f x.y.z"""
+  let parsed = parseExpression strings
+  let expected = Choice1Of2 (FunctionApplication(Subfield(Subfield(Variable "a", "b"), "f"), Subfield(Subfield(Variable "x", "y"), "z")), [])
   Assert.Equal(expected, parsed)
