@@ -66,6 +66,10 @@ let rec parseExpression (tokens: string list) : Choice<Expr * string list, strin
   | "import"::name::t -> parseContinuation t (Import name)
   | "\""::s::"\""::t -> parseContinuation t (Const(Str s))
   | s::t when let b, _ = Int32.TryParse s in b -> parseContinuation t (Const(Int(Int32.Parse s)))
+  | "{"::name::"with"::t ->
+    match parseObjectFields t Map.empty with
+    | Choice1Of2(expr, t) -> parseContinuation t (HashWith(name, expr))
+    | Choice2Of2 s -> Choice2Of2 s
   | "{"::t ->
     match parseObjectFields t Map.empty with
     | Choice1Of2(expr, t) -> parseContinuation t (Hash expr)
