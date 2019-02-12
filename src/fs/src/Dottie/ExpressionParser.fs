@@ -1,15 +1,11 @@
 ﻿module ExpressionParser
 
 open System
-open Tokenizer
 
 type RawType =
   | Str of string
   | Int of int
 
-type Definition =
-  { name: string
-    expression: Expr }
 and Expr =
   | Val of string
   | Dot of Expr * string
@@ -20,9 +16,6 @@ and Expr =
   | HashWith of string * Map<string, Expr>
   | Let of string * Expr * Expr
   | Fn of string * Expr
-and Statement =
-  | Assignment of Definition
-  | Return of Expr
 
 let keywords =
   [ "import"
