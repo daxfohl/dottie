@@ -18,6 +18,7 @@ and Expr =
   | Const of RawType
   | Hash of Map<string, Expr>
   | HashWith of string * Map<string, Expr>
+  | Let of string * Expr * Expr
   | Fn of string * list<Statement> * string
 and Statement =
   | Assignment of Definition
@@ -37,6 +38,19 @@ let validIdentifier (s: string) =
 let canStartExpression (s: string) = s <> ";"
 
 let rec parseExpression (tokens: string list) : Choice<Expr * string list, string> =
+  let rec parseLetBlock (tokens: string list) : Choice<Expr * string list, string> =
+    match tokens with
+    | "let"::name::"="::t ->
+      match parseExpression t with
+      | Choice1Of2 (expr, t) ->
+        match parseLetBlock t with
+        | Choice1Of2 (rest, t) -> Choice1Of2(Let(name, expr, rest), t)
+        | Choice2Of2 s -> Choice2Of2 s
+      | Choice2Of2 s -> Choice2Of2 s
+    | _ ->
+      match parseExpression tokens with
+      | Choice1Of2(expr, t) -> Choice1Of2(expr, t)
+      | Choice2Of2 s -> Choice2Of2 s
   let rec parseObjectFields (tokens: string list) (object: Map<string, Expr>) : Choice<Map<string, Expr> * string list, string> =
     match tokens with
     | "}"::t -> Choice1Of2 (object, t)
@@ -66,13 +80,19 @@ let rec parseExpression (tokens: string list) : Choice<Expr * string list, strin
   | "import"::name::t -> parseContinuation t (Import name)
   | "\""::s::"\""::t -> parseContinuation t (Const(Str s))
   | s::t when let b, _ = Int32.TryParse s in b -> parseContinuation t (Const(Int(Int32.Parse s)))
-  | "{"::name::"with"::t ->
-    match parseObjectFields t Map.empty with
-    | Choice1Of2(expr, t) -> parseContinuation t (HashWith(name, expr))
-    | Choice2Of2 s -> Choice2Of2 s
   | "{"::t ->
-    match parseObjectFields t Map.empty with
-    | Choice1Of2(expr, t) -> parseContinuation t (Hash expr)
-    | Choice2Of2 s -> Choice2Of2 s
+    match t with
+    | "let"::_::"="::_ ->
+      match parseLetBlock t with
+      | Choice1Of2(expr, t) -> Choice1Of2(expr, t)
+      | Choice2Of2 s -> Choice2Of2 s
+    | name::"with"::t ->
+      match parseObjectFields t Map.empty with
+      | Choice1Of2(expr, t) -> parseContinuation t (HashWith(name, expr))
+      | Choice2Of2 s -> Choice2Of2 s
+    | _ ->
+      match parseObjectFields t Map.empty with
+      | Choice1Of2(expr, t) -> parseContinuation t (Hash expr)
+      | Choice2Of2 s -> Choice2Of2 s
   | h::_ -> Choice2Of2 <| sprintf "parseExpression got %s" h
   | [] -> Choice2Of2 "parseExpression got empty list"
