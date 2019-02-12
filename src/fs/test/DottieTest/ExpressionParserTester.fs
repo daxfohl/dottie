@@ -268,12 +268,54 @@ let ``Test fn block``() =
   let parsed = parseExpression strings
   let expected = Choice1Of2 (Fn("x", Let("y", Const(Int 3), Val "x")), [])
   Assert.Equal(expected, parsed)
-
+  
 [<Fact>]
 let ``Test fn block in object``() =
   let strings = tokenize "{ x: fn x -> { let y = 3; x } ; y: fn x -> { let y = 3; x } }"
   let parsed = parseExpression strings
-  let expected = Choice1Of2 (Fn("x", Let("y", Const(Int 3), Val "x")), [])
   let expected = Choice1Of2 (Hash (Map.ofList [("x", Fn("x", Let("y", Const(Int 3), Val "x")))
                                                ("y", Fn("x", Let("y", Const(Int 3), Val "x")))]), [])
+  Assert.Equal(expected, parsed)
+
+[<Fact>]
+let ``Parse concat``() =
+  let strings = tokenize "fn ss -> { s1 with raw: ffi.concat { s1: ss.s1.raw, s2: ss.s2.raw } }"
+  let parsed = parseExpression strings
+  let expected = Choice1Of2 (Fn("ss", HashWith("s1", Map.ofList[("raw", Eval(Dot(Val "ffi","concat"), Hash(Map.ofList[("s1", Dot (Dot (Val "ss","s1"),"raw")); ("s2", Dot (Dot (Val "ss","s2"),"raw"))])))])), [])
+  Assert.Equal(expected, parsed)
+  
+
+[<Fact>]
+let ``Parse concat2``() =
+  let strings = tokenize "fn ss -> {
+        let s1 = ss.s1
+        let s2 = ss.s2
+        let s1raw = s1.raw
+        let s2raw = s2.raw
+        let concatinput = { s1: s1raw, s2: s2raw }
+        let concat = ffi.concat
+        let sout = concat concatinput
+        let out = { s1 with raw: sout }
+        out
+      }"
+  let parsed = parseExpression strings
+  let expected = Choice1Of2 (Fn ("ss",
+                                 Let("s1",
+                                     Dot(Val "ss","s1"),
+                                     Let("s2",
+                                         Dot(Val "ss","s2"),
+                                         Let("s1raw",
+                                             Dot(Val "s1","raw"),
+                                             Let("s2raw",
+                                                 Dot(Val "s2","raw"),
+                                                 Let("concatinput",
+                                                     Hash(Map.ofList [("s1", Val "s1raw"); ("s2", Val "s2raw")]),
+                                                     Let("concat",
+                                                         Dot(Val "ffi","concat"),
+                                                         Let("sout",
+                                                             Eval(Val "concat",Val "concatinput"),
+                                                             Let("out",
+                                                                 HashWith("s1", Map.ofList [("raw", Val "sout")]),
+                                                                 Val "out"))))))))),
+                             [])
   Assert.Equal(expected, parsed)
