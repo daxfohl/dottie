@@ -23,17 +23,29 @@ and Statement =
   | Assignment of Definition
   | Return of Expression
 
-let validIdentifier (s: string) = s <> null && s.Length <> 0 && Char.IsLetter(s.[0]) && s |> Seq.forall Char.IsLetterOrDigit
+let keywords =
+  [ "import"
+    "let" ]
+
+let validIdentifier (s: string) =
+  s <> null
+  && not (List.contains s keywords)
+  && s.Length <> 0
+  && Char.IsLetter(s.[0])
+  && s |> Seq.forall Char.IsLetterOrDigit
 
 let parseExpression (tokens: string list) : Choice<Expression * string list, string> =
   let rec parseExpression' (tokens: string list) : Choice<Expression * string list, string> =
     match tokens with
     | s::t when validIdentifier s -> parseExpression t (Variable s)
+    | "import"::name::t -> parseExpression t (Import name)
     | h::_ -> Choice2Of2 <| sprintf "parseExpression' got %s" h
     | [] -> Choice2Of2 "parseExpression' got empty list"
   and parseExpression (tokens: string list) (expr: Expression) : Choice<Expression * string list, string> =
     match tokens with
-    | [] -> Choice1Of2(expr, [])
+    | [] -> Choice1Of2(expr, tokens)
+    | "let"::_ -> Choice1Of2(expr, tokens)
+    | "import"::_ -> Choice1Of2(expr, tokens)
     | ";"::t -> Choice1Of2(expr, t)
     | "."::s::t when validIdentifier s -> parseExpression t (Subfield (expr, s))
     | s::t when validIdentifier s ->
