@@ -121,4 +121,3 @@ let ``Test function on import``() =
   let parsed = parseExpression strings
   let expected = Choice1Of2 (FunctionApplication(Variable "f", Import "A"), [])
   Assert.Equal(expected, parsed)
-
