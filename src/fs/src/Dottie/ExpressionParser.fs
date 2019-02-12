@@ -49,7 +49,11 @@ let rec parseExpression (tokens: string list) : Choice<Expr * string list, strin
       | Choice2Of2 s -> Choice2Of2 s
     | _ ->
       match parseExpression tokens with
-      | Choice1Of2(expr, t) -> Choice1Of2(expr, t)
+      | Choice1Of2(expr, t) ->
+        match t with
+        | "}"::t -> Choice1Of2(expr, t)
+        | s::_ -> Choice2Of2(sprintf "parseLetBlock expected '}' but got '%s'" s)
+        | [] -> Choice2Of2 "parseLetBlock expected '}' but got EOF"
       | Choice2Of2 s -> Choice2Of2 s
   let rec parseObjectFields (tokens: string list) (object: Map<string, Expr>) : Choice<Map<string, Expr> * string list, string> =
     match tokens with
@@ -84,7 +88,7 @@ let rec parseExpression (tokens: string list) : Choice<Expr * string list, strin
     match t with
     | "let"::_::"="::_ ->
       match parseLetBlock t with
-      | Choice1Of2(expr, t) -> Choice1Of2(expr, t)
+      | Choice1Of2(expr, t) -> parseContinuation t expr
       | Choice2Of2 s -> Choice2Of2 s
     | name::"with"::t ->
       match parseObjectFields t Map.empty with

@@ -187,11 +187,18 @@ let ``Test hash applied``() =
   let parsed = parseExpression strings
   let expected = Choice1Of2 (Eval(Val "f", Hash (Map.ofList [("x", Const(Int 3))])), [])
   Assert.Equal(expected, parsed)
-
+  
 [<Fact>]
 let ``Test hashwith more dots``() =
   let strings = tokenize "{a with x: a.b, y: 3}"
   let parsed = parseExpression strings
   let expected = Choice1Of2 (HashWith ("a", (Map.ofList [("x", Dot(Val "a", "b"))
                                                          ("y", Const(Int 3))])), [])
+  Assert.Equal(expected, parsed)
+
+[<Fact>]
+let ``Test let``() =
+  let strings = tokenize "{ let x = 3; x }"
+  let parsed = parseExpression strings
+  let expected = Choice1Of2 (Let ("x", Const(Int 3), Val "x"), [])
   Assert.Equal(expected, parsed)
