@@ -5,20 +5,20 @@ open Tokenizer
 
 type RawType =
   | RawString of string
-  | RawNumber of double
+  | RawNumber of int
 
 type Definition =
   { name: string
     expression: Expression }
 and Expression =
-  | Import of string
+  | Variable of string
   | Subfield of Expression * string
+  | FunctionApplication of Expression * Expression
+  | Import of string
+  | Constant of RawType
   | Object of list<Definition>
   | ObjectWith of string * list<Definition>
   | FunctionDefintion of string * list<Statement> * string
-  | FunctionApplication of Expression * Expression
-  | Constant of RawType
-  | Variable of string
 and Statement =
   | Assignment of Definition
   | Return of Expression
@@ -39,6 +39,8 @@ let parseExpression (tokens: string list) : Choice<Expression * string list, str
     match tokens with
     | s::t when validIdentifier s -> parseExpression t (Variable s)
     | "import"::name::t -> parseExpression t (Import name)
+    | "\""::s::"\""::t -> parseExpression t (Constant(RawString s))
+    | s::t when let b, _ = Int32.TryParse s in b -> parseExpression t (Constant(RawNumber(Int32.Parse s)))
     | h::_ -> Choice2Of2 <| sprintf "parseExpression' got %s" h
     | [] -> Choice2Of2 "parseExpression' got empty list"
   and parseExpression (tokens: string list) (expr: Expression) : Choice<Expression * string list, string> =
