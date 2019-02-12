@@ -12,3 +12,7 @@ let ``Single token``() =
   Assert.Equal<string list>(["$"; ";"], tokenize " $ ")
   Assert.Equal<string list>(["$"; ";"], tokenize "$")
   Assert.Equal<string list>(["$"; ";"], tokenize " $")
+
+[<Fact>]
+let ``Braces``() =
+  Assert.Equal<string list>(["{"; "}"; ";"], tokenize "{ }")

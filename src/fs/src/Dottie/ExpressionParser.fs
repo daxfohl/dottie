@@ -4,24 +4,24 @@ open System
 open Tokenizer
 
 type RawType =
-  | RawString of string
-  | RawNumber of int
+  | Str of string
+  | Int of int
 
 type Definition =
   { name: string
-    expression: Expression }
-and Expression =
-  | Variable of string
-  | Subfield of Expression * string
-  | FunctionApplication of Expression * Expression
+    expression: Expr }
+and Expr =
+  | Val of string
+  | Dot of Expr * string
+  | Eval of Expr * Expr
   | Import of string
-  | Constant of RawType
-  | Object of list<Definition>
-  | ObjectWith of string * list<Definition>
-  | FunctionDefintion of string * list<Statement> * string
+  | Const of RawType
+  | Hash of Map<string, Expr>
+  | HashWith of string * Map<string, Expr>
+  | Fn of string * list<Statement> * string
 and Statement =
   | Assignment of Definition
-  | Return of Expression
+  | Return of Expr
 
 let keywords =
   [ "import"
@@ -36,25 +36,45 @@ let validIdentifier (s: string) =
 
 let canStartExpression (s: string) = s <> ";"
 
-let rec parseExpression (tokens: string list) : Choice<Expression * string list, string> =
-  let rec parseContinuation (tokens: string list) (expr: Expression) : Choice<Expression * string list, string> =
+let rec parseExpression (tokens: string list) : Choice<Expr * string list, string> =
+  let rec parseObjectFields (tokens: string list) (object: Map<string, Expr>) : Choice<Map<string, Expr> * string list, string> =
+    match tokens with
+    | "}"::t -> Choice1Of2 (object, t)
+    | s::":"::t ->
+      match parseExpression t with
+      | Choice1Of2(expr, t') -> parseObjectFields t' (Map.add s expr object)
+      | Choice2Of2 s -> Choice2Of2 s
+    | s::m::_ -> Choice2Of2 <| sprintf "parseObjectFields expected name:, but got %s %s" s m
+    | [s] -> Choice2Of2 <| sprintf "parseObjectFields expected name:, but got %s EOF" s
+    | [] -> Choice2Of2 <| sprintf "parseObjectFields expected name:, but got EOF"
+  let rec parseContinuation (tokens: string list) (expr: Expr) : Choice<Expr * string list, string> =
     match tokens with
     | [] -> Choice1Of2(expr, tokens)
     | ";"::t -> Choice1Of2(expr, t)
     | "."::t ->
       match t with
-      | s::t when validIdentifier s -> parseContinuation t (Subfield (expr, s))
+      | s::t when validIdentifier s -> parseContinuation t (Dot (expr, s))
       | s::_ -> Choice2Of2 <| sprintf "expected identifier after dot but got %s" s
       | [] -> Choice2Of2 "got nothing after dot"
     | s::_ when canStartExpression s ->
       match parseExpression tokens with
-      | Choice1Of2(e, t) -> parseContinuation t (FunctionApplication(expr, e))
-      | _ -> Choice1Of2(expr, tokens)
+      | Choice1Of2(e, t) ->
+        let x = Choice1Of2 (Eval(expr, e), t)
+        x
+      | Choice2Of2 s -> Choice2Of2 s
     | h::_ -> Choice2Of2 <| sprintf "parseContinuation got %s" h
   match tokens with
-  | s::t when validIdentifier s -> parseContinuation t (Variable s)
+  | s::t when validIdentifier s ->
+    let x = parseContinuation t (Val s)
+    x
   | "import"::name::t -> parseContinuation t (Import name)
-  | "\""::s::"\""::t -> parseContinuation t (Constant(RawString s))
-  | s::t when let b, _ = Int32.TryParse s in b -> parseContinuation t (Constant(RawNumber(Int32.Parse s)))
+  | "\""::s::"\""::t -> parseContinuation t (Const(Str s))
+  | s::t when let b, _ = Int32.TryParse s in b -> parseContinuation t (Const(Int(Int32.Parse s)))
+  | "{"::t ->
+    match parseObjectFields t Map.empty with
+    | Choice1Of2(expr, t) -> 
+      let x = parseContinuation t (Hash expr)
+      x
+    | Choice2Of2 s -> Choice2Of2 s
   | h::_ -> Choice2Of2 <| sprintf "parseExpression got %s" h
   | [] -> Choice2Of2 "parseExpression got empty list"
