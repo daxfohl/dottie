@@ -19,14 +19,15 @@ and Expr =
   | Hash of Map<string, Expr>
   | HashWith of string * Map<string, Expr>
   | Let of string * Expr * Expr
-  | Fn of string * list<Statement> * string
+  | Fn of string * Expr
 and Statement =
   | Assignment of Definition
   | Return of Expr
 
 let keywords =
   [ "import"
-    "let" ]
+    "let"
+    "fn" ]
 
 let validIdentifier (s: string) =
   s <> null
@@ -98,5 +99,9 @@ let rec parseExpression (tokens: string list) : Choice<Expr * string list, strin
       match parseObjectFields t Map.empty with
       | Choice1Of2(expr, t) -> parseContinuation t (Hash expr)
       | Choice2Of2 s -> Choice2Of2 s
+  | "fn"::name::"->"::t ->
+    match parseExpression t with
+    | Choice1Of2 (expr, t) -> Choice1Of2(Fn(name, expr), t)
+    | Choice2Of2 s -> Choice2Of2 s
   | h::_ -> Choice2Of2 <| sprintf "parseExpression got %s" h
   | [] -> Choice2Of2 "parseExpression got empty list"
