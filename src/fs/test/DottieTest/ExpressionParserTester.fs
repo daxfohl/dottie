@@ -195,10 +195,48 @@ let ``Test hashwith more dots``() =
   let expected = Choice1Of2 (HashWith ("a", (Map.ofList [("x", Dot(Val "a", "b"))
                                                          ("y", Const(Int 3))])), [])
   Assert.Equal(expected, parsed)
-
+  
 [<Fact>]
 let ``Test let``() =
   let strings = tokenize "{ let x = 3; x }"
   let parsed = parseExpression strings
   let expected = Choice1Of2 (Let ("x", Const(Int 3), Val "x"), [])
+  Assert.Equal(expected, parsed)
+
+[<Fact>]
+let ``Test let two``() =
+  let strings = tokenize "{ let x = 3; let y = 3; x }"
+  let parsed = parseExpression strings
+  let expected = Choice1Of2 (Let ("x", Const(Int 3), Let("y", Const(Int 3), Val "x")), [])
+  Assert.Equal(expected, parsed)
+  
+[<Fact>]
+let ``Test let complex``() =
+  let strings = tokenize "{ let x = {x: a.b.f x.y.z, y: a.b.f x.y.z} ; let y = 3; x }"
+  let parsed = parseExpression strings
+  let expected = Choice1Of2 (Let ("x",
+                                  Hash (Map.ofList [("x", Eval(Dot(Dot(Val "a", "b"), "f"), Dot(Dot(Val "x", "y"), "z")))
+                                                    ("y", Eval(Dot(Dot(Val "a", "b"), "f"), Dot(Dot(Val "x", "y"), "z")))]),
+                                  Let("y", Const(Int 3), Val "x")), [])
+  Assert.Equal(expected, parsed)
+
+[<Fact>]
+let ``Test let nested``() =
+  let strings = tokenize "{ let z = { let x = 3; let y = 3; x } ; z }"
+  let parsed = parseExpression strings
+  let expected = Choice1Of2 (Let("z", (Let ("x", Const(Int 3), Let("y", Const(Int 3), Val "x"))), Val "z"), [])
+  Assert.Equal(expected, parsed)
+
+[<Fact>]
+let ``Test let function``() =
+  let strings = tokenize "f { let x = 3; x }"
+  let parsed = parseExpression strings
+  let expected = Choice1Of2 (Eval(Val "f", Let ("x", Const(Int 3), Val "x")), [])
+  Assert.Equal(expected, parsed)
+  
+[<Fact>]
+let ``Test let dot``() =
+  let strings = tokenize "{ let x = 3; x } .z"
+  let parsed = parseExpression strings
+  let expected = Choice1Of2 (Dot(Let ("x", Const(Int 3), Val "x"), "z"), [])
   Assert.Equal(expected, parsed)
