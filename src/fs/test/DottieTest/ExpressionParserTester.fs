@@ -115,3 +115,10 @@ let ``Test function of import``() =
   let expected = Choice1Of2 (FunctionApplication(Subfield(Import "A", "f"), Variable "x"), [])
   Assert.Equal(expected, parsed)
 
+[<Fact>]
+let ``Test function on import``() =
+  let strings = tokenize "f import A"
+  let parsed = parseExpression strings
+  let expected = Choice1Of2 (FunctionApplication(Variable "f", Import "A"), [])
+  Assert.Equal(expected, parsed)
+
