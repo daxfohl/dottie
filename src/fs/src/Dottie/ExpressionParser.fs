@@ -58,23 +58,17 @@ let rec parseExpression (tokens: string list) : Choice<Expr * string list, strin
       | [] -> Choice2Of2 "got nothing after dot"
     | s::_ when canStartExpression s ->
       match parseExpression tokens with
-      | Choice1Of2(e, t) ->
-        let x = Choice1Of2 (Eval(expr, e), t)
-        x
+      | Choice1Of2(e, t) -> Choice1Of2 (Eval(expr, e), t)
       | Choice2Of2 s -> Choice2Of2 s
     | h::_ -> Choice2Of2 <| sprintf "parseContinuation got %s" h
   match tokens with
-  | s::t when validIdentifier s ->
-    let x = parseContinuation t (Val s)
-    x
+  | s::t when validIdentifier s -> parseContinuation t (Val s)
   | "import"::name::t -> parseContinuation t (Import name)
   | "\""::s::"\""::t -> parseContinuation t (Const(Str s))
   | s::t when let b, _ = Int32.TryParse s in b -> parseContinuation t (Const(Int(Int32.Parse s)))
   | "{"::t ->
     match parseObjectFields t Map.empty with
-    | Choice1Of2(expr, t) -> 
-      let x = parseContinuation t (Hash expr)
-      x
+    | Choice1Of2(expr, t) -> parseContinuation t (Hash expr)
     | Choice2Of2 s -> Choice2Of2 s
   | h::_ -> Choice2Of2 <| sprintf "parseExpression got %s" h
   | [] -> Choice2Of2 "parseExpression got empty list"
