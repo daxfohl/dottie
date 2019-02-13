@@ -9,14 +9,14 @@ let inline (^%) f = f
 let get choice =
   match choice with
   | Choice1Of2 (x, _) -> x
-  | Choice2Of2 _ -> failwith "Choice2Of2"
+  | Choice2Of2 x -> failwith x
 
 [<Fact>]
 let ``Test undefined``() =
   let strings = tokenize "x"
   let parsed = get ^% parseExpression strings
   let spec = getType Map.empty parsed
-  Assert.Equal(Choice2Of2 "Val x undefined", spec)
+  Assert.Equal(Choice2Of2(Errors.undefined "x"), spec)
 
 [<Fact>]
 let ``Test number``() =
@@ -112,3 +112,12 @@ let ``Test wrong type``() =
   let parsed = get ^% parseExpression strings
   let spec = getType (Map.ofList[("parse", Function(String, Integer))]) parsed
   Assert.Equal(Choice2Of2 ^% Errors.notCompatible (Val "x") Integer (Val "parse") String, spec)
+
+[<Fact>]
+let ``Test inc def``() =
+  let strings = tokenize "fn x -> inc x"
+  let parsed = get ^% parseExpression strings
+  let spec = get ^% getType (Map.ofList[("inc", Function(Integer, Integer))]) parsed
+  match spec with
+  | Function(Integer, Integer) -> ()
+  | x -> Assert.True(false, sprintf "%A" x)
