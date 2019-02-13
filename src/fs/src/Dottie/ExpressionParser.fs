@@ -11,17 +11,22 @@ type Expr =
   | Const of RawType
   | Val of string
   | Let of string * Expr * Expr
+  | Eval of Expr * Expr
+  | Fn of string * Expr
   | Hash of Map<string, Expr>
   | HashWith of string * Map<string, Expr>
   | Dot of Expr * string
-  | Eval of Expr * Expr
   | Import of string
-  | Fn of string * Expr
 
 type Spec =
   | String
   | Integer
   | Free of Guid
+  | Function of Spec * Spec
+
+module Errors =
+  let notCompatible arg argspec fn input = sprintf "args %A of type %A not compatible with fn %A of type %A" arg argspec fn input
+  let notAFunction fn fnspec = sprintf "function %A is not of type function but %A" fn fnspec
 
 let rec getType (inputs: Map<string, Spec>) (expr: Expr) =
   match expr with
@@ -30,12 +35,22 @@ let rec getType (inputs: Map<string, Spec>) (expr: Expr) =
   | Val s ->
     match Map.tryFind s inputs with
     | Some spec -> Choice1Of2(spec, inputs)
-    | None ->
-      let g = Free(Guid.NewGuid())
-      Choice1Of2(g, Map.add s g inputs)
+    | None -> Choice2Of2(sprintf "Val %s undefined" s)
   | Let(s, expr, rest) ->
     match getType inputs expr with
     | Choice1Of2(spec, outputs) -> getType (Map.add s spec outputs) rest
+    | x -> x
+  | Eval(fn, arg) ->
+    match getType inputs fn with
+    | Choice1Of2(fnspec, fnoutputs) ->
+      match fnspec with
+      | Function(input, output) ->
+        match getType fnoutputs arg with
+        | Choice1Of2(argspec, argoutput) ->
+          if argspec = input then Choice1Of2(output, argoutput)
+          else Choice2Of2 (Errors.notCompatible arg argspec fn input)
+        | x -> x
+      | _ ->Choice2Of2 (Errors.notAFunction fn fnspec)
     | x -> x
   | _ -> Choice2Of2 "not implemented"
 
