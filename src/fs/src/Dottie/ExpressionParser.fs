@@ -1,21 +1,43 @@
 ﻿module ExpressionParser
 
 open System
+open System.Runtime.InteropServices
 
 type RawType =
   | Str of string
   | Int of int
 
-and Expr =
+type Expr =
+  | Const of RawType
   | Val of string
+  | Let of string * Expr * Expr
+  | Hash of Map<string, Expr>
+  | HashWith of string * Map<string, Expr>
   | Dot of Expr * string
   | Eval of Expr * Expr
   | Import of string
-  | Const of RawType
-  | Hash of Map<string, Expr>
-  | HashWith of string * Map<string, Expr>
-  | Let of string * Expr * Expr
   | Fn of string * Expr
+
+type Spec =
+  | String
+  | Integer
+  | Free of Guid
+
+let rec getType (inputs: Map<string, Spec>) (expr: Expr) =
+  match expr with
+  | Const(Str _) -> Choice1Of2(String, inputs)
+  | Const(Int _) -> Choice1Of2(Integer, inputs)
+  | Val s ->
+    match Map.tryFind s inputs with
+    | Some spec -> Choice1Of2(spec, inputs)
+    | None ->
+      let g = Free(Guid.NewGuid())
+      Choice1Of2(g, Map.add s g inputs)
+  | Let(s, expr, rest) ->
+    match getType inputs expr with
+    | Choice1Of2(spec, outputs) -> getType (Map.add s spec outputs) rest
+    | x -> x
+  | _ -> Choice2Of2 "not implemented"
 
 let keywords =
   [ "import"

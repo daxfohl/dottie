@@ -64,6 +64,7 @@
     <Compile Include="AssemblyInfo.fs" />
     <Compile Include="TokenizerTester.fs" />
     <Compile Include="ExpressionParserTester.fs" />
+    <Compile Include="TypeInferenceTester.fs" />
     <Compile Include="ParserTester.fs" />
     <Content Include="paket.references" />
   </ItemGroup>
