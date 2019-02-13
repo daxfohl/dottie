@@ -53,8 +53,14 @@ let rec getType (inputs: Map<Expr, Spec>) (expr: Expr) =
       | Function(input, output) ->
         match getType fnoutputs arg with
         | Choice1Of2(argspec, argoutput) ->
-          if argspec.canBeConvertedTo input then Choice1Of2(output, Map.add arg input argoutput )
+          if argspec.canBeConvertedTo input then Choice1Of2(output, Map.add arg input argoutput)
           else Choice2Of2 (Errors.notCompatible arg argspec fn input)
+        | x -> x
+      | Free _ ->
+        match getType fnoutputs arg with
+        | Choice1Of2(argspec, argoutput) ->
+          let g = Free(Guid.NewGuid())
+          Choice1Of2(g, Map.add fn (Function(argspec, g)) argoutput)
         | x -> x
       | _ ->Choice2Of2 (Errors.notAFunction fn fnspec)
     | x -> x
