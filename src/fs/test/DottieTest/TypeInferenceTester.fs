@@ -146,7 +146,7 @@ let ``Test inc inc eval wrong type``() =
   let parsed = get ^% parseExpression strings
   let spec = getType (Map.ofList[(Val "inc", Function(Integer, Integer))]) parsed
   Assert.Equal(Choice2Of2 ^% Errors.notCompatible (Val "inc") (Function(Integer, Integer)) (Val "inc2") Integer, spec)
-
+  
 [<Fact>]
 let ``Test higher order``() =
   let strings = tokenize "{ let x = 3; let doToX = fn f -> f x; doToX }"
@@ -154,4 +154,22 @@ let ``Test higher order``() =
   let spec = get ^% getType (Map.ofList[(Val "inc", Function(Integer, Integer))]) parsed
   match spec with
   | Function(Function(Integer,Free a), Free b) when a = b -> ()
+  | x -> Assert.True(false, sprintf "%A" x)
+
+[<Fact>]
+let ``Test higher order 2``() =
+  let strings = tokenize "fn x -> { let doToX = fn f -> f x; doToX }"
+  let parsed = get ^% parseExpression strings
+  let spec = get ^% getType (Map.ofList[(Val "inc", Function(Integer, Integer))]) parsed
+  match spec with
+  | Function(Free a, Function(Function(Free b, Free c), Free d)) when a = b && c = d && a <> c -> ()
+  | x -> Assert.True(false, sprintf "%A" x)
+
+[<Fact>]
+let ``Test higher order 2a``() =
+  let strings = tokenize "fn x -> fn f -> f x"
+  let parsed = get ^% parseExpression strings
+  let spec = get ^% getType (Map.ofList[(Val "inc", Function(Integer, Integer))]) parsed
+  match spec with
+  | Function(Free a, Function(Function(Free b, Free c), Free d)) when a = b && c = d && a <> c-> ()
   | x -> Assert.True(false, sprintf "%A" x)
