@@ -85,7 +85,7 @@ let ``Test let nested``() =
 let ``Test inc``() =
   let strings = tokenize "{ let x = 3; inc x }"
   let parsed = get ^% parseExpression strings
-  let spec = get ^% getType (Map.ofList[("inc", Function(Integer, Integer))]) parsed
+  let spec = get ^% getType (Map.ofList[(Val "inc", Function(Integer, Integer))]) parsed
   match spec with
   | Integer -> ()
   | x -> Assert.True(false, sprintf "%A" x)
@@ -94,7 +94,7 @@ let ``Test inc``() =
 let ``Test toStr``() =
   let strings = tokenize "{ let x = 3; toStr x }"
   let parsed = get ^% parseExpression strings
-  let spec = get ^% getType (Map.ofList[("toStr", Function(Integer, String))]) parsed
+  let spec = get ^% getType (Map.ofList[(Val "toStr", Function(Integer, String))]) parsed
   match spec with
   | String -> ()
   | x -> Assert.True(false, sprintf "%A" x)
@@ -110,14 +110,14 @@ let ``Test not function``() =
 let ``Test wrong type``() =
   let strings = tokenize "{ let x = 3; parse x }"
   let parsed = get ^% parseExpression strings
-  let spec = getType (Map.ofList[("parse", Function(String, Integer))]) parsed
+  let spec = getType (Map.ofList[(Val "parse", Function(String, Integer))]) parsed
   Assert.Equal(Choice2Of2 ^% Errors.notCompatible (Val "x") Integer (Val "parse") String, spec)
 
 [<Fact>]
 let ``Test inc def``() =
   let strings = tokenize "fn x -> inc x"
   let parsed = get ^% parseExpression strings
-  let spec = get ^% getType (Map.ofList[("inc", Function(Integer, Integer))]) parsed
+  let spec = get ^% getType (Map.ofList[(Val "inc", Function(Integer, Integer))]) parsed
   match spec with
   | Function(Integer, Integer) -> ()
   | x -> Assert.True(false, sprintf "%A" x)

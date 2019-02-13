@@ -34,17 +34,17 @@ module Errors =
   let notAFunction fn fnspec = sprintf "function %A is not of type function but %A" fn fnspec
   let undefined x = sprintf "Val %s undefined" x
 
-let rec getType (inputs: Map<string, Spec>) (expr: Expr) =
+let rec getType (inputs: Map<Expr, Spec>) (expr: Expr) =
   match expr with
   | Const(Str _) -> Choice1Of2(String, inputs)
   | Const(Int _) -> Choice1Of2(Integer, inputs)
   | Val s ->
-    match Map.tryFind s inputs with
+    match Map.tryFind expr inputs with
     | Some spec -> Choice1Of2(spec, inputs)
     | None -> Choice2Of2(Errors.undefined s)
   | Let(s, expr, rest) ->
     match getType inputs expr with
-    | Choice1Of2(spec, outputs) -> getType (Map.add s spec outputs) rest
+    | Choice1Of2(spec, outputs) -> getType (Map.add (Val s) spec outputs) rest
     | x -> x
   | Eval(fn, arg) ->
     match getType inputs fn with
@@ -53,14 +53,14 @@ let rec getType (inputs: Map<string, Spec>) (expr: Expr) =
       | Function(input, output) ->
         match getType fnoutputs arg with
         | Choice1Of2(argspec, argoutput) ->
-          if argspec.canBeConvertedTo input then Choice1Of2(output, Map.add )
+          if argspec.canBeConvertedTo input then Choice1Of2(output, Map.add arg input argoutput )
           else Choice2Of2 (Errors.notCompatible arg argspec fn input)
         | x -> x
       | _ ->Choice2Of2 (Errors.notAFunction fn fnspec)
     | x -> x
   | Fn(input, expr) ->
-    let g = Free(Guid.NewGuid())
-    let inputs = Map.add input g inputs
+    let input = Val input
+    let inputs = Map.add input (Free(Guid.NewGuid())) inputs
     match getType inputs expr with
     | Choice1Of2(spec, outputs) -> Choice1Of2(Function(Map.find input outputs, spec), outputs)
     | x -> x
