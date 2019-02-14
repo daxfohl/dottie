@@ -151,7 +151,7 @@ let ``Test inc inc eval wrong type``() =
 let ``Test higher order``() =
   let strings = tokenize "{ let x = 3; let doToX = fn f -> f x; doToX }"
   let parsed = get ^% parseExpression strings
-  let spec = get ^% getType (Map.ofList[(Val "inc", Function(Integer, Integer))]) parsed
+  let spec = get ^% getType Map.empty parsed
   match spec with
   | Function(Function(Integer,Free a), Free b) when a = b -> ()
   | x -> Assert.True(false, sprintf "%A" x)
@@ -160,7 +160,7 @@ let ``Test higher order``() =
 let ``Test higher order 2``() =
   let strings = tokenize "fn x -> { let doToX = fn f -> f x; doToX }"
   let parsed = get ^% parseExpression strings
-  let spec = get ^% getType (Map.ofList[(Val "inc", Function(Integer, Integer))]) parsed
+  let spec = get ^% getType Map.empty parsed
   match spec with
   | Function(Free a, Function(Function(Free b, Free c), Free d)) when a = b && c = d && a <> c -> ()
   | x -> Assert.True(false, sprintf "%A" x)
@@ -169,7 +169,17 @@ let ``Test higher order 2``() =
 let ``Test higher order 2a``() =
   let strings = tokenize "fn x -> fn f -> f x"
   let parsed = get ^% parseExpression strings
-  let spec = get ^% getType (Map.ofList[(Val "inc", Function(Integer, Integer))]) parsed
+  let spec = get ^% getType Map.empty parsed
   match spec with
   | Function(Free a, Function(Function(Free b, Free c), Free d)) when a = b && c = d && a <> c-> ()
+  | x -> Assert.True(false, sprintf "%A" x)
+
+[<Fact>]
+let ``Test y combinator``() =
+  let strings = tokenize "{ let y = fn f -> f y f; y }"
+  let parsed = get ^% parseExpression strings
+  let spec1 = getType Map.empty parsed
+  let spec = get spec1
+  match spec with
+  | Function(Function(Free a, Free b), Free c) when b = c && a = c -> ()
   | x -> Assert.True(false, sprintf "%A" x)

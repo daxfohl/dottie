@@ -70,28 +70,28 @@ let ``Test function function deep``() =
 let ``Test number``() =
   let strings = tokenize "2"
   let parsed = parseExpression strings
-  let expected = Choice1Of2 (Const(Int 2), [])
+  let expected = Choice1Of2 (Literal(Int 2), [])
   Assert.Equal(expected, parsed)
 
 [<Fact>]
 let ``Test string``() =
   let strings = tokenize "\"test\""
   let parsed = parseExpression strings
-  let expected = Choice1Of2 (Const(Str "test"), [])
+  let expected = Choice1Of2 (Literal(Str "test"), [])
   Assert.Equal(expected, parsed)
 
 [<Fact>]
 let ``Test const subfield``() =
   let strings = tokenize "2.inverse"
   let parsed = parseExpression strings
-  let expected = Choice1Of2 (Dot(Const(Int 2), "inverse"), [])
+  let expected = Choice1Of2 (Dot(Literal(Int 2), "inverse"), [])
   Assert.Equal(expected, parsed)
 
 [<Fact>]
 let ``Test function on const``() =
   let strings = tokenize "inverse 2"
   let parsed = parseExpression strings
-  let expected = Choice1Of2 (Eval(Val "inverse", Const(Int 2)), [])
+  let expected = Choice1Of2 (Eval(Val "inverse", Literal(Int 2)), [])
   Assert.Equal(expected, parsed)
 
 [<Fact>]
@@ -133,14 +133,14 @@ let ``Test hash empty``() =
 let ``Test hash one val``() =
   let strings = tokenize "{x: 3}"
   let parsed = parseExpression strings
-  let expected = Choice1Of2 (Hash (Map.ofList [("x", Const(Int 3))]), [])
+  let expected = Choice1Of2 (Hash (Map.ofList [("x", Literal(Int 3))]), [])
   Assert.Equal(expected, parsed)
 
 [<Fact>]
 let ``Test hash two val``() =
   let strings = tokenize "{x: 3, y: f}"
   let parsed = parseExpression strings
-  let expected = Choice1Of2 (Hash (Map.ofList [("x", Const(Int 3)); ("y", Val "f")]), [])
+  let expected = Choice1Of2 (Hash (Map.ofList [("x", Literal(Int 3)); ("y", Val "f")]), [])
   Assert.Equal(expected, parsed)
 
 [<Fact>]
@@ -155,7 +155,7 @@ let ``Test hash more dots``() =
   let strings = tokenize "{x: a.b, y: 3}"
   let parsed = parseExpression strings
   let expected = Choice1Of2 (Hash (Map.ofList [("x", Dot(Val "a", "b"))
-                                               ("y", Const(Int 3))]), [])
+                                               ("y", Literal(Int 3))]), [])
   Assert.Equal(expected, parsed)
 
 [<Fact>]
@@ -163,7 +163,7 @@ let ``Test hash function applied``() =
   let strings = tokenize "{x: a b, y: 3}"
   let parsed = parseExpression strings
   let expected = Choice1Of2 (Hash (Map.ofList [("x", Eval(Val "a", Val "b"))
-                                               ("y", Const(Int 3))]), [])
+                                               ("y", Literal(Int 3))]), [])
   Assert.Equal(expected, parsed)
 
 [<Fact>]
@@ -185,7 +185,7 @@ let ``Test hash dotted``() =
 let ``Test hash applied``() =
   let strings = tokenize "f {x: 3}"
   let parsed = parseExpression strings
-  let expected = Choice1Of2 (Eval(Val "f", Hash (Map.ofList [("x", Const(Int 3))])), [])
+  let expected = Choice1Of2 (Eval(Val "f", Hash (Map.ofList [("x", Literal(Int 3))])), [])
   Assert.Equal(expected, parsed)
   
 [<Fact>]
@@ -193,21 +193,21 @@ let ``Test hashwith more dots``() =
   let strings = tokenize "{a with x: a.b, y: 3}"
   let parsed = parseExpression strings
   let expected = Choice1Of2 (HashWith ("a", (Map.ofList [("x", Dot(Val "a", "b"))
-                                                         ("y", Const(Int 3))])), [])
+                                                         ("y", Literal(Int 3))])), [])
   Assert.Equal(expected, parsed)
   
 [<Fact>]
 let ``Test let``() =
   let strings = tokenize "{ let x = 3; x }"
   let parsed = parseExpression strings
-  let expected = Choice1Of2 (Let ("x", Const(Int 3), Val "x"), [])
+  let expected = Choice1Of2 (Let ("x", Literal(Int 3), Val "x"), [])
   Assert.Equal(expected, parsed)
 
 [<Fact>]
 let ``Test let two``() =
   let strings = tokenize "{ let x = 3; let y = 3; x }"
   let parsed = parseExpression strings
-  let expected = Choice1Of2 (Let ("x", Const(Int 3), Let("y", Const(Int 3), Val "x")), [])
+  let expected = Choice1Of2 (Let ("x", Literal(Int 3), Let("y", Literal(Int 3), Val "x")), [])
   Assert.Equal(expected, parsed)
   
 [<Fact>]
@@ -217,28 +217,28 @@ let ``Test let complex``() =
   let expected = Choice1Of2 (Let ("x",
                                   Hash (Map.ofList [("x", Eval(Dot(Dot(Val "a", "b"), "f"), Dot(Dot(Val "x", "y"), "z")))
                                                     ("y", Eval(Dot(Dot(Val "a", "b"), "f"), Dot(Dot(Val "x", "y"), "z")))]),
-                                  Let("y", Const(Int 3), Val "x")), [])
+                                  Let("y", Literal(Int 3), Val "x")), [])
   Assert.Equal(expected, parsed)
 
 [<Fact>]
 let ``Test let nested``() =
   let strings = tokenize "{ let z = { let x = 3; let y = 3; x } ; z }"
   let parsed = parseExpression strings
-  let expected = Choice1Of2 (Let("z", (Let ("x", Const(Int 3), Let("y", Const(Int 3), Val "x"))), Val "z"), [])
+  let expected = Choice1Of2 (Let("z", (Let ("x", Literal(Int 3), Let("y", Literal(Int 3), Val "x"))), Val "z"), [])
   Assert.Equal(expected, parsed)
 
 [<Fact>]
 let ``Test let function``() =
   let strings = tokenize "f { let x = 3; x }"
   let parsed = parseExpression strings
-  let expected = Choice1Of2 (Eval(Val "f", Let ("x", Const(Int 3), Val "x")), [])
+  let expected = Choice1Of2 (Eval(Val "f", Let ("x", Literal(Int 3), Val "x")), [])
   Assert.Equal(expected, parsed)
   
 [<Fact>]
 let ``Test let dot``() =
   let strings = tokenize "{ let x = 3; x } .z"
   let parsed = parseExpression strings
-  let expected = Choice1Of2 (Dot(Let ("x", Const(Int 3), Val "x"), "z"), [])
+  let expected = Choice1Of2 (Dot(Let ("x", Literal(Int 3), Val "x"), "z"), [])
   Assert.Equal(expected, parsed)
   
 [<Fact>]
@@ -266,15 +266,15 @@ let ``Test function of fn``() =
 let ``Test fn block``() =
   let strings = tokenize "fn x -> { let y = 3; x }"
   let parsed = parseExpression strings
-  let expected = Choice1Of2 (Fn("x", Let("y", Const(Int 3), Val "x")), [])
+  let expected = Choice1Of2 (Fn("x", Let("y", Literal(Int 3), Val "x")), [])
   Assert.Equal(expected, parsed)
   
 [<Fact>]
 let ``Test fn block in object``() =
   let strings = tokenize "{ x: fn x -> { let y = 3; x } ; y: fn x -> { let y = 3; x } }"
   let parsed = parseExpression strings
-  let expected = Choice1Of2 (Hash (Map.ofList [("x", Fn("x", Let("y", Const(Int 3), Val "x")))
-                                               ("y", Fn("x", Let("y", Const(Int 3), Val "x")))]), [])
+  let expected = Choice1Of2 (Hash (Map.ofList [("x", Fn("x", Let("y", Literal(Int 3), Val "x")))
+                                               ("y", Fn("x", Let("y", Literal(Int 3), Val "x")))]), [])
   Assert.Equal(expected, parsed)
 
 [<Fact>]

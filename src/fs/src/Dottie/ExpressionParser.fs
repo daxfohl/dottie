@@ -1,14 +1,13 @@
 ﻿module ExpressionParser
 
 open System
-open System.Runtime.InteropServices
 
-type RawType =
+type Literal =
   | Str of string
   | Int of int
 
 type Expr =
-  | Const of RawType
+  | Literal of Literal
   | Val of string
   | Let of string * Expr * Expr
   | Eval of Expr * Expr
@@ -21,13 +20,60 @@ type Expr =
 type Spec =
   | String
   | Integer
-  | Free of Guid
+  | Free of int
   | Function of Spec * Spec
   with
     member this.canBeConvertedTo spec2 =
       match this with
       | Free _ -> true
       | _ -> this = spec2
+
+let mutable id = 0
+let fresh() =
+  id <- id + 1
+  Free id
+
+type Specs = Map<Expr, Spec>
+
+module UnifyErrors =
+  let cannotCoalesce(spec1: Spec, spec2: Spec) = sprintf "Cannot coalesce %A with %A" spec1 spec2
+
+let rec coalesce(spec1: Spec) (spec2: Spec) =
+  if spec1 = spec2 then Choice1Of2 spec1
+  else
+    let err = Choice2Of2(UnifyErrors.cannotCoalesce(spec1, spec2))
+    match spec2 with
+    | String ->
+      match spec1 with
+      | Free _ -> Choice1Of2 spec2
+      | _ -> err
+    | Integer ->
+      match spec1 with
+      | Free _ -> Choice1Of2 spec2
+      | _ -> err
+    | Free i ->
+      match spec1 with
+      | Free i1 -> Choice1Of2(Free(Math.Max(i1, i)))
+      | _ -> Choice1Of2 spec1
+    | Function(input, output) ->
+      match spec1 with
+      | Free _ -> Choice1Of2 spec2
+      | Function(input1, output1) ->
+        match coalesce input input1 with
+        | Choice1Of2 input ->
+          match coalesce output output1 with
+          | Choice1Of2 output -> Choice1Of2(Function(input, output))
+          | err -> err
+        | err -> err
+      | _ -> err
+
+let unify(specs: Specs, expr: Expr, spec): Choice<Specs, string> =
+  match Map.tryFind expr specs with
+  | None -> Choice1Of2(Map.add expr spec specs)
+  | Some existing ->
+    match coalesce existing spec with
+    | Choice1Of2 newspec -> Choice1Of2(Map.add expr newspec specs)
+    | Choice2Of2 err -> Choice2Of2 err
 
 module Errors =
   let notCompatible arg argspec fn input = sprintf "args %A of type %A not compatible with fn %A of type %A" arg argspec fn input
@@ -36,13 +82,14 @@ module Errors =
 
 let rec getType (inputs: Map<Expr, Spec>) (expr: Expr) =
   match expr with
-  | Const(Str _) -> Choice1Of2(String, inputs)
-  | Const(Int _) -> Choice1Of2(Integer, inputs)
+  | Literal(Str _) -> Choice1Of2(String, inputs)
+  | Literal(Int _) -> Choice1Of2(Integer, inputs)
   | Val s ->
     match Map.tryFind expr inputs with
     | Some spec -> Choice1Of2(spec, inputs)
     | None -> Choice2Of2(Errors.undefined s)
   | Let(s, expr, rest) ->
+    let inputs = Map.add (Val s) (fresh()) inputs
     match getType inputs expr with
     | Choice1Of2(spec, outputs) -> getType (Map.add (Val s) spec outputs) rest
     | x -> x
@@ -59,16 +106,18 @@ let rec getType (inputs: Map<Expr, Spec>) (expr: Expr) =
       | Free _ ->
         match getType fnoutputs arg with
         | Choice1Of2(argspec, argoutput) ->
-          let g = Free(Guid.NewGuid())
+          let g = fresh()
           Choice1Of2(g, Map.add fn (Function(argspec, g)) argoutput)
         | x -> x
       | _ ->Choice2Of2 (Errors.notAFunction fn fnspec)
     | x -> x
   | Fn(input, expr) ->
     let input = Val input
-    let inputs = Map.add input (Free(Guid.NewGuid())) inputs
+    let inputs = Map.add input (fresh()) inputs
     match getType inputs expr with
-    | Choice1Of2(spec, outputs) -> Choice1Of2(Function(Map.find input outputs, spec), outputs)
+    | Choice1Of2(spec, outputs) -> 
+      let inputSpec = Map.find input outputs
+      Choice1Of2(Function(inputSpec, spec), outputs)
     | x -> x
   | _ -> Choice2Of2 "not implemented"
 
@@ -131,8 +180,8 @@ let rec parseExpression (tokens: string list) : Choice<Expr * string list, strin
   match tokens with
   | s::t when validIdentifier s -> parseContinuation t (Val s)
   | "import"::name::t -> parseContinuation t (Import name)
-  | "\""::s::"\""::t -> parseContinuation t (Const(Str s))
-  | s::t when let b, _ = Int32.TryParse s in b -> parseContinuation t (Const(Int(Int32.Parse s)))
+  | "\""::s::"\""::t -> parseContinuation t (Literal(Str s))
+  | s::t when let b, _ = Int32.TryParse s in b -> parseContinuation t (Literal(Int(Int32.Parse s)))
   | "{"::t ->
     match t with
     | "let"::_::"="::_ ->
