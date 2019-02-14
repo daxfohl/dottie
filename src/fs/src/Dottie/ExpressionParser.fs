@@ -2,36 +2,37 @@
 
 open System
 
-type Literal =
-  | Str of string
-  | Int of int
+type LitExpr =
+  | StrExpr of string
+  | IntExpr of int
 
 type Expr =
-  | Literal of Literal
-  | Val of string
-  | Let of string * Expr * Expr
-  | Eval of Expr * Expr
-  | Fn of string * Expr
-  | Hash of Map<string, Expr>
-  | HashWith of string * Map<string, Expr>
-  | Dot of Expr * string
-  | Import of string
+  | LitExpr of LitExpr
+  | ValExpr of string
+  | LetExpr of string * Expr * Expr
+  | EvalExpr of Expr * Expr
+  | FnExpr of string * Expr
+  | ObjExpr of Map<string, Expr>
+  | WithExpr of string * Map<string, Expr>
+  | DotExpr of Expr * string
+  | ImportExpr of string
+
+type LitSpec = StrSpec | IntSpec
 
 type Spec =
-  | String
-  | Integer
-  | Free of int
-  | Function of Spec * Spec
+  | LitSpec of LitSpec
+  | FreeSpec of int
+  | FnSpec of Spec * Spec
   with
     member this.canBeConvertedTo spec2 =
       match this with
-      | Free _ -> true
+      | FreeSpec _ -> true
       | _ -> this = spec2
 
 let mutable id = 0
 let fresh() =
   id <- id + 1
-  Free id
+  FreeSpec id
 
 type Specs = Map<Expr, Spec>
 
@@ -43,26 +44,22 @@ let rec coalesce(spec1: Spec) (spec2: Spec) =
   else
     let err = Choice2Of2(UnifyErrors.cannotCoalesce(spec1, spec2))
     match spec2 with
-    | String ->
+    | LitSpec _ ->
       match spec1 with
-      | Free _ -> Choice1Of2 spec2
+      | FreeSpec _ -> Choice1Of2 spec2
       | _ -> err
-    | Integer ->
+    | FreeSpec i ->
       match spec1 with
-      | Free _ -> Choice1Of2 spec2
-      | _ -> err
-    | Free i ->
-      match spec1 with
-      | Free i1 -> Choice1Of2(Free(Math.Max(i1, i)))
+      | FreeSpec i1 -> Choice1Of2(FreeSpec(Math.Max(i1, i)))
       | _ -> Choice1Of2 spec1
-    | Function(input, output) ->
+    | FnSpec(input, output) ->
       match spec1 with
-      | Free _ -> Choice1Of2 spec2
-      | Function(input1, output1) ->
+      | FreeSpec _ -> Choice1Of2 spec2
+      | FnSpec(input1, output1) ->
         match coalesce input input1 with
         | Choice1Of2 input ->
           match coalesce output output1 with
-          | Choice1Of2 output -> Choice1Of2(Function(input, output))
+          | Choice1Of2 output -> Choice1Of2(FnSpec(input, output))
           | err -> err
         | err -> err
       | _ -> err
@@ -82,42 +79,42 @@ module Errors =
 
 let rec getType (inputs: Map<Expr, Spec>) (expr: Expr) =
   match expr with
-  | Literal(Str _) -> Choice1Of2(String, inputs)
-  | Literal(Int _) -> Choice1Of2(Integer, inputs)
-  | Val s ->
+  | LitExpr(StrExpr _) -> Choice1Of2(LitSpec StrSpec, inputs)
+  | LitExpr(IntExpr _) -> Choice1Of2(LitSpec IntSpec, inputs)
+  | ValExpr s ->
     match Map.tryFind expr inputs with
     | Some spec -> Choice1Of2(spec, inputs)
     | None -> Choice2Of2(Errors.undefined s)
-  | Let(s, expr, rest) ->
-    let inputs = Map.add (Val s) (fresh()) inputs
+  | LetExpr(s, expr, rest) ->
+    let inputs = Map.add (ValExpr s) (fresh()) inputs
     match getType inputs expr with
-    | Choice1Of2(spec, outputs) -> getType (Map.add (Val s) spec outputs) rest
+    | Choice1Of2(spec, outputs) -> getType (Map.add (ValExpr s) spec outputs) rest
     | x -> x
-  | Eval(fn, arg) ->
+  | EvalExpr(fn, arg) ->
     match getType inputs fn with
     | Choice1Of2(fnspec, fnoutputs) ->
       match fnspec with
-      | Function(input, output) ->
+      | FnSpec(input, output) ->
         match getType fnoutputs arg with
         | Choice1Of2(argspec, argoutput) ->
           if argspec.canBeConvertedTo input then Choice1Of2(output, Map.add arg input argoutput)
           else Choice2Of2 (Errors.notCompatible arg argspec fn input)
         | x -> x
-      | Free _ ->
+      | FreeSpec _ ->
         match getType fnoutputs arg with
         | Choice1Of2(argspec, argoutput) ->
           let g = fresh()
-          Choice1Of2(g, Map.add fn (Function(argspec, g)) argoutput)
+          Choice1Of2(g, Map.add fn (FnSpec(argspec, g)) argoutput)
         | x -> x
       | _ ->Choice2Of2 (Errors.notAFunction fn fnspec)
     | x -> x
-  | Fn(input, expr) ->
-    let input = Val input
+  | FnExpr(input, expr) ->
+    let input = ValExpr input
     let inputs = Map.add input (fresh()) inputs
     match getType inputs expr with
     | Choice1Of2(spec, outputs) -> 
       let inputSpec = Map.find input outputs
-      Choice1Of2(Function(inputSpec, spec), outputs)
+      Choice1Of2(FnSpec(inputSpec, spec), outputs)
     | x -> x
   | _ -> Choice2Of2 "not implemented"
 
@@ -142,7 +139,7 @@ let rec parseExpression (tokens: string list) : Choice<Expr * string list, strin
       match parseExpression t with
       | Choice1Of2 (expr, t) ->
         match parseLetBlock t with
-        | Choice1Of2 (rest, t) -> Choice1Of2(Let(name, expr, rest), t)
+        | Choice1Of2 (rest, t) -> Choice1Of2(LetExpr(name, expr, rest), t)
         | Choice2Of2 s -> Choice2Of2 s
       | Choice2Of2 s -> Choice2Of2 s
     | _ ->
@@ -169,19 +166,19 @@ let rec parseExpression (tokens: string list) : Choice<Expr * string list, strin
     | ";"::t -> Choice1Of2(expr, t)
     | "."::t ->
       match t with
-      | s::t when validIdentifier s -> parseContinuation t (Dot (expr, s))
+      | s::t when validIdentifier s -> parseContinuation t (DotExpr (expr, s))
       | s::_ -> Choice2Of2 <| sprintf "expected identifier after dot but got %s" s
       | [] -> Choice2Of2 "got nothing after dot"
     | s::_ when canStartExpression s ->
       match parseExpression tokens with
-      | Choice1Of2(e, t) -> Choice1Of2 (Eval(expr, e), t)
+      | Choice1Of2(e, t) -> Choice1Of2 (EvalExpr(expr, e), t)
       | Choice2Of2 s -> Choice2Of2 s
     | h::_ -> Choice2Of2 <| sprintf "parseContinuation got %s" h
   match tokens with
-  | s::t when validIdentifier s -> parseContinuation t (Val s)
-  | "import"::name::t -> parseContinuation t (Import name)
-  | "\""::s::"\""::t -> parseContinuation t (Literal(Str s))
-  | s::t when let b, _ = Int32.TryParse s in b -> parseContinuation t (Literal(Int(Int32.Parse s)))
+  | s::t when validIdentifier s -> parseContinuation t (ValExpr s)
+  | "import"::name::t -> parseContinuation t (ImportExpr name)
+  | "\""::s::"\""::t -> parseContinuation t (LitExpr(StrExpr s))
+  | s::t when let b, _ = Int32.TryParse s in b -> parseContinuation t (LitExpr(IntExpr(Int32.Parse s)))
   | "{"::t ->
     match t with
     | "let"::_::"="::_ ->
@@ -190,15 +187,15 @@ let rec parseExpression (tokens: string list) : Choice<Expr * string list, strin
       | Choice2Of2 s -> Choice2Of2 s
     | name::"with"::t ->
       match parseObjectFields t Map.empty with
-      | Choice1Of2(expr, t) -> parseContinuation t (HashWith(name, expr))
+      | Choice1Of2(expr, t) -> parseContinuation t (WithExpr(name, expr))
       | Choice2Of2 s -> Choice2Of2 s
     | _ ->
       match parseObjectFields t Map.empty with
-      | Choice1Of2(expr, t) -> parseContinuation t (Hash expr)
+      | Choice1Of2(expr, t) -> parseContinuation t (ObjExpr expr)
       | Choice2Of2 s -> Choice2Of2 s
   | "fn"::name::"->"::t ->
     match parseExpression t with
-    | Choice1Of2 (expr, t) -> Choice1Of2(Fn(name, expr), t)
+    | Choice1Of2 (expr, t) -> Choice1Of2(FnExpr(name, expr), t)
     | Choice2Of2 s -> Choice2Of2 s
   | h::_ -> Choice2Of2 <| sprintf "parseExpression got %s" h
   | [] -> Choice2Of2 "parseExpression got empty list"

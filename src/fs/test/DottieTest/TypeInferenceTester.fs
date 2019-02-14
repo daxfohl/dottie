@@ -24,7 +24,7 @@ let ``Test number``() =
   let parsed = get ^% parseExpression strings
   let spec = get ^% getType Map.empty parsed
   match spec with
-  | Integer -> ()
+  | LitSpec IntSpec -> ()
   | x -> Assert.True(false, sprintf "%A" x)
 
 [<Fact>]
@@ -33,7 +33,7 @@ let ``Test string``() =
   let parsed = get ^% parseExpression strings
   let spec = get ^% getType Map.empty parsed
   match spec with
-  | String -> ()
+  | LitSpec StrSpec -> ()
   | x -> Assert.True(false, sprintf "%A" x)
   
 [<Fact>]
@@ -42,7 +42,7 @@ let ``Test let``() =
   let parsed = get ^% parseExpression strings
   let spec = get ^% getType Map.empty parsed
   match spec with
-  | Integer -> ()
+  | LitSpec IntSpec -> ()
   | x -> Assert.True(false, sprintf "%A" x)
 
 [<Fact>]
@@ -51,7 +51,7 @@ let ``Test let two``() =
   let parsed = get ^% parseExpression strings
   let spec = get ^% getType Map.empty parsed
   match spec with
-  | Integer -> ()
+  | LitSpec IntSpec -> ()
   | x -> Assert.True(false, sprintf "%A" x)
 
 [<Fact>]
@@ -60,7 +60,7 @@ let ``Test let mixed``() =
   let parsed = get ^% parseExpression strings
   let spec = get ^% getType Map.empty parsed
   match spec with
-  | String -> ()
+  | LitSpec StrSpec -> ()
   | x -> Assert.True(false, sprintf "%A" x)
 
 [<Fact>]
@@ -69,7 +69,7 @@ let ``Test let mixed 2``() =
   let parsed = get ^% parseExpression strings
   let spec = get ^% getType Map.empty parsed
   match spec with
-  | Integer -> ()
+  | LitSpec IntSpec -> ()
   | x -> Assert.True(false, sprintf "%A" x)
 
 [<Fact>]
@@ -78,25 +78,25 @@ let ``Test let nested``() =
   let parsed = get ^% parseExpression strings
   let spec = get ^% getType Map.empty parsed
   match spec with
-  | Integer -> ()
+  | LitSpec IntSpec -> ()
   | x -> Assert.True(false, sprintf "%A" x)
 
 [<Fact>]
 let ``Test inc``() =
   let strings = tokenize "{ let x = 3; inc x }"
   let parsed = get ^% parseExpression strings
-  let spec = get ^% getType (Map.ofList[(Val "inc", Function(Integer, Integer))]) parsed
+  let spec = get ^% getType (Map.ofList[(ValExpr "inc", FnSpec(LitSpec IntSpec, LitSpec IntSpec))]) parsed
   match spec with
-  | Integer -> ()
+  | LitSpec IntSpec -> ()
   | x -> Assert.True(false, sprintf "%A" x)
 
 [<Fact>]
 let ``Test toStr``() =
   let strings = tokenize "{ let x = 3; toStr x }"
   let parsed = get ^% parseExpression strings
-  let spec = get ^% getType (Map.ofList[(Val "toStr", Function(Integer, String))]) parsed
+  let spec = get ^% getType (Map.ofList[(ValExpr "toStr", FnSpec(LitSpec IntSpec, LitSpec StrSpec))]) parsed
   match spec with
-  | String -> ()
+  | LitSpec StrSpec -> ()
   | x -> Assert.True(false, sprintf "%A" x)
 
 [<Fact>]
@@ -104,48 +104,48 @@ let ``Test not function``() =
   let strings = tokenize "{ let x = 3; x x }"
   let parsed = get ^% parseExpression strings
   let spec = getType Map.empty parsed
-  Assert.Equal(Choice2Of2 ^% Errors.notAFunction (Val "x") Integer, spec)
+  Assert.Equal(Choice2Of2 ^% Errors.notAFunction (ValExpr "x") (LitSpec IntSpec), spec)
 
 [<Fact>]
 let ``Test wrong type``() =
   let strings = tokenize "{ let x = 3; parse x }"
   let parsed = get ^% parseExpression strings
-  let spec = getType (Map.ofList[(Val "parse", Function(String, Integer))]) parsed
-  Assert.Equal(Choice2Of2 ^% Errors.notCompatible (Val "x") Integer (Val "parse") String, spec)
+  let spec = getType (Map.ofList[(ValExpr "parse", FnSpec(LitSpec StrSpec, LitSpec IntSpec))]) parsed
+  Assert.Equal(Choice2Of2 ^% Errors.notCompatible (ValExpr "x") (LitSpec IntSpec) (ValExpr "parse") (LitSpec StrSpec), spec)
 
 [<Fact>]
 let ``Test inc def``() =
   let strings = tokenize "fn x -> inc x"
   let parsed = get ^% parseExpression strings
-  let spec = get ^% getType (Map.ofList[(Val "inc", Function(Integer, Integer))]) parsed
+  let spec = get ^% getType (Map.ofList[(ValExpr "inc", FnSpec(LitSpec IntSpec, LitSpec IntSpec))]) parsed
   match spec with
-  | Function(Integer, Integer) -> ()
+  | FnSpec(LitSpec IntSpec, LitSpec IntSpec) -> ()
   | x -> Assert.True(false, sprintf "%A" x)
   
 [<Fact>]
 let ``Test inc inc def``() =
   let strings = tokenize "fn x -> inc inc x"
   let parsed = get ^% parseExpression strings
-  let spec = get ^% getType (Map.ofList[(Val "inc", Function(Integer, Integer))]) parsed
+  let spec = get ^% getType (Map.ofList[(ValExpr "inc", FnSpec(LitSpec IntSpec, LitSpec IntSpec))]) parsed
   match spec with
-  | Function(Integer, Integer) -> ()
+  | FnSpec(LitSpec IntSpec, LitSpec IntSpec) -> ()
   | x -> Assert.True(false, sprintf "%A" x)
 
 [<Fact>]
 let ``Test inc inc eval``() =
   let strings = tokenize "{ let inc2 = fn x -> inc inc x; inc2 4 }"
   let parsed = get ^% parseExpression strings
-  let spec = get ^% getType (Map.ofList[(Val "inc", Function(Integer, Integer))]) parsed
+  let spec = get ^% getType (Map.ofList[(ValExpr "inc", FnSpec(LitSpec IntSpec, LitSpec IntSpec))]) parsed
   match spec with
-  | Integer -> ()
+  | LitSpec IntSpec -> ()
   | x -> Assert.True(false, sprintf "%A" x)
   
 [<Fact>]
 let ``Test inc inc eval wrong type``() =
   let strings = tokenize """{ let inc2 = fn x -> inc inc x; inc2 inc }"""
   let parsed = get ^% parseExpression strings
-  let spec = getType (Map.ofList[(Val "inc", Function(Integer, Integer))]) parsed
-  Assert.Equal(Choice2Of2 ^% Errors.notCompatible (Val "inc") (Function(Integer, Integer)) (Val "inc2") Integer, spec)
+  let spec = getType (Map.ofList[(ValExpr "inc", FnSpec(LitSpec IntSpec, LitSpec IntSpec))]) parsed
+  Assert.Equal(Choice2Of2 ^% Errors.notCompatible (ValExpr "inc") (FnSpec(LitSpec IntSpec, LitSpec IntSpec)) (ValExpr "inc2") (LitSpec IntSpec), spec)
   
 [<Fact>]
 let ``Test higher order``() =
@@ -153,7 +153,7 @@ let ``Test higher order``() =
   let parsed = get ^% parseExpression strings
   let spec = get ^% getType Map.empty parsed
   match spec with
-  | Function(Function(Integer,Free a), Free b) when a = b -> ()
+  | FnSpec(FnSpec(LitSpec IntSpec,FreeSpec a), FreeSpec b) when a = b -> ()
   | x -> Assert.True(false, sprintf "%A" x)
 
 [<Fact>]
@@ -162,7 +162,7 @@ let ``Test higher order 2``() =
   let parsed = get ^% parseExpression strings
   let spec = get ^% getType Map.empty parsed
   match spec with
-  | Function(Free a, Function(Function(Free b, Free c), Free d)) when a = b && c = d && a <> c -> ()
+  | FnSpec(FreeSpec a, FnSpec(FnSpec(FreeSpec b, FreeSpec c), FreeSpec d)) when a = b && c = d && a <> c -> ()
   | x -> Assert.True(false, sprintf "%A" x)
 
 [<Fact>]
@@ -171,7 +171,7 @@ let ``Test higher order 2a``() =
   let parsed = get ^% parseExpression strings
   let spec = get ^% getType Map.empty parsed
   match spec with
-  | Function(Free a, Function(Function(Free b, Free c), Free d)) when a = b && c = d && a <> c-> ()
+  | FnSpec(FreeSpec a, FnSpec(FnSpec(FreeSpec b, FreeSpec c), FreeSpec d)) when a = b && c = d && a <> c-> ()
   | x -> Assert.True(false, sprintf "%A" x)
 
 [<Fact>]
@@ -181,5 +181,5 @@ let ``Test y combinator``() =
   let spec1 = getType Map.empty parsed
   let spec = get spec1
   match spec with
-  | Function(Function(Free a, Free b), Free c) when b = c && a = c -> ()
+  | FnSpec(FnSpec(FreeSpec a, FreeSpec b), FreeSpec c) when b = c && a = c -> ()
   | x -> Assert.True(false, sprintf "%A" x)
