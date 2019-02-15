@@ -79,8 +79,12 @@ module Errors =
 
 let rec getType (inputs: Map<Expr, Spec>) (expr: Expr) =
   match expr with
-  | LitExpr(StrExpr _) -> Choice1Of2(LitSpec StrSpec, inputs)
-  | LitExpr(IntExpr _) -> Choice1Of2(LitSpec IntSpec, inputs)
+  | LitExpr x ->
+    let spec = 
+      match x with 
+      | StrExpr _ -> StrSpec
+      | IntExpr _ -> IntSpec
+    Choice1Of2(LitSpec spec, inputs)
   | ValExpr s ->
     match Map.tryFind expr inputs with
     | Some spec -> Choice1Of2(spec, inputs)
