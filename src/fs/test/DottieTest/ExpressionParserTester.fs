@@ -176,7 +176,7 @@ let ``Test hash complex``() =
   
 [<Fact>]
 let ``Test hash dotted``() =
-  let strings = tokenize "{x: f} .x"
+  let strings = tokenize "{x: f}.x"
   let parsed = parseExpression strings
   let expected = Choice1Of2 (DotExpr(ObjExpr (Map.ofList [("x", ValExpr "f")]), "x"), [])
   Assert.Equal(expected, parsed)
@@ -212,7 +212,7 @@ let ``Test let two``() =
   
 [<Fact>]
 let ``Test let complex``() =
-  let strings = tokenize "{ let x = {x: a.b.f x.y.z, y: a.b.f x.y.z} ; let y = 3; x }"
+  let strings = tokenize "{ let x = {x: a.b.f x.y.z, y: a.b.f x.y.z}; let y = 3; x }"
   let parsed = parseExpression strings
   let expected = Choice1Of2 (LetExpr ("x",
                                   ObjExpr (Map.ofList [("x", EvalExpr(DotExpr(DotExpr(ValExpr "a", "b"), "f"), DotExpr(DotExpr(ValExpr "x", "y"), "z")))
@@ -236,7 +236,7 @@ let ``Test let function``() =
   
 [<Fact>]
 let ``Test let dot``() =
-  let strings = tokenize "{ let x = 3; x } .z"
+  let strings = tokenize "{ let x = 3; x }.z"
   let parsed = parseExpression strings
   let expected = Choice1Of2 (DotExpr(LetExpr ("x", LitExpr(IntExpr 3), ValExpr "x"), "z"), [])
   Assert.Equal(expected, parsed)
@@ -271,7 +271,7 @@ let ``Test fn block``() =
   
 [<Fact>]
 let ``Test fn block in object``() =
-  let strings = tokenize "{ x: fn x -> { let y = 3; x } ; y: fn x -> { let y = 3; x } }"
+  let strings = tokenize "{ x: fn x -> { let y = 3; x }; y: fn x -> { let y = 3; x } }"
   let parsed = parseExpression strings
   let expected = Choice1Of2 (ObjExpr (Map.ofList [("x", FnExpr("x", LetExpr("y", LitExpr(IntExpr 3), ValExpr "x")))
                                                   ("y", FnExpr("x", LetExpr("y", LitExpr(IntExpr 3), ValExpr "x")))]), [])

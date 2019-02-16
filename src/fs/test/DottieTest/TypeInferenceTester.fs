@@ -56,7 +56,7 @@ let ``Test let two``() =
 
 [<Fact>]
 let ``Test let mixed``() =
-  let strings = tokenize """{ let x = 3; let y = "test" ; y }"""
+  let strings = tokenize """{ let x = 3; let y = "test"; y }"""
   let parsed = get ^% parseExpression strings
   let spec = get ^% getType Map.empty parsed
   match spec with
@@ -65,7 +65,7 @@ let ``Test let mixed``() =
 
 [<Fact>]
 let ``Test let mixed 2``() =
-  let strings = tokenize """{ let x = 3; let y = "test" ; x }"""
+  let strings = tokenize """{ let x = 3; let y = "test"; x }"""
   let parsed = get ^% parseExpression strings
   let spec = get ^% getType Map.empty parsed
   match spec with
@@ -74,7 +74,7 @@ let ``Test let mixed 2``() =
 
 [<Fact>]
 let ``Test let nested``() =
-  let strings = tokenize "{ let z = { let x = 3; let y = x; y } ; z }"
+  let strings = tokenize "{ let z = { let x = 3; let y = x; y }; z }"
   let parsed = get ^% parseExpression strings
   let spec = get ^% getType Map.empty parsed
   match spec with
