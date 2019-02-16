@@ -2,10 +2,19 @@
 
 open System
 open System.Collections.Generic
+open System.Text.RegularExpressions
 
 type CharType = AlphaNumeric | Symbol
 
+let addSemicolons(file: string) =
+  let lines = Regex.Split(file, "\r\n|\r|\n")
+  let notEndings = ['['; '{'; '=']
+  let addSemi (line: string) = line.Length > 0 && not(List.contains line.[line.Length - 1] notEndings)
+  String.Join("\n", Array.map (fun line -> if addSemi line then line + " ;" else line) lines)
+
+
 let tokenize (file: string) =
+  let file = addSemicolons file
   let currentToken = List<char>()
   let tokens = List<string>()
   let charType c = if Char.IsLetterOrDigit(c) then AlphaNumeric else Symbol
@@ -17,15 +26,13 @@ let tokenize (file: string) =
     tokens.Add(token)
     currentToken.Clear()
     state <- None
-    token
   let start c =
     currentToken.Add(c)
     state <- Some(charType(c))
   for c in file do
     if Char.IsWhiteSpace(c) then
       if state <> None then
-        let token = complete()
-        if c = '\r' && token <> ";" && token <> "{" then tokens.Add(";") 
+        complete()
     else
       match state with
       | None -> start(c)
@@ -34,8 +41,7 @@ let tokenize (file: string) =
         if charType = tokenType then
           currentToken.Add(c)
         else
-          complete() |> ignore
+          complete()
           start(c)
-  if currentToken.Count <> 0 then complete() |> ignore
-  if tokens.[tokens.Count - 1] <> ";" then tokens.Add(";")
+  if currentToken.Count <> 0 then complete()
   tokens |> List.ofSeq
