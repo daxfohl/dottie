@@ -168,9 +168,8 @@ let rec getType (specs: Specs) (expr: Expr): Choice<Spec*Specs, string> =
       | FreeSpec x ->
         match getType specs arg with
         | Choice1Of2(argspec, specs) ->
-          let specs = fresh fn specs
-          match constrain x (FnSpec(argspec, FreeSpec fn)) specs with
-          | Choice1Of2(specs) -> Choice1Of2(FreeSpec fn, specs)
+          match constrain x (FnSpec(argspec, FreeSpec expr)) specs with
+          | Choice1Of2(specs) -> Choice1Of2(FreeSpec expr, specs)
           | Choice2Of2 s -> Choice2Of2 s
         | x -> x
       | _ ->Choice2Of2 (Errors.notAFunction fn fnspec)
