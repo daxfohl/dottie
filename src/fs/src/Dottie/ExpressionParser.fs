@@ -161,8 +161,11 @@ let rec getType (specs: Specs) (expr: Expr): Choice<Spec*Specs, string> =
         match getType specs arg with
         | Choice1Of2(argspec, specs) ->
           let specs = fresh arg specs
-          match constrain arg input specs with
-          | Choice1Of2 specs -> Choice1Of2 (output, specs)
+          match constrain arg argspec specs with
+          | Choice1Of2 specs ->
+            match constrain arg input specs with
+            | Choice1Of2 specs -> Choice1Of2 (output, specs)
+            | Choice2Of2 s -> Choice2Of2 s
           | Choice2Of2 s -> Choice2Of2 s
         | Choice2Of2 s -> Choice2Of2 s
       | FreeSpec x ->
@@ -176,7 +179,7 @@ let rec getType (specs: Specs) (expr: Expr): Choice<Spec*Specs, string> =
     | x -> x
   | FnExpr(input, expr) ->
     let input = ValExpr input
-    let specs = Map.add input (FreeSpec input) specs
+    let specs = fresh input specs
     match getType specs expr with
     | Choice1Of2(spec, specs) -> 
       let inputSpec = Map.find input specs
