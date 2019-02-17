@@ -55,7 +55,7 @@ let rec unify (spec1: Spec) (spec2: Spec): Choice<(Expr * Spec) list, string> =
             | Choice1Of2 outputDeltas ->
               let deltas = List.append inputDeltas outputDeltas
               match deltas with
-              | _::_::_ -> failwith (sprintf "See I told you there could be multiple deltas %A" deltas)
+              | _::_::_ -> Choice1Of2 deltas
               | _ -> Choice1Of2 deltas
             | err -> err
           | err -> err
@@ -168,9 +168,9 @@ let rec getType (specs: Specs) (expr: Expr): Choice<Spec*Specs, string> =
       | FreeSpec x ->
         match getType specs arg with
         | Choice1Of2(argspec, specs) ->
-          let specs = fresh expr specs
-          match constrain x (FnSpec(argspec, FreeSpec expr)) specs with
-          | Choice1Of2(specs) -> Choice1Of2(FreeSpec expr, specs)
+          let specs = fresh fn specs
+          match constrain x (FnSpec(argspec, FreeSpec fn)) specs with
+          | Choice1Of2(specs) -> Choice1Of2(FreeSpec fn, specs)
           | Choice2Of2 s -> Choice2Of2 s
         | x -> x
       | _ ->Choice2Of2 (Errors.notAFunction fn fnspec)

@@ -193,3 +193,16 @@ let ``Test y combinator``() =
   match spec with
   | FnSpec(FnSpec(FreeSpec a, FreeSpec b), FreeSpec c) when b = c && a = c -> ()
   | x -> Assert.True(false, sprintf "%A" x)
+
+let flip = fun f -> fun x -> fun y -> f y x
+let ff (a: int) (b: string) = false
+let f' f  = flip (flip f)
+
+[<Fact>]
+let ``Test flip``() =
+  let strings = tokenize "{ let flip = fn f -> fn x -> fn y -> f y x; flip inc }"
+  let parsed = get ^% parseExpression strings
+  let spec = get ^% getType (Map.ofList[(ValExpr "inc", FnSpec(LitSpec IntSpec, LitSpec IntSpec))]) parsed
+  match spec with
+  | FnSpec(LitSpec IntSpec, LitSpec IntSpec) -> ()
+  | x -> Assert.True(false, sprintf "%A" x)
