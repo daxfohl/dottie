@@ -58,6 +58,19 @@ module Errors =
   let notAFunction fn fnspec = sprintf "function %A is not of type function but %A" fn fnspec
   let undefined x = sprintf "Val %s undefined" x
 
+let tryMap (f: 'a -> Choice<'b, 'c>) list =
+  let folder (state: Choice<'b list, 'c>) (x: 'a) =
+    match state with
+    | Choice1Of2 items ->
+      match f x with
+      | Choice1Of2 item -> Choice1Of2 (item::items)
+      | Choice2Of2 err -> Choice2Of2 err
+    | err -> err
+  match List.fold folder (Choice1Of2 []) list with
+  | Choice1Of2 map -> Choice1Of2(List.rev map)
+  | err -> err
+
+
 let rec getType (specs: Specs) (expr: Expr): Choice<Spec*Specs, string> =
   match expr with
   | LitExpr x ->
@@ -111,4 +124,13 @@ let rec getType (specs: Specs) (expr: Expr): Choice<Spec*Specs, string> =
       let inputSpec = Map.find input specs
       Choice1Of2(FnSpec(inputSpec, spec), specs)
     | x -> x
+  | ObjExpr fields ->
+    let fields = Map.toList fields
+    let getNamedType(name, expr) =
+      match getType specs expr with
+      | Choice1Of2 (t, _) -> Choice1Of2(name, t)
+      | Choice2Of2 err -> Choice2Of2 err
+    match tryMap getNamedType fields with
+    | Choice1Of2 specFields -> Choice1Of2(ObjSpec (Map.ofList specFields), specs)
+    | Choice2Of2 err -> Choice2Of2 err
   | _ -> Choice2Of2 "not implemented"

@@ -176,26 +176,39 @@ let ``Test higher order 2a``() =
   match spec with
   | FnSpec(FreeSpec a, FnSpec(FnSpec(FreeSpec b, FreeSpec c), FreeSpec d)) when a = b && c = d && a <> c-> ()
   | x -> Assert.True(false, sprintf "%A" x)
-
+  
 [<Fact>]
 let ``Test y combinator``() =
   let strings = tokenize "{ let y = fn f -> f y f; y }"
   let parsed = get ^% parseExpression strings
-  let spec1 = getType Map.empty parsed
-  let spec = get spec1
+  let spec = get ^% getType Map.empty parsed
   match spec with
   | FnSpec(FnSpec(FreeSpec a, FreeSpec b), FreeSpec c) when b = c && a = c -> ()
   | x -> Assert.True(false, sprintf "%A" x)
 
-let flip = fun f -> fun x -> fun y -> f y x
-let ff (a: int) (b: string) = false
-let f' f  = flip (flip f)
+[<Fact>]
+let ``Test obj``() =
+  let strings = tokenize "{ x: 4 }"
+  let parsed = get ^% parseExpression strings
+  let spec = get ^% getType Map.empty parsed
+  match spec with
+  | ObjSpec x when x = Map.ofList ["x", LitSpec IntSpec] -> ()
+  | x -> Assert.True(false, sprintf "%A" x)
 
 [<Fact>]
-let ``Test flip``() =
-  let strings = tokenize "{ let flip = fn f -> fn x -> fn y -> f y x; flip inc }"
+let ``Test obj empty``() =
+  let strings = tokenize "{ }"
   let parsed = get ^% parseExpression strings
-  let spec = get ^% getType (Map.ofList[(ValExpr "inc", FnSpec(LitSpec IntSpec, LitSpec IntSpec))]) parsed
+  let spec = get ^% getType Map.empty parsed
   match spec with
-  | FnSpec(LitSpec IntSpec, LitSpec IntSpec) -> ()
+  | ObjSpec x when x = Map.empty -> ()
+  | x -> Assert.True(false, sprintf "%A" x)
+
+[<Fact>]
+let ``Test obj two``() =
+  let strings = tokenize "{ x: 4; y: \"test\" }"
+  let parsed = get ^% parseExpression strings
+  let spec = get ^% getType Map.empty parsed
+  match spec with
+  | ObjSpec x when x = Map.ofList ["x", LitSpec IntSpec; "y", LitSpec StrSpec] -> ()
   | x -> Assert.True(false, sprintf "%A" x)
