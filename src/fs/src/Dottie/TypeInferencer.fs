@@ -133,4 +133,5 @@ let rec getType (specs: Specs) (expr: Expr): Choice<Spec*Specs, string> =
     match tryMap getNamedType fields with
     | Choice1Of2 specFields -> Choice1Of2(ObjSpec (Map.ofList specFields), specs)
     | Choice2Of2 err -> Choice2Of2 err
+  | WithExpr(objName, fields) -> getType specs (ValExpr objName)
   | _ -> Choice2Of2 "not implemented"
