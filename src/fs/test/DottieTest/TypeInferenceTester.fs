@@ -10,6 +10,7 @@ let get choice =
   match choice with
   | Choice1Of2 (x, _) -> x
   | Choice2Of2 x -> failwith x
+  
 
 [<Fact>]
 let ``Test undefined``() =
@@ -111,7 +112,7 @@ let ``Test wrong type``() =
   let strings = tokenize "{ let x = 3; parse x }"
   let parsed = get ^% parseExpression strings
   let spec = getType (Map.ofList[(ValExpr "parse", FnSpec(LitSpec StrSpec, LitSpec IntSpec))]) parsed
-  Assert.Equal(Choice2Of2 ^% Errors.notCompatible (ValExpr "x") (LitSpec IntSpec) (ValExpr "parse") (LitSpec StrSpec), spec)
+  Assert.Equal(Choice2Of2 ^% UnifyErrors.cannotCoalesce(LitSpec IntSpec, LitSpec StrSpec), spec)
 
 [<Fact>]
 let ``Test inc def``() =
@@ -132,6 +133,15 @@ let ``Test inc inc def``() =
   | x -> Assert.True(false, sprintf "%A" x)
 
 [<Fact>]
+let ``Test inc inc def2``() =
+  let strings = tokenize "fn x -> inc inc x"
+  let parsed = get ^% parseExpression strings
+  let spec = get ^% getType2 (Map.ofList[(ValExpr "inc", FnSpec(LitSpec IntSpec, LitSpec IntSpec))]) parsed
+  match spec with
+  | FnSpec(LitSpec IntSpec, LitSpec IntSpec) -> ()
+  | x -> Assert.True(false, sprintf "%A" x)
+
+[<Fact>]
 let ``Test inc inc eval``() =
   let strings = tokenize "{ let inc2 = fn x -> inc inc x; inc2 4 }"
   let parsed = get ^% parseExpression strings
@@ -145,7 +155,7 @@ let ``Test inc inc eval wrong type``() =
   let strings = tokenize """{ let inc2 = fn x -> inc inc x; inc2 inc }"""
   let parsed = get ^% parseExpression strings
   let spec = getType (Map.ofList[(ValExpr "inc", FnSpec(LitSpec IntSpec, LitSpec IntSpec))]) parsed
-  Assert.Equal(Choice2Of2 ^% Errors.notCompatible (ValExpr "inc") (FnSpec(LitSpec IntSpec, LitSpec IntSpec)) (ValExpr "inc2") (LitSpec IntSpec), spec)
+  Assert.Equal(Choice2Of2 ^% UnifyErrors.cannotCoalesce (FnSpec(LitSpec IntSpec, LitSpec IntSpec), LitSpec IntSpec), spec)
   
 [<Fact>]
 let ``Test higher order``() =

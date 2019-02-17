@@ -21,7 +21,7 @@ type LitSpec = StrSpec | IntSpec
 
 type Spec =
   | LitSpec of LitSpec
-  | FreeSpec of int
+  | FreeSpec of Expr
   | FnSpec of Spec * Spec
   with
     member this.canBeConvertedTo spec2 =
@@ -29,96 +29,159 @@ type Spec =
       | FreeSpec _ -> true
       | _ -> this = spec2
 
-let mutable id = 0
-let fresh() =
-  id <- id + 1
-  FreeSpec id
-
 type Specs = Map<Expr, Spec>
 
 module UnifyErrors =
   let cannotCoalesce(spec1: Spec, spec2: Spec) = sprintf "Cannot coalesce %A with %A" spec1 spec2
+  let exprNotFound(expr: Expr) = sprintf "No expr %A found" expr
+  let exprAlreadyExists(expr: Expr) = sprintf "Expression %A already exists" expr
 
-let rec coalesce(spec1: Spec) (spec2: Spec) =
-  if spec1 = spec2 then Choice1Of2 spec1
+let rec unify (spec1: Spec) (spec2: Spec): Choice<(Expr * Spec) list, string> =
+  if spec1 = spec2 then Choice1Of2 []
   else
-    let err = Choice2Of2(UnifyErrors.cannotCoalesce(spec1, spec2))
-    match spec2 with
-    | LitSpec _ ->
-      match spec1 with
-      | FreeSpec _ -> Choice1Of2 spec2
-      | _ -> err
-    | FreeSpec i ->
-      match spec1 with
-      | FreeSpec i1 -> Choice1Of2(FreeSpec(Math.Max(i1, i)))
-      | _ -> Choice1Of2 spec1
-    | FnSpec(input, output) ->
-      match spec1 with
-      | FreeSpec _ -> Choice1Of2 spec2
-      | FnSpec(input1, output1) ->
-        match coalesce input input1 with
-        | Choice1Of2 input ->
-          match coalesce output output1 with
-          | Choice1Of2 output -> Choice1Of2(FnSpec(input, output))
+    match spec1 with
+    | FreeSpec expr1 -> Choice1Of2 [expr1, spec2]
+    | _ ->
+      let err = Choice2Of2(UnifyErrors.cannotCoalesce(spec1, spec2))
+      match spec2 with
+      | LitSpec _ -> err
+      | FreeSpec expr2 -> Choice1Of2 [expr2, spec1]
+      | FnSpec(input, output) ->
+        match spec1 with
+        | FnSpec(input1, output1) ->
+          match unify input input1 with
+          | Choice1Of2 inputDeltas ->
+            match unify output output1 with
+            | Choice1Of2 outputDeltas ->
+              let deltas = List.append inputDeltas outputDeltas
+              match deltas with
+              | _::_::_ -> failwith (sprintf "See I told you there could be multiple deltas %A" deltas)
+              | _ -> Choice1Of2 deltas
+            | err -> err
           | err -> err
-        | err -> err
-      | _ -> err
+        | _ -> err
 
-let unify(specs: Specs, expr: Expr, spec): Choice<Specs, string> =
+let fresh expr specs =
   match Map.tryFind expr specs with
-  | None -> Choice1Of2(Map.add expr spec specs)
+  | None -> Map.add expr (FreeSpec expr) specs
+  | Some _ -> specs
+
+let rec replace (expr: Expr) (replacement: Spec) (domain: Spec) =
+  match domain with
+  | FreeSpec expr1 when expr = expr1 -> replacement
+  | FnSpec(input, output) -> FnSpec(replace expr replacement input, replace expr replacement output)
+  | _ -> domain
+
+let replaceInMap (expr: Expr, replacement: Spec) = Map.map (fun _ -> replace expr replacement)
+
+let constrain expr spec specs: Choice<Specs, string> =
+  match Map.tryFind expr specs with
+  | None -> Choice2Of2(UnifyErrors.exprNotFound expr)
   | Some existing ->
-    match coalesce existing spec with
-    | Choice1Of2 newspec -> Choice1Of2(Map.add expr newspec specs)
+    match unify existing spec with
+    | Choice1Of2 deltas -> Choice1Of2 (List.foldBack replaceInMap deltas specs)
     | Choice2Of2 err -> Choice2Of2 err
 
 module Errors =
   let notCompatible arg argspec fn input = sprintf "args %A of type %A not compatible with fn %A of type %A" arg argspec fn input
   let notAFunction fn fnspec = sprintf "function %A is not of type function but %A" fn fnspec
   let undefined x = sprintf "Val %s undefined" x
-
-let rec getType (inputs: Map<Expr, Spec>) (expr: Expr) =
+  
+let rec getType2 (specs: Map<Expr, Spec>) (expr: Expr) =
   match expr with
   | LitExpr x ->
     let spec = 
       match x with 
       | StrExpr _ -> StrSpec
       | IntExpr _ -> IntSpec
-    Choice1Of2(LitSpec spec, inputs)
+    Choice1Of2(LitSpec spec, specs)
   | ValExpr s ->
-    match Map.tryFind expr inputs with
-    | Some spec -> Choice1Of2(spec, inputs)
+    match Map.tryFind expr specs with
+    | Some spec -> Choice1Of2(spec, specs)
     | None -> Choice2Of2(Errors.undefined s)
   | LetExpr(s, expr, rest) ->
-    let inputs = Map.add (ValExpr s) (fresh()) inputs
-    match getType inputs expr with
-    | Choice1Of2(spec, outputs) -> getType (Map.add (ValExpr s) spec outputs) rest
+    let specs = fresh (ValExpr s) specs
+    match getType2 specs expr with
+    | Choice1Of2(spec, outputs) -> getType2 (Map.add (ValExpr s) spec outputs) rest
     | x -> x
   | EvalExpr(fn, arg) ->
-    match getType inputs fn with
+    match getType2 specs fn with
     | Choice1Of2(fnspec, fnoutputs) ->
       match fnspec with
       | FnSpec(input, output) ->
-        match getType fnoutputs arg with
+        match getType2 fnoutputs arg with
         | Choice1Of2(argspec, argoutput) ->
           if argspec.canBeConvertedTo input then Choice1Of2(output, Map.add arg input argoutput)
           else Choice2Of2 (Errors.notCompatible arg argspec fn input)
         | x -> x
       | FreeSpec _ ->
-        match getType fnoutputs arg with
-        | Choice1Of2(argspec, argoutput) ->
-          let g = fresh()
-          Choice1Of2(g, Map.add fn (FnSpec(argspec, g)) argoutput)
+        match getType2 specs arg with
+        | Choice1Of2(argspec) ->
+          let g = FreeSpec fn
+          Choice1Of2(g, specs)
         | x -> x
       | _ ->Choice2Of2 (Errors.notAFunction fn fnspec)
     | x -> x
   | FnExpr(input, expr) ->
     let input = ValExpr input
-    let inputs = Map.add input (fresh()) inputs
-    match getType inputs expr with
+    let specs = fresh input specs
+    match getType2 specs expr with
     | Choice1Of2(spec, outputs) -> 
       let inputSpec = Map.find input outputs
       Choice1Of2(FnSpec(inputSpec, spec), outputs)
+    | x -> x
+  | _ -> Choice2Of2 "not implemented"
+
+let rec getType (specs: Specs) (expr: Expr): Choice<Spec*Specs, string> =
+  match expr with
+  | LitExpr x ->
+    let spec =
+      match x with 
+      | StrExpr _ -> StrSpec
+      | IntExpr _ -> IntSpec
+    Choice1Of2(LitSpec spec, specs)
+  | ValExpr s ->
+    match Map.tryFind expr specs with
+    | Some spec -> Choice1Of2 (spec, specs)
+    | None -> Choice2Of2(Errors.undefined s)
+  | LetExpr(s, expr, rest) ->
+    let valExpr = ValExpr s
+    let specs = fresh valExpr specs
+    match getType specs expr with
+    | Choice1Of2 (spec, specs) ->
+      match constrain valExpr spec specs with
+      | Choice1Of2 specs -> getType specs rest
+      | Choice2Of2 s -> Choice2Of2 s
+    | x -> x
+  | EvalExpr(fn, arg) ->
+    match getType specs fn with
+    | Choice1Of2(fnspec, specs) ->
+      match fnspec with
+      | FnSpec(input, output) ->
+        match getType specs arg with
+        | Choice1Of2(argspec, specs) ->
+          let specs = fresh arg specs
+          match constrain arg input specs with
+          | Choice1Of2 specs -> Choice1Of2 (output, specs)
+          | Choice2Of2 s -> Choice2Of2 s
+        | Choice2Of2 s -> Choice2Of2 s
+      | FreeSpec x ->
+        match getType specs arg with
+        | Choice1Of2(argspec, specs) ->
+          let specs = fresh expr specs
+          match constrain x (FnSpec(argspec, FreeSpec expr)) specs with
+          | Choice1Of2(specs) -> Choice1Of2(FreeSpec expr, specs)
+          | Choice2Of2 s -> Choice2Of2 s
+        | x -> x
+      | _ ->Choice2Of2 (Errors.notAFunction fn fnspec)
+    | x -> x
+  | FnExpr(input, expr) ->
+    let input = ValExpr input
+    let specs = Map.add input (FreeSpec input) specs
+    match getType specs expr with
+    | Choice1Of2(spec, specs) -> 
+      let inputSpec = Map.find input specs
+      Choice1Of2(FnSpec(inputSpec, spec), specs)
     | x -> x
   | _ -> Choice2Of2 "not implemented"
 
