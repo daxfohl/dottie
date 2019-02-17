@@ -1,8 +1,10 @@
 ﻿module ``Type inference tester``
-open System
 open Xunit
 open Tokenizer
+open Expressions
 open ExpressionParser
+open TypeInferencer
+open Types
 
 let inline (^%) f = f
 
@@ -128,15 +130,6 @@ let ``Test inc inc def``() =
   let strings = tokenize "fn x -> inc inc x"
   let parsed = get ^% parseExpression strings
   let spec = get ^% getType (Map.ofList[(ValExpr "inc", FnSpec(LitSpec IntSpec, LitSpec IntSpec))]) parsed
-  match spec with
-  | FnSpec(LitSpec IntSpec, LitSpec IntSpec) -> ()
-  | x -> Assert.True(false, sprintf "%A" x)
-
-[<Fact>]
-let ``Test inc inc def2``() =
-  let strings = tokenize "fn x -> inc inc x"
-  let parsed = get ^% parseExpression strings
-  let spec = get ^% getType2 (Map.ofList[(ValExpr "inc", FnSpec(LitSpec IntSpec, LitSpec IntSpec))]) parsed
   match spec with
   | FnSpec(LitSpec IntSpec, LitSpec IntSpec) -> ()
   | x -> Assert.True(false, sprintf "%A" x)

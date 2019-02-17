@@ -56,9 +56,12 @@
   <Import Project="$(FSharpTargetsPath)" />
   <ItemGroup>
     <Compile Include="AssemblyInfo.fs" />
-    <Compile Include="Tokenizer.fs" />
+    <Compile Include="Expressions.fs" />
+    <Compile Include="Types.fs" />
+    <Compile Include="TypeInferencer.fs" />
     <Compile Include="ExpressionParser.fs" />
-    <Compile Include="Parser.fs" />
+    <Compile Include="SpecParser.fs" />
+    <Compile Include="Tokenizer.fs" />
     <Compile Include="Linker.fs" />
     <Compile Include="Program.fs" />
     <None Include="App.config" />

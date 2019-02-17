@@ -2,7 +2,8 @@
 open System.IO
 open System.Collections.Generic
 open FSharpx.Option
-open Parser
+open SpecParser
+open Tokenizer
 
 let fileStringFFI = """
 foreign module StringFFI {
@@ -11,7 +12,7 @@ foreign module StringFFI {
 """
 
 let run() =
-  parse fileStringFFI
+  parseSpec (tokenize fileStringFFI)
 
 [<EntryPoint>]
 let main argv =

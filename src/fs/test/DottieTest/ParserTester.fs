@@ -1,20 +1,16 @@
 ﻿module ``Parser tester``
 open Xunit
-open Parser
+open SpecParser
+open Tokenizer
 
 [<Fact>]
 let ``Test Parser``() =
   let fileStringFFI = """
-  foreign module StringFFI {
-    concat: fun { s1: rawstring;
-                  s2: rawstring; } -> rawstring;
-  }"""
-  let parsed = parse fileStringFFI
+  { concat: fn { s1: rawstring, s2: rawstring } -> rawstring }"""
+  let parsed = parseSpec (tokenize fileStringFFI)
   let expected =
     Choice1Of2
-      (ForeignModule
-          {name = "StringFFI";
-          definitions =
+      (Object
             [{name = "concat";
               spec =
               Function
@@ -22,5 +18,6 @@ let ``Test Parser``() =
                                    spec = Raw RawString};
                                   {name = "s1"
                                    spec = Raw RawString}]
-                  output = Raw RawString}}]}, [])
+                  output = Raw RawString}}], [])
+
   Assert.Equal(expected, parsed)

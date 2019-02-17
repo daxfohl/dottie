@@ -1,5 +1,6 @@
 ﻿module ``Expression parser tester``
 open Xunit
+open Expressions
 open ExpressionParser
 open Tokenizer
 

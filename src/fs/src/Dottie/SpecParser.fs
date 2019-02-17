@@ -1,9 +1,4 @@
-﻿module Parser
-
-open System
-open System.Collections.Generic
-open FSharpx.Option
-open Tokenizer
+﻿module SpecParser
 
 type RawType =
   | RawString
@@ -20,10 +15,6 @@ and PropertySpec =
 and FunctionSpec =
   { input: TypeSpec
     output: TypeSpec }
-
-type ForeignModule =
-  { name: string
-    definitions: ObjectSpec }
 
 let rec parseDeclaration (tokens: string list) : Choice<PropertySpec * string list, string> =
   match tokens with
@@ -71,18 +62,3 @@ and parseObject (tokens: string list) : Choice<ObjectSpec * string list, string>
       | "}"::t -> Choice1Of2(declarations, t)
       | _ -> addFields tokens declarations
   addFields tokens []
-
-type Module =
-  | ForeignModule of ForeignModule
-
-let parseModule = function
-  | "foreign"::"module"::name::"{"::t ->
-    match parseObject t with
-    | Choice1Of2 (declarations, t) ->
-      Choice1Of2 (ForeignModule {name = name; definitions = declarations}, t)
-    | Choice2Of2 x -> Choice2Of2 x
-  | _ -> Choice2Of2 "Error declaring module"
-
-let parse x =
-  let tokens = tokenize x
-  parseModule tokens
