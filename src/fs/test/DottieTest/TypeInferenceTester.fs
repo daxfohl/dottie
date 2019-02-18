@@ -114,7 +114,7 @@ let ``Test wrong type``() =
   let strings = tokenize "{ let x = 3; parse x }"
   let parsed = get ^% parseExpression strings
   let spec = getType (Map.ofList[(ValExpr "parse", FnSpec(LitSpec StrSpec, LitSpec IntSpec))]) parsed
-  Assert.Equal(Choice2Of2 ^% UnifyErrors.cannotCoalesce(LitSpec IntSpec, LitSpec StrSpec), spec)
+  Assert.Equal(Choice2Of2 ^% UnifyErrors.cannotUnify(LitSpec IntSpec, LitSpec StrSpec), spec)
 
 [<Fact>]
 let ``Test inc def``() =
@@ -148,7 +148,7 @@ let ``Test inc inc eval wrong type``() =
   let strings = tokenize """{ let inc2 = fn x -> inc inc x; inc2 inc }"""
   let parsed = get ^% parseExpression strings
   let spec = getType (Map.ofList[(ValExpr "inc", FnSpec(LitSpec IntSpec, LitSpec IntSpec))]) parsed
-  Assert.Equal(Choice2Of2 ^% UnifyErrors.cannotCoalesce (FnSpec(LitSpec IntSpec, LitSpec IntSpec), LitSpec IntSpec), spec)
+  Assert.Equal(Choice2Of2 ^% UnifyErrors.cannotUnify (FnSpec(LitSpec IntSpec, LitSpec IntSpec), LitSpec IntSpec), spec)
   
 [<Fact>]
 let ``Test higher order``() =

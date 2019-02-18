@@ -3,10 +3,24 @@
 open Expressions
 open Types
 
+let tryMap (f: 'a -> Choice<'b, 'c>) list =
+  let folder (state: Choice<'b list, 'c>) (x: 'a) =
+    match state with
+    | Choice1Of2 items ->
+      match f x with
+      | Choice1Of2 item -> Choice1Of2 (item::items)
+      | Choice2Of2 err -> Choice2Of2 err
+    | err -> err
+  match List.fold folder (Choice1Of2 []) list with
+  | Choice1Of2 map -> Choice1Of2(List.rev map)
+  | err -> err
+
 module UnifyErrors =
-  let cannotCoalesce(spec1: Spec, spec2: Spec) = sprintf "Cannot coalesce %A with %A" spec1 spec2
+  let cannotUnify(spec1: Spec, spec2: Spec) = sprintf "Cannot unify %A with %A" spec1 spec2
   let exprNotFound(expr: Expr) = sprintf "No expr %A found" expr
   let exprAlreadyExists(expr: Expr) = sprintf "Expression %A already exists" expr
+  let objectFieldsDiffer(spec1: Spec, spec2: Spec) = sprintf "Object fields differ {spec1=%A; spec2=%A}" spec1 spec2
+
 
 let rec unify (spec1: Spec) (spec2: Spec): Choice<(Expr * Spec) list, string> =
   if spec1 = spec2 then Choice1Of2 []
@@ -14,7 +28,7 @@ let rec unify (spec1: Spec) (spec2: Spec): Choice<(Expr * Spec) list, string> =
     match spec1 with
     | FreeSpec expr1 -> Choice1Of2 [expr1, spec2]
     | _ ->
-      let err = Choice2Of2(UnifyErrors.cannotCoalesce(spec1, spec2))
+      let err = Choice2Of2(UnifyErrors.cannotUnify(spec1, spec2))
       match spec2 with
       | LitSpec _ -> err
       | FreeSpec expr2 -> Choice1Of2 [expr2, spec1]
@@ -32,6 +46,21 @@ let rec unify (spec1: Spec) (spec2: Spec): Choice<(Expr * Spec) list, string> =
             | err -> err
           | err -> err
         | _ -> err
+      | ObjSpec fieldsMap2 ->
+        match spec1 with
+        | ObjSpec fieldsMap1 ->
+          let keys fields = fields |> Map.toList |> List.map fst |> Set.ofList 
+          if keys fieldsMap1 = keys fieldsMap2 then Choice2Of2(UnifyErrors.objectFieldsDiffer(spec1, spec2))
+          else
+            let unifyFields name =
+              let spec1 = Map.find name fieldsMap1
+              let spec2 = Map.find name fieldsMap2
+              unify spec1 spec2
+            match tryMap unifyFields (fieldsMap1 |> Map.toList |> List.map fst) with
+            | Choice1Of2 x -> Choice1Of2(List.concat x)
+            | Choice2Of2 err -> Choice2Of2 err
+        | _ -> err
+
 
 let fresh expr specs =
   match Map.tryFind expr specs with
@@ -57,18 +86,7 @@ let constrain expr spec specs: Choice<Specs, string> =
 module Errors =
   let notAFunction fn fnspec = sprintf "function %A is not of type function but %A" fn fnspec
   let undefined x = sprintf "Val %s undefined" x
-
-let tryMap (f: 'a -> Choice<'b, 'c>) list =
-  let folder (state: Choice<'b list, 'c>) (x: 'a) =
-    match state with
-    | Choice1Of2 items ->
-      match f x with
-      | Choice1Of2 item -> Choice1Of2 (item::items)
-      | Choice2Of2 err -> Choice2Of2 err
-    | err -> err
-  match List.fold folder (Choice1Of2 []) list with
-  | Choice1Of2 map -> Choice1Of2(List.rev map)
-  | err -> err
+  let noField (fieldname: string) (objectname: string) = sprintf "No field %A in object %A" fieldname objectname
 
 
 let rec getType (specs: Specs) (expr: Expr): Choice<Spec*Specs, string> =
@@ -133,5 +151,22 @@ let rec getType (specs: Specs) (expr: Expr): Choice<Spec*Specs, string> =
     match tryMap getNamedType fields with
     | Choice1Of2 specFields -> Choice1Of2(ObjSpec (Map.ofList specFields), specs)
     | Choice2Of2 err -> Choice2Of2 err
-  | WithExpr(objName, fields) -> getType specs (ValExpr objName)
+  //| WithExpr(objName, fields) ->
+  //  let orig = ValExpr objName
+  //  match getType specs orig with
+  //  | Choice1Of2(objType, specs) ->
+  //    match objType with
+  //    | ObjSpec objFields ->
+  //      let state = Choice1Of2(objType, specs)
+  //      let checkField (state: Choice<Spec*Specs, string>) (fieldName: string) (newExpr: Expr) : Choice<Spec*Specs, string> =
+  //        match state with
+  //        | Choice2Of2 err -> Choice2Of2 err
+  //        | Choice1Of2(spec, specs) ->
+  //          if not(objFields.ContainsKey fieldName) then Choice2Of2(Errors.noField fieldName objName)
+  //          else match getType specs newExpr with
+  //          | Choice2Of2 err -> Choice2Of2 err
+  //          | Choice1Of2(newSpec, specs) ->
+  //            let specs = constrain 
+  //      Map.fold checkField state fields
+  //  | Choice2Of2 err -> Choice2Of2 err
   | _ -> Choice2Of2 "not implemented"
