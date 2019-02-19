@@ -2,7 +2,6 @@
 
 open Expressions
 open Types
-open System.Security.Cryptography
 
 let tryMap (f: 'a -> Choice<'b, 'c>) list =
   let folder (state: Choice<'b list, 'c>) (x: 'a) =
@@ -87,10 +86,11 @@ let constrain expr spec specs: Choice<Specs, string> =
 module Errors =
   let notAFunction fn fnspec = sprintf "function %A is not of type function but %A" fn fnspec
   let undefined x = sprintf "Val %s undefined" x
-  let noField (fieldname: string) (objectname: string) = sprintf "No field %A in object %A" fieldname objectname
+  let noField (fieldname: string) (object: Expr) = sprintf "No field %s in object %A" fieldname object
+  let notObject (notObject: Spec) = sprintf "Not an object: %A" notObject
 
 
-let rec getType (specs: Specs) (expr: Expr): Choice<Spec*Specs, string> =
+let rec getType (expr: Expr) (specs: Specs): Choice<Spec*Specs, string> =
   match expr with
   | LitExpr x ->
     let spec =
@@ -105,18 +105,18 @@ let rec getType (specs: Specs) (expr: Expr): Choice<Spec*Specs, string> =
   | LetExpr(s, expr, rest) ->
     let valExpr = ValExpr s
     let specs = fresh valExpr specs
-    match getType specs expr with
+    match getType expr specs with
     | Choice1Of2 (spec, specs) ->
       match constrain valExpr spec specs with
-      | Choice1Of2 specs -> getType specs rest
+      | Choice1Of2 specs -> getType rest specs
       | Choice2Of2 s -> Choice2Of2 s
-    | x -> x
+    | err -> err
   | EvalExpr(fn, arg) ->
-    match getType specs fn with
+    match getType fn specs with
     | Choice1Of2(fnspec, specs) ->
       match fnspec with
       | FnSpec(input, output) ->
-        match getType specs arg with
+        match getType arg specs with
         | Choice1Of2(argspec, specs) ->
           let specs = fresh arg specs
           match constrain arg argspec specs with
@@ -125,28 +125,28 @@ let rec getType (specs: Specs) (expr: Expr): Choice<Spec*Specs, string> =
             | Choice1Of2 specs -> Choice1Of2 (output, specs)
             | Choice2Of2 s -> Choice2Of2 s
           | Choice2Of2 s -> Choice2Of2 s
-        | Choice2Of2 s -> Choice2Of2 s
+        | err -> err
       | FreeSpec x ->
-        match getType specs arg with
+        match getType arg specs with
         | Choice1Of2(argspec, specs) ->
           match constrain x (FnSpec(argspec, FreeSpec expr)) specs with
           | Choice1Of2(specs) -> Choice1Of2(FreeSpec expr, specs)
           | Choice2Of2 s -> Choice2Of2 s
-        | x -> x
+        | err -> err
       | _ ->Choice2Of2 (Errors.notAFunction fn fnspec)
-    | x -> x
+    | err -> err
   | FnExpr(input, expr) ->
     let input = ValExpr input
     let specs = fresh input specs
-    match getType specs expr with
+    match getType expr specs with
     | Choice1Of2(spec, specs) -> 
       let inputSpec = Map.find input specs
       Choice1Of2(FnSpec(inputSpec, spec), specs)
-    | x -> x
+    | err -> err
   | ObjExpr fields ->
     let fields = Map.toList fields
     let getNamedType(name, expr) =
-      match getType specs expr with
+      match getType expr specs with
       | Choice1Of2 (t, _) -> Choice1Of2(name, t)
       | Choice2Of2 err -> Choice2Of2 err
     match tryMap getNamedType fields with
@@ -154,7 +154,7 @@ let rec getType (specs: Specs) (expr: Expr): Choice<Spec*Specs, string> =
     | Choice2Of2 err -> Choice2Of2 err
   | WithExpr(objName, fields) ->
     let orig = ValExpr objName
-    match getType specs orig with
+    match getType orig specs with
     | Choice1Of2(objType, specs) ->
       match objType with
       | ObjSpec objFields ->
@@ -163,22 +163,32 @@ let rec getType (specs: Specs) (expr: Expr): Choice<Spec*Specs, string> =
           match state with
           | Choice2Of2 err -> Choice2Of2 err
           | Choice1Of2(spec, specs) ->
-            if not(objFields.ContainsKey fieldName) then Choice2Of2(Errors.noField fieldName objName)
+            if not(objFields.ContainsKey fieldName) then Choice2Of2(Errors.noField fieldName orig)
             else
               match spec with
               | ObjSpec objFields ->
-                match getType specs newExpr with
+                match getType newExpr specs with
                 | Choice1Of2(newSpec, specs) -> Choice1Of2(ObjSpec(Map.add fieldName newSpec objFields), specs)
-                | Choice2Of2 err -> Choice2Of2 err
+                | err -> err
               | _ -> Choice2Of2 "Expected an object"
         match Map.fold checkField state fields with
         | Choice1Of2(newSpec, specs) ->
           match constrain orig newSpec specs with
-          | Choice1Of2 specs -> getType specs orig
+          | Choice1Of2 specs -> getType orig specs
           | Choice2Of2 s -> Choice2Of2 s
         | Choice2Of2 s -> Choice2Of2 s
       | FreeSpec x -> Choice2Of2 "Not yet implemented"
-      | _ -> Choice2Of2 "Not an object"
-    | Choice2Of2 err -> Choice2Of2 err
-  | DotExpr(expr, field) -> Choice2Of2 "not implemented"
+      | spec -> Choice2Of2(Errors.notObject spec)
+    | err -> err
+  | DotExpr(expr, field) ->
+    match getType expr specs with
+    | Choice1Of2(objType, specs) ->
+      match objType with
+      | ObjSpec fields ->
+        match Map.tryFind field fields with
+        | Some spec -> Choice1Of2(spec, specs)
+        | None -> Choice2Of2(Errors.noField field expr)
+      | FreeSpec x -> Choice2Of2 "Not yet implemented"
+      | spec -> Choice2Of2(Errors.notObject spec)
+    | err -> err
   | ImportExpr(name) -> Choice2Of2 "not implemented"
