@@ -221,3 +221,21 @@ let ``Test obj with``() =
   match spec with
   | ObjSpec x when x = Map.ofList ["x", LitSpec IntSpec; "y", LitSpec StrSpec] -> ()
   | x -> Assert.True(false, sprintf "%A" x)
+
+[<Fact>]
+let ``Test obj with wrong type``() =
+  let strings = tokenize "{ let o = { x: 4; y: \"test\" }; { o with x: \"s\" } }"
+  let parsed = get ^% parseExpression strings
+  let spec = get ^% getType Map.empty parsed
+  match spec with
+  | ObjSpec x when x = Map.ofList ["x", LitSpec IntSpec; "y", LitSpec StrSpec] -> ()
+  | x -> Assert.True(false, sprintf "%A" x)
+
+[<Fact>]
+let ``Test obj with wrong field name``() =
+  let strings = tokenize "{ let o = { x: 4; y: \"test\" }; { o with z: \"s\" } }"
+  let parsed = get ^% parseExpression strings
+  let spec = get ^% getType Map.empty parsed
+  match spec with
+  | ObjSpec x when x = Map.ofList ["x", LitSpec IntSpec; "y", LitSpec StrSpec] -> ()
+  | x -> Assert.True(false, sprintf "%A" x)

@@ -151,22 +151,27 @@ let rec getType (specs: Specs) (expr: Expr): Choice<Spec*Specs, string> =
     match tryMap getNamedType fields with
     | Choice1Of2 specFields -> Choice1Of2(ObjSpec (Map.ofList specFields), specs)
     | Choice2Of2 err -> Choice2Of2 err
-  //| WithExpr(objName, fields) ->
-  //  let orig = ValExpr objName
-  //  match getType specs orig with
-  //  | Choice1Of2(objType, specs) ->
-  //    match objType with
-  //    | ObjSpec objFields ->
-  //      let state = Choice1Of2(objType, specs)
-  //      let checkField (state: Choice<Spec*Specs, string>) (fieldName: string) (newExpr: Expr) : Choice<Spec*Specs, string> =
-  //        match state with
-  //        | Choice2Of2 err -> Choice2Of2 err
-  //        | Choice1Of2(spec, specs) ->
-  //          if not(objFields.ContainsKey fieldName) then Choice2Of2(Errors.noField fieldName objName)
-  //          else match getType specs newExpr with
-  //          | Choice2Of2 err -> Choice2Of2 err
-  //          | Choice1Of2(newSpec, specs) ->
-  //            let specs = constrain 
-  //      Map.fold checkField state fields
-  //  | Choice2Of2 err -> Choice2Of2 err
+  | WithExpr(objName, fields) ->
+    let orig = ValExpr objName
+    match getType specs orig with
+    | Choice1Of2(objType, specs) ->
+      match objType with
+      | ObjSpec objFields ->
+        let state = Choice1Of2(objType, specs)
+        let checkField (state: Choice<Spec*Specs, string>) (fieldName: string) (newExpr: Expr) : Choice<Spec*Specs, string> =
+          match state with
+          | Choice2Of2 err -> Choice2Of2 err
+          | Choice1Of2(spec, specs) ->
+            if not(objFields.ContainsKey fieldName) then Choice2Of2(Errors.noField fieldName objName)
+            else match getType specs newExpr with
+            | Choice2Of2 err -> Choice2Of2 err
+            | Choice1Of2(newSpec, specs) -> Choice1Of2(ObjSpec(Map.add fieldName newSpec objFields), specs)
+        match Map.fold checkField state fields with
+        | Choice1Of2(newSpec, specs) ->
+          match constrain orig newSpec specs with
+          | Choice1Of2 specs -> getType specs orig
+          | Choice2Of2 s -> Choice2Of2 s
+        | Choice2Of2 s -> Choice2Of2 s
+      | _ -> Choice2Of2 "Not an object"
+    | Choice2Of2 err -> Choice2Of2 err
   | _ -> Choice2Of2 "not implemented"

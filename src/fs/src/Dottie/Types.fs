@@ -9,6 +9,5 @@ type Spec =
 | FreeSpec of Expr
 | FnSpec of Spec * Spec
 | ObjSpec of Map<string, Spec>
-| PartialObjSpec of Map<string, Spec>
 
 type Specs = Map<Expr, Spec>
