@@ -2,6 +2,7 @@
 
 open Expressions
 open Types
+open System.Security.Cryptography
 
 let tryMap (f: 'a -> Choice<'b, 'c>) list =
   let folder (state: Choice<'b list, 'c>) (x: 'a) =
@@ -19,7 +20,7 @@ module UnifyErrors =
   let cannotUnify(spec1: Spec, spec2: Spec) = sprintf "Cannot unify %A with %A" spec1 spec2
   let exprNotFound(expr: Expr) = sprintf "No expr %A found" expr
   let exprAlreadyExists(expr: Expr) = sprintf "Expression %A already exists" expr
-  let objectFieldsDiffer(spec1: Spec, spec2: Spec) = sprintf "Object fields differ {spec1=%A; spec2=%A}" spec1 spec2
+  let objectFieldsDiffer(spec1: Set<string>, spec2: Set<string>) = sprintf "Object fields differ {spec1=%A; spec2=%A}" spec1 spec2
 
 
 let rec unify (spec1: Spec) (spec2: Spec): Choice<(Expr * Spec) list, string> =
@@ -50,7 +51,7 @@ let rec unify (spec1: Spec) (spec2: Spec): Choice<(Expr * Spec) list, string> =
         match spec1 with
         | ObjSpec fieldsMap1 ->
           let keys fields = fields |> Map.toList |> List.map fst |> Set.ofList 
-          if keys fieldsMap1 = keys fieldsMap2 then Choice2Of2(UnifyErrors.objectFieldsDiffer(spec1, spec2))
+          if keys fieldsMap1 <> keys fieldsMap2 then Choice2Of2(UnifyErrors.objectFieldsDiffer(keys fieldsMap1, keys fieldsMap2))
           else
             let unifyFields name =
               let spec1 = Map.find name fieldsMap1
@@ -163,15 +164,21 @@ let rec getType (specs: Specs) (expr: Expr): Choice<Spec*Specs, string> =
           | Choice2Of2 err -> Choice2Of2 err
           | Choice1Of2(spec, specs) ->
             if not(objFields.ContainsKey fieldName) then Choice2Of2(Errors.noField fieldName objName)
-            else match getType specs newExpr with
-            | Choice2Of2 err -> Choice2Of2 err
-            | Choice1Of2(newSpec, specs) -> Choice1Of2(ObjSpec(Map.add fieldName newSpec objFields), specs)
+            else
+              match spec with
+              | ObjSpec objFields ->
+                match getType specs newExpr with
+                | Choice1Of2(newSpec, specs) -> Choice1Of2(ObjSpec(Map.add fieldName newSpec objFields), specs)
+                | Choice2Of2 err -> Choice2Of2 err
+              | _ -> Choice2Of2 "Expected an object"
         match Map.fold checkField state fields with
         | Choice1Of2(newSpec, specs) ->
           match constrain orig newSpec specs with
           | Choice1Of2 specs -> getType specs orig
           | Choice2Of2 s -> Choice2Of2 s
         | Choice2Of2 s -> Choice2Of2 s
+      | FreeSpec x -> Choice2Of2 "Not yet implemented"
       | _ -> Choice2Of2 "Not an object"
     | Choice2Of2 err -> Choice2Of2 err
-  | _ -> Choice2Of2 "not implemented"
+  | DotExpr(expr, field) -> Choice2Of2 "not implemented"
+  | ImportExpr(name) -> Choice2Of2 "not implemented"

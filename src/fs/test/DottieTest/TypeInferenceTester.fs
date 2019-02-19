@@ -5,6 +5,7 @@ open Expressions
 open ExpressionParser
 open TypeInferencer
 open Types
+open FSharpx.Control
 
 let inline (^%) f = f
 
@@ -226,16 +227,26 @@ let ``Test obj with``() =
 let ``Test obj with wrong type``() =
   let strings = tokenize "{ let o = { x: 4; y: \"test\" }; { o with x: \"s\" } }"
   let parsed = get ^% parseExpression strings
-  let spec = get ^% getType Map.empty parsed
-  match spec with
-  | ObjSpec x when x = Map.ofList ["x", LitSpec IntSpec; "y", LitSpec StrSpec] -> ()
-  | x -> Assert.True(false, sprintf "%A" x)
+  let spec = getType Map.empty parsed
+  Assert.Equal(Choice2Of2 ^% UnifyErrors.cannotUnify(LitSpec IntSpec, LitSpec StrSpec), spec)
 
 [<Fact>]
 let ``Test obj with wrong field name``() =
   let strings = tokenize "{ let o = { x: 4; y: \"test\" }; { o with z: \"s\" } }"
   let parsed = get ^% parseExpression strings
-  let spec = get ^% getType Map.empty parsed
-  match spec with
-  | ObjSpec x when x = Map.ofList ["x", LitSpec IntSpec; "y", LitSpec StrSpec] -> ()
-  | x -> Assert.True(false, sprintf "%A" x)
+  let spec = getType Map.empty parsed
+  Assert.Equal(Choice2Of2 ^% Errors.noField "z" "o", spec)
+
+[<Fact>]
+let ``Test obj nested with wrong field type``() =
+  let strings = tokenize "{ let o = { x: 4; y: { a: 3 } }; { o with y: { a: \"s\" } } }"
+  let parsed = get ^% parseExpression strings
+  let spec = getType Map.empty parsed
+  Assert.Equal(Choice2Of2 ^% UnifyErrors.cannotUnify(LitSpec IntSpec, LitSpec StrSpec), spec)
+
+[<Fact>]
+let ``Test obj nested with wrong field name``() =
+  let strings = tokenize "{ let o = { x: 4; y: { a: 3 } }; { o with y: {z: \"s\" } } }"
+  let parsed = get ^% parseExpression strings
+  let spec = getType Map.empty parsed
+  Assert.Equal(Choice2Of2 ^% UnifyErrors.objectFieldsDiffer(Set.ofList["a"], Set.ofList["z"]), spec)
