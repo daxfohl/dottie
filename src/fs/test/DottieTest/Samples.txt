@@ -1,4 +1,55 @@
-﻿let runThree = fn (f1, a1, f2, a2, f3, a3) -> {
+﻿{
+  concat: {
+    let 'input = super{s1: literal string, s2: literal string}
+    fn 'input -> literal string
+  }
+
+  concat2: {
+    fn 'input -> literal string
+    where 'input = super{s1: literal string, s2: literal string}
+  }
+
+  with: {
+    let 'a = super {}
+    fn 'a -> 'a
+  }
+
+  with2: {
+    fn 'a -> 'a
+    where 'a = super {}
+  }
+
+  concatPlus: {
+    let 's1 = super {raw: literal string}
+    let 's2 = super {raw: literal string}
+    let 'in = super {s1: 's1, s2: 's2}
+    fn 'in -> 's1
+  }
+
+  concatPlus2: {
+    fn 'in -> 's1
+    where
+      'in = super {s1: 's1, s2: 's2}
+      's1 = super {raw: literal string}
+      's2 = super {raw: literal string}
+  }
+  
+  ycomb: {
+    declare 'fin
+    let 'fout = super 'fin
+    let 'f = fn 'fin -> 'fout
+    fn 'f -> 'fout
+  }
+
+  ycomb2: {
+    fn 'f -> 'fout
+    where
+      'f = fn 'fin -> 'fout
+      'fout = super 'fin
+  }
+}
+
+let runThree = fn (f1, a1, f2, a2, f3, a3) -> {
   let x1 = f1 a1
   let x2 = f1 a2
   let y2 = f2 a2
@@ -37,5 +88,36 @@
       a2: 'a2
       a3: 'a3
     }
+  }
+}
+
+{
+  runThree: {
+    fn 'in -> {
+      x1: 'f1ret
+      x2: 'f1ret
+      y2: 'f2ret
+      y3: 'f2ret
+      z3: 'f3ret
+      z1: 'f3ret
+      f1: fn 'f1arg -> 'f1ret
+      f2: fn 'f2arg -> 'f2ret
+      f3: fn 'f3arg -> 'f3ret
+      a1: 'a1
+      a2: 'a2
+      a3: 'a3
+    }
+    where
+      'in: superset {
+        f1: fn 'f1arg -> 'f1ret
+        f2: fn 'f2arg -> 'f2ret
+        f3: fn 'f3arg -> 'f3ret
+        a1: 'a1
+        a2: 'a2
+        a3: 'a3
+      }
+      'f1arg: subset(inter['a1, 'a2])
+      'f2arg: subset(inter['a2, 'a3])
+      'f3arg: subset(inter['a3, 'a1])
   }
 }
