@@ -9,5 +9,9 @@ type Spec =
 | FreeSpec of Expr
 | FnSpec of Spec * Spec
 | ObjSpec of Map<string, Spec>
+| SupersetSpec of Spec
+| SubsetSpec of Spec
+| IntersectSpec of Set<Spec>
+| UnionSpec of Set<Spec>
 
 type Specs = Map<Expr, Spec>

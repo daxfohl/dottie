@@ -67,6 +67,7 @@
     <Compile Include="TypeInferenceTester.fs" />
     <Compile Include="ParserTester.fs" />
     <Content Include="paket.references" />
+    <Content Include="Samples.txt" />
   </ItemGroup>
   <ItemGroup>
     <Reference Include="mscorlib" />

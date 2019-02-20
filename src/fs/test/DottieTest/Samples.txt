@@ -1,0 +1,41 @@
+﻿let runThree = fn (f1, a1, f2, a2, f3, a3) -> {
+  let x1 = f1 a1
+  let x2 = f1 a2
+  let y2 = f2 a2
+  let y3 = f2 a3
+  let z3 = f3 a3
+  let z1 = f3 a1
+  x1,x2,y2,y3,z3,z1,f1,f2,f3,a1,a2,a3
+}
+
+{
+  runThree: {
+    declare 'a1: free
+    declare 'a2: free
+    declare 'a3: free
+    declare 'f1arg: subset(inter['a1, 'a2])
+    declare 'f2arg: subset(inter['a2, 'a3])
+    declare 'f3arg: subset(inter['a3, 'a1])
+    superset {
+      f1: ('f1arg -> 'f1ret)
+      f2: ('f2arg -> 'f2ret)
+      f3: ('f3arg -> 'f3ret)
+      a1: 'a1
+      a2: 'a2
+      a3: 'a3
+    } -> {
+      x1: 'f1ret
+      x2: 'f1ret
+      y2: 'f2ret
+      y3: 'f2ret
+      z3: 'f3ret
+      z1: 'f3ret
+      f1: ('f1arg -> 'f1ret)
+      f2: ('f2arg -> 'f2ret)
+      f3: ('f3arg -> 'f3ret)
+      a1: 'a1
+      a2: 'a2
+      a3: 'a3
+    }
+  }
+}
