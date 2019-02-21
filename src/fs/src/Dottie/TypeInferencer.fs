@@ -157,8 +157,7 @@ let rec getType (expr: Expr) (specs: Specs): Choice<Spec*Specs, string> =
     let orig = ValExpr objName
     choose {
       let! objType, specs = getType orig specs
-      return!
-        match objType with
+      match objType with
         | ObjSpec objFields ->
           let checkField (state: Choice<Spec*Specs, string>) (fieldName: string) (newExpr: Expr) : Choice<Spec*Specs, string> =
             choose {
@@ -170,12 +169,11 @@ let rec getType (expr: Expr) (specs: Specs): Choice<Spec*Specs, string> =
                   let! newSpec, specs = getType newExpr specs
                   return ObjSpec(Map.add fieldName newSpec objFields), specs
                 | _ -> return! Choice2Of2 "Expected an object" }
-          choose {
-            let! newSpec, specs = Map.fold checkField (Choice1Of2(objType, specs)) fields
-            let! specs = constrain orig newSpec specs
-            return! getType orig specs }
-        | FreeSpec x -> Choice2Of2 "Not yet implemented"
-        | spec -> Choice2Of2(Errors.notObject spec) }
+          let! newSpec, specs = Map.fold checkField (Choice1Of2(objType, specs)) fields
+          let! specs = constrain orig newSpec specs
+          return! getType orig specs
+        | FreeSpec x -> return! Choice2Of2 "Not yet implemented"
+        | spec -> return! Choice2Of2(Errors.notObject spec) }
   | DotExpr(expr, field) ->
     match getType expr specs with
     | Choice1Of2(objType, specs) ->
