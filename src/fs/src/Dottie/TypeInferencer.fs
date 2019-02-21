@@ -2,6 +2,7 @@
 
 open Expressions
 open Types
+open FSharpx.Choice
 
 let tryMap (f: 'a -> Choice<'b, 'c>) list =
   let folder (state: Choice<'b list, 'c>) (x: 'a) =
@@ -154,32 +155,27 @@ let rec getType (expr: Expr) (specs: Specs): Choice<Spec*Specs, string> =
     | Choice2Of2 err -> Choice2Of2 err
   | WithExpr(objName, fields) ->
     let orig = ValExpr objName
-    match getType orig specs with
-    | Choice1Of2(objType, specs) ->
-      match objType with
-      | ObjSpec objFields ->
-        let state = Choice1Of2(objType, specs)
-        let checkField (state: Choice<Spec*Specs, string>) (fieldName: string) (newExpr: Expr) : Choice<Spec*Specs, string> =
-          match state with
-          | Choice2Of2 err -> Choice2Of2 err
-          | Choice1Of2(spec, specs) ->
-            if not(objFields.ContainsKey fieldName) then Choice2Of2(Errors.noField fieldName orig)
-            else
-              match spec with
-              | ObjSpec objFields ->
-                match getType newExpr specs with
-                | Choice1Of2(newSpec, specs) -> Choice1Of2(ObjSpec(Map.add fieldName newSpec objFields), specs)
-                | err -> err
-              | _ -> Choice2Of2 "Expected an object"
-        match Map.fold checkField state fields with
-        | Choice1Of2(newSpec, specs) ->
-          match constrain orig newSpec specs with
-          | Choice1Of2 specs -> getType orig specs
-          | Choice2Of2 s -> Choice2Of2 s
-        | Choice2Of2 s -> Choice2Of2 s
-      | FreeSpec x -> Choice2Of2 "Not yet implemented"
-      | spec -> Choice2Of2(Errors.notObject spec)
-    | err -> err
+    choose {
+      let! objType, specs = getType orig specs
+      return!
+        match objType with
+        | ObjSpec objFields ->
+          let checkField (state: Choice<Spec*Specs, string>) (fieldName: string) (newExpr: Expr) : Choice<Spec*Specs, string> =
+            choose {
+              let! spec, specs = state
+              if not(objFields.ContainsKey fieldName) then return! Choice2Of2(Errors.noField fieldName orig)
+              else
+                match spec with
+                | ObjSpec objFields ->
+                  let! newSpec, specs = getType newExpr specs
+                  return ObjSpec(Map.add fieldName newSpec objFields), specs
+                | _ -> return! Choice2Of2 "Expected an object" }
+          choose {
+            let! newSpec, specs = Map.fold checkField (Choice1Of2(objType, specs)) fields
+            let! specs = constrain orig newSpec specs
+            return! getType orig specs }
+        | FreeSpec x -> Choice2Of2 "Not yet implemented"
+        | spec -> Choice2Of2(Errors.notObject spec) }
   | DotExpr(expr, field) ->
     match getType expr specs with
     | Choice1Of2(objType, specs) ->
