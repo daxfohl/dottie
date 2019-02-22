@@ -7,8 +7,6 @@ open TypeInferencer
 open Types
 open FSharpx.Control
 
-let inline (^%) f = f
-
 let get choice =
   match choice with
   | Choice1Of2 (x, _) -> x
