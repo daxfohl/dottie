@@ -166,7 +166,7 @@ let ``Test higher order 2``() =
   let parsed = get ^% parseExpression strings
   let spec = get ^% getType parsed Map.empty
   match spec with
-  | FnSpec(FreeSpec a, FnSpec(FnSpec(FreeSpec b, FreeSpec c), FreeSpec d)) when a = b && c = d && a <> c -> ()
+  | FnSpec(FreeSpec a, FnSpec(FnSpec(FreeSpec b, FreeSpec c), FreeSpec d)) when a = b && c = d && a <> c -> () // allow a >= b
   | x -> Assert.True(false, sprintf "%A" x)
 
 [<Fact>]
@@ -175,7 +175,7 @@ let ``Test higher order 2a``() =
   let parsed = get ^% parseExpression strings
   let spec = get ^% getType parsed Map.empty
   match spec with
-  | FnSpec(FreeSpec a, FnSpec(FnSpec(FreeSpec b, FreeSpec c), FreeSpec d)) when a = b && c = d && a <> c-> ()
+  | FnSpec(FreeSpec a, FnSpec(FnSpec(FreeSpec b, FreeSpec c), FreeSpec d)) when a = b && c = d && a <> c-> () // allow a >= b
   | x -> Assert.True(false, sprintf "%A" x)
   
 [<Fact>]
@@ -184,7 +184,7 @@ let ``Test y combinator``() =
   let parsed = get ^% parseExpression strings
   let spec = get ^% getType parsed Map.empty
   match spec with
-  | FnSpec(FnSpec(FreeSpec a, FreeSpec b), FreeSpec c) when b = c && a = c -> ()
+  | FnSpec(FnSpec(FreeSpec a, FreeSpec b), FreeSpec c) when b = c && a = c -> () // allow a >=b
   | x -> Assert.True(false, sprintf "%A" x)
 
 [<Fact>]
