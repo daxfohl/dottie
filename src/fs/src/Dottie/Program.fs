@@ -12,7 +12,7 @@ foreign module StringFFI {
 """
 
 let run() =
-  parseSpec (tokenize fileStringFFI)
+  parseRawSpec (tokenize fileStringFFI)
 
 [<EntryPoint>]
 let main argv =

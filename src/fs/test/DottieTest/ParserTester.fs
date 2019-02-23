@@ -7,7 +7,7 @@ open Tokenizer
 let ``Test Parser``() =
   let fileStringFFI = """
   { concat: fn { s1: rawstring, s2: rawstring } -> rawstring }"""
-  let parsed = parseSpec (tokenize fileStringFFI)
+  let parsed = parseRawSpec (tokenize fileStringFFI)
   let expected =
     Choice1Of2
       (Object

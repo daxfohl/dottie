@@ -39,11 +39,11 @@ module UnifyErrors =
   let exprAlreadyExists(expr: Expr) = sprintf "Expression %A already exists" expr
   let objectFieldsDiffer(spec1: Set<string>, spec2: Set<string>) = sprintf "Object fields differ {spec1=%A; spec2=%A}" spec1 spec2
 
-let unconstrained spec = { spec = spec; constraints = [] }
+let raw spec = { spec = spec; constraints = [] }
 
 let fresh expr specs =
   match Map.tryFind expr specs with
-  | None -> Map.add expr (unconstrained ^% FreeSpec expr) specs
+  | None -> Map.add expr (raw ^% FreeSpec expr) specs
   | Some _ -> specs
 
 module Errors =
@@ -60,7 +60,7 @@ let rec getType (expr: Expr) (specs: Specs): Choice<Spec*Specs, string> =
         match x with 
         | StrExpr _ -> StrSpec
         | IntExpr _ -> IntSpec
-      return unconstrained ^% LitSpec spec, specs
+      return raw ^% LitSpec spec, specs
     | ValExpr s ->
       match Map.tryFind expr specs with
       | Some spec -> return spec, specs

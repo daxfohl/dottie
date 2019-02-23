@@ -3,44 +3,43 @@
 open TypeInferencer2
 open FSharpx.Choice
 
-let rec parseSpec (tokens: string list) : Choice<Spec * string list, string> =
+let rec parseRawSpec (tokens: string list) : Choice<RawSpec * string list, string> =
   choose {
     match tokens with
-    | "literal"::"string"::t -> return unconstrained(LitSpec StrSpec), t
-    | "literal"::"int"::t -> return unconstrained(LitSpec IntSpec), t
+    | "literal"::"string"::t -> return LitSpec StrSpec, t
+    | "literal"::"int"::t -> return LitSpec IntSpec, t
     | "fn"::t ->
-      let! inputSpec, t = parseSpec t
+      let! inputSpec, t = parseRawSpec t
       match t with
       | "->"::t ->
-        let! outputSpec, t = parseSpec t
-        return unconstrained ^%FnSpec(inputSpec, outputSpec), t
+        let! outputSpec, t = parseRawSpec t
+        return FnSpec(inputSpec, outputSpec), t
       | _ -> return! Choice2Of2 "Expected -> in function declaration"
     | "{"::t ->
-      let! properties, t = parseObject t
-      return Object properties, t
-    | h::t -> return! Choice2Of2 ^% sprintf "parseSpec got %s" h
+      let! properties, t = parseObjectFields t
+      return ObjSpec properties, t
+    | h::_-> return! Choice2Of2 ^% sprintf "parseSpec got %s" h
     | [] -> return! Choice2Of2 "parseSpec got empty list" }
-and parseObject (tokens: string list) : Choice<ObjectSpec * string list, string> =
-  let rec addFields = fun tokens fields ->
-    match parseDeclaration tokens with
-    | Choice2Of2 x -> Choice2Of2 x
-    | Choice1Of2 (declaration, tokens) ->
-      let declarations = declaration::fields
-      match tokens with
-      | "}"::t -> Choice1Of2(declarations, t)
-      | _ -> addFields tokens declarations
-  addFields tokens []
-and parseDeclaration (tokens: string list) : Choice<PropertySpec * string list, string> =
-  match tokens with
-  | name::":"::t ->
-    match parseSpec t with
-    | Choice1Of2 (spec, t) ->
+and parseObjectFields (tokens: string list) : Choice<Map<string, RawSpec> * string list, string> =
+  choose {
+    let rec addFields = fun tokens fields ->
+      choose {
+        let! declaration, tokens = parseObjectField tokens
+        let declarations = declaration::fields
+        match tokens with
+        | "}"::t -> return declarations, t
+        | _ -> return! addFields tokens declarations }
+    let! fields, tokens = addFields tokens []
+    return Map.ofList fields, tokens }
+and parseObjectField (tokens: string list) : Choice<(string * RawSpec) * string list, string> =
+  choose {
+    match tokens with
+    | name::":"::t ->
+      let! spec, t = parseRawSpec t
       match t with
-      | ";"::t ->
-        Choice1Of2({name=name; spec=spec}, t)
-      | h::_ -> Choice2Of2 <| sprintf "Expected ;, got %s" h
-      | [] -> Choice2Of2 <| sprintf "Expected ;, got end of list"
-    | Choice2Of2 x -> Choice2Of2 x
-  | h::m::t -> Choice2Of2 <| sprintf "parseDeclaration got %s %s" h m
-  | h::t -> Choice2Of2 <| sprintf "parseDeclaration got %s end" h
-  | [] -> Choice2Of2 "parseDeclaration got empty list"
+      | ";"::t -> return (name, spec), t
+      | h::_ -> return! Choice2Of2 ^% sprintf "Expected ;, got %s" h
+      | [] -> return! Choice2Of2 ^% sprintf "Expected ;, got end of list"
+    | h::m::t -> return! Choice2Of2 ^% sprintf "parseDeclaration got %s %s" h m
+    | h::t -> return! Choice2Of2 ^% sprintf "parseDeclaration got %s end" h
+    | [] -> return! Choice2Of2 "parseDeclaration got empty list" }
