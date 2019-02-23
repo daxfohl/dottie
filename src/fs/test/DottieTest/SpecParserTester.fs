@@ -1,4 +1,4 @@
-﻿module ``Parser tester``
+﻿module ``Spec parser tester``
 open Xunit
 open TypeInferencer2
 open SpecParser
