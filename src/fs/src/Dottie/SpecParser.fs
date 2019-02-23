@@ -3,7 +3,7 @@
 open TypeInferencer2
 open FSharpx.Choice
 
-let rec parseRawSpec (tokens: string list) : Choice<RawSpec * string list, string> =
+let rec parseRawSpec (tokens: string list) : Choice<Spec * string list, string> =
   choose {
     match tokens with
     | "literal"::"string"::t -> return LitSpec StrSpec, t
@@ -13,14 +13,14 @@ let rec parseRawSpec (tokens: string list) : Choice<RawSpec * string list, strin
       match t with
       | "->"::t ->
         let! outputSpec, t = parseRawSpec t
-        return FnSpec(inputSpec, outputSpec), t
+        return FnSpec(inputSpec, outputSpec, []), t
       | _ -> return! Choice2Of2 "Expected -> in function declaration"
     | "{"::t ->
       let! properties, t = parseObjectFields t
       return ObjSpec properties, t
     | h::_-> return! Choice2Of2 ^% sprintf "parseSpec got %s" h
     | [] -> return! Choice2Of2 "parseSpec got empty list" }
-and parseObjectFields (tokens: string list) : Choice<Map<string, RawSpec> * string list, string> =
+and parseObjectFields (tokens: string list) : Choice<Map<string, Spec> * string list, string> =
   choose {
     let rec addFields = fun tokens fields ->
       choose {
@@ -31,7 +31,7 @@ and parseObjectFields (tokens: string list) : Choice<Map<string, RawSpec> * stri
         | _ -> return! addFields tokens declarations }
     let! fields, tokens = addFields tokens []
     return Map.ofList fields, tokens }
-and parseObjectField (tokens: string list) : Choice<(string * RawSpec) * string list, string> =
+and parseObjectField (tokens: string list) : Choice<(string * Spec) * string list, string> =
   choose {
     match tokens with
     | name::":"::t ->

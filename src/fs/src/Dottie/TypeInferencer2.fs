@@ -6,20 +6,17 @@ open FSharpx.Choice
 type LitSpec = StrSpec | IntSpec
 type Relation = Is | Contains | ContainedBy
 
-type RawSpec =
+type Spec =
 | LitSpec of LitSpec
 | FreeSpec of Expr
-| FnSpec of RawSpec * RawSpec
-| ObjSpec of Map<string, RawSpec>
-| IntersectSpec of Set<RawSpec>
-| UnionSpec of Set<RawSpec>
-and Spec =
-  { spec: RawSpec
-    constraints: Constraint list }
+| FnSpec of Spec * Spec * Constraint list
+| ObjSpec of Map<string, Spec>
+| IntersectSpec of Set<Spec>
+| UnionSpec of Set<Spec>
 and Constraint =
   { expr: Expr
     relation: Relation
-    spec: RawSpec }
+    spec: Spec }
 
 type Specs = Map<Expr, Spec>
 
@@ -39,11 +36,9 @@ module UnifyErrors =
   let exprAlreadyExists(expr: Expr) = sprintf "Expression %A already exists" expr
   let objectFieldsDiffer(spec1: Set<string>, spec2: Set<string>) = sprintf "Object fields differ {spec1=%A; spec2=%A}" spec1 spec2
 
-let raw spec = { spec = spec; constraints = [] }
-
 let fresh expr specs =
   match Map.tryFind expr specs with
-  | None -> Map.add expr (raw ^% FreeSpec expr) specs
+  | None -> Map.add expr (FreeSpec expr) specs
   | Some _ -> specs
 
 module Errors =
@@ -60,7 +55,7 @@ let rec getType (expr: Expr) (specs: Specs): Choice<Spec*Specs, string> =
         match x with 
         | StrExpr _ -> StrSpec
         | IntExpr _ -> IntSpec
-      return raw ^% LitSpec spec, specs
+      return LitSpec spec, specs
     | ValExpr s ->
       match Map.tryFind expr specs with
       | Some spec -> return spec, specs

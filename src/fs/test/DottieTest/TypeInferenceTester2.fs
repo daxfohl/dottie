@@ -3,34 +3,40 @@ open Xunit
 open Tokenizer
 open ExpressionParser
 open TypeInferencer2
+open SpecParser
+open FSharpx.Choice
 
-let get choice =
-  match choice with
-  | Choice1Of2 (x, _) -> x
-  | Choice2Of2 x -> failwith x
-  
+let assertSpec(expression, expectedSpec) =
+  let spec = choose {
+    let strings = tokenize expression
+    let! parsed, _ = parseExpression strings
+    let! spec, _ = getType parsed Map.empty
+    return spec
+  }
+  let otherSpec = choose {
+    let strings = tokenize expectedSpec
+    let! parsed, _ = parseRawSpec strings
+    return parsed
+  }
+  Assert.StrictEqual(spec, otherSpec)
+
+let assertError(expression, expectedError) =
+  let spec = choose {
+    let strings = tokenize expression
+    let! parsed, _ = parseExpression strings
+    let! spec, _ = getType parsed Map.empty
+    return spec
+  }
+  Assert.Equal(Choice2Of2 expectedError, spec)
 
 [<Fact>]
 let ``Test undefined``() =
-  let strings = tokenize "x"
-  let parsed = get ^% parseExpression strings
-  let spec = getType parsed Map.empty
-  Assert.Equal(Choice2Of2(Errors.undefined "x"), spec)
+  assertError("x", Errors.undefined "x")
 
 [<Fact>]
 let ``Test number``() =
-  let strings = tokenize "2"
-  let parsed = get ^% parseExpression strings
-  let spec = get ^% getType parsed Map.empty
-  match spec with
-  | { spec = LitSpec IntSpec; constraints = [] } -> ()
-  | x -> Assert.True(false, sprintf "%A" x)
+  assertSpec("2", "literal int")
 
 [<Fact>]
 let ``Test string``() =
-  let strings = tokenize "\"test\""
-  let parsed = get ^% parseExpression strings
-  let spec = get ^% getType parsed Map.empty
-  match spec with
-  | { spec = LitSpec StrSpec; constraints = [] }  -> ()
-  | x -> Assert.True(false, sprintf "%A" x)
+  assertSpec("\"test\"", "literal string")

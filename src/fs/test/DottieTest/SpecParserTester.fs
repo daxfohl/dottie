@@ -16,6 +16,6 @@ let ``Test Parser``() =
                FnSpec(
                  ObjSpec ^% Map.ofList [("s2", LitSpec StrSpec);
                                         ("s1", LitSpec StrSpec)],
-                 LitSpec StrSpec))], [";"])
+                 LitSpec StrSpec, []))], [";"])
 
   Assert.Equal(expected, parsed)
