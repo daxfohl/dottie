@@ -32,9 +32,9 @@ let rec unify (spec1: Spec) (spec2: Spec): Choice<(Expr * Spec) list, string> =
         match spec2 with
         | LitSpec _ -> return! err
         | FreeSpec expr2 -> return [expr2, spec1]
-        | FnSpec(input, output) ->
+        | FnSpec(input, output, constraints) ->
           match spec1 with
-          | FnSpec(input1, output1) ->
+          | FnSpec(input1, output1, constraints) ->
             let! inputDeltas = unify input input1
             let! outputDeltas = unify output output1
             return List.append inputDeltas outputDeltas
@@ -62,7 +62,7 @@ let fresh expr specs =
 let rec replace (expr: Expr) (replacement: Spec) (domain: Spec) =
   match domain with
   | FreeSpec expr1 when expr = expr1 -> replacement
-  | FnSpec(input, output) -> FnSpec(replace expr replacement input, replace expr replacement output)
+  | FnSpec(input, output, constraints) -> FnSpec(replace expr replacement input, replace expr replacement output, constraints)
   | _ -> domain
 
 let replaceInMap (expr: Expr, replacement: Spec) = Map.map (fun _ -> replace expr replacement)
@@ -104,7 +104,7 @@ let rec getType (expr: Expr) (specs: Specs): Choice<Spec*Specs, string> =
     | EvalExpr(fn, arg) ->
       let! fnspec, specs = getType fn specs
       match fnspec with
-      | FnSpec(input, output) ->
+      | FnSpec(input, output, constraints) ->
         let! argspec, specs = getType arg specs
         let specs = fresh arg specs
         let! specs = constrain arg argspec specs
@@ -112,7 +112,7 @@ let rec getType (expr: Expr) (specs: Specs): Choice<Spec*Specs, string> =
         return output, specs
       | FreeSpec x ->
         let! argspec, specs = getType arg specs
-        let! specs = constrain x (FnSpec(argspec, FreeSpec expr)) specs
+        let! specs = constrain x (FnSpec(argspec, FreeSpec expr, [])) specs
         return FreeSpec expr, specs
       | _ -> return! Choice2Of2 (Errors.notAFunction fn fnspec)
     | FnExpr(input, expr) ->
@@ -120,7 +120,7 @@ let rec getType (expr: Expr) (specs: Specs): Choice<Spec*Specs, string> =
       let specs = fresh input specs
       let! spec, specs = getType expr specs
       let inputSpec = Map.find input specs
-      return FnSpec(inputSpec, spec), specs
+      return FnSpec(inputSpec, spec, []), specs
     | ObjExpr fields ->
       let fields = Map.toList fields
       let getNamedType(name, expr) =

@@ -87,7 +87,7 @@ let ``Test let nested``() =
 let ``Test inc``() =
   let strings = tokenize "{ let x = 3; inc x }"
   let parsed = get ^% parseExpression strings
-  let spec = get ^% getType parsed (Map.ofList[(ValExpr "inc", FnSpec(LitSpec IntSpec, LitSpec IntSpec))])
+  let spec = get ^% getType parsed (Map.ofList[(ValExpr "inc", FnSpec(LitSpec IntSpec, LitSpec IntSpec, []))])
   match spec with
   | LitSpec IntSpec -> ()
   | x -> Assert.True(false, sprintf "%A" x)
@@ -96,7 +96,7 @@ let ``Test inc``() =
 let ``Test toStr``() =
   let strings = tokenize "{ let x = 3; toStr x }"
   let parsed = get ^% parseExpression strings
-  let spec = get ^% getType parsed (Map.ofList[(ValExpr "toStr", FnSpec(LitSpec IntSpec, LitSpec StrSpec))])
+  let spec = get ^% getType parsed (Map.ofList[(ValExpr "toStr", FnSpec(LitSpec IntSpec, LitSpec StrSpec, []))])
   match spec with
   | LitSpec StrSpec -> ()
   | x -> Assert.True(false, sprintf "%A" x)
@@ -112,32 +112,32 @@ let ``Test not function``() =
 let ``Test wrong type``() =
   let strings = tokenize "{ let x = 3; parse x }"
   let parsed = get ^% parseExpression strings
-  let spec = getType parsed (Map.ofList[(ValExpr "parse", FnSpec(LitSpec StrSpec, LitSpec IntSpec))])
+  let spec = getType parsed (Map.ofList[(ValExpr "parse", FnSpec(LitSpec StrSpec, LitSpec IntSpec, []))])
   Assert.Equal(Choice2Of2 ^% UnifyErrors.cannotUnify(LitSpec IntSpec, LitSpec StrSpec), spec)
 
 [<Fact>]
 let ``Test inc def``() =
   let strings = tokenize "fn x -> inc x"
   let parsed = get ^% parseExpression strings
-  let spec = get ^% getType parsed (Map.ofList[(ValExpr "inc", FnSpec(LitSpec IntSpec, LitSpec IntSpec))])
+  let spec = get ^% getType parsed (Map.ofList[(ValExpr "inc", FnSpec(LitSpec IntSpec, LitSpec IntSpec, []))])
   match spec with
-  | FnSpec(LitSpec IntSpec, LitSpec IntSpec) -> ()
+  | FnSpec(LitSpec IntSpec, LitSpec IntSpec, []) -> ()
   | x -> Assert.True(false, sprintf "%A" x)
   
 [<Fact>]
 let ``Test inc inc def``() =
   let strings = tokenize "fn x -> inc inc x"
   let parsed = get ^% parseExpression strings
-  let spec = get ^% getType parsed (Map.ofList[(ValExpr "inc", FnSpec(LitSpec IntSpec, LitSpec IntSpec))])
+  let spec = get ^% getType parsed (Map.ofList[(ValExpr "inc", FnSpec(LitSpec IntSpec, LitSpec IntSpec, []))])
   match spec with
-  | FnSpec(LitSpec IntSpec, LitSpec IntSpec) -> ()
+  | FnSpec(LitSpec IntSpec, LitSpec IntSpec, []) -> ()
   | x -> Assert.True(false, sprintf "%A" x)
 
 [<Fact>]
 let ``Test inc inc eval``() =
   let strings = tokenize "{ let inc2 = fn x -> inc inc x; inc2 4 }"
   let parsed = get ^% parseExpression strings
-  let spec = get ^% getType parsed (Map.ofList[(ValExpr "inc", FnSpec(LitSpec IntSpec, LitSpec IntSpec))])
+  let spec = get ^% getType parsed (Map.ofList[(ValExpr "inc", FnSpec(LitSpec IntSpec, LitSpec IntSpec, []))])
   match spec with
   | LitSpec IntSpec -> ()
   | x -> Assert.True(false, sprintf "%A" x)
@@ -146,8 +146,8 @@ let ``Test inc inc eval``() =
 let ``Test inc inc eval wrong type``() =
   let strings = tokenize """{ let inc2 = fn x -> inc inc x; inc2 inc }"""
   let parsed = get ^% parseExpression strings
-  let spec = getType parsed (Map.ofList[(ValExpr "inc", FnSpec(LitSpec IntSpec, LitSpec IntSpec))])
-  Assert.Equal(Choice2Of2 ^% UnifyErrors.cannotUnify (FnSpec(LitSpec IntSpec, LitSpec IntSpec), LitSpec IntSpec), spec)
+  let spec = getType parsed (Map.ofList[(ValExpr "inc", FnSpec(LitSpec IntSpec, LitSpec IntSpec, []))])
+  Assert.Equal(Choice2Of2 ^% UnifyErrors.cannotUnify (FnSpec(LitSpec IntSpec, LitSpec IntSpec, []), LitSpec IntSpec), spec)
   
 [<Fact>]
 let ``Test higher order``() =
@@ -155,7 +155,7 @@ let ``Test higher order``() =
   let parsed = get ^% parseExpression strings
   let spec = get ^% getType parsed Map.empty
   match spec with
-  | FnSpec(FnSpec(LitSpec IntSpec,FreeSpec a), FreeSpec b) when a = b -> ()
+  | FnSpec(FnSpec(LitSpec IntSpec,FreeSpec a, []), FreeSpec b, []) when a = b -> ()
   | x -> Assert.True(false, sprintf "%A" x)
 
 [<Fact>]
@@ -164,7 +164,7 @@ let ``Test higher order 2``() =
   let parsed = get ^% parseExpression strings
   let spec = get ^% getType parsed Map.empty
   match spec with
-  | FnSpec(FreeSpec a, FnSpec(FnSpec(FreeSpec b, FreeSpec c), FreeSpec d)) when a = b && c = d && a <> c -> () // allow a >= b
+  | FnSpec(FreeSpec a, FnSpec(FnSpec(FreeSpec b, FreeSpec c, []), FreeSpec d, []), []) when a = b && c = d && a <> c -> () // allow a >= b
   | x -> Assert.True(false, sprintf "%A" x)
 
 [<Fact>]
@@ -173,7 +173,7 @@ let ``Test higher order 2a``() =
   let parsed = get ^% parseExpression strings
   let spec = get ^% getType parsed Map.empty
   match spec with
-  | FnSpec(FreeSpec a, FnSpec(FnSpec(FreeSpec b, FreeSpec c), FreeSpec d)) when a = b && c = d && a <> c-> () // allow a >= b
+  | FnSpec(FreeSpec a, FnSpec(FnSpec(FreeSpec b, FreeSpec c, []), FreeSpec d, []), []) when a = b && c = d && a <> c-> () // allow a >= b
   | x -> Assert.True(false, sprintf "%A" x)
   
 [<Fact>]
@@ -182,7 +182,7 @@ let ``Test y combinator``() =
   let parsed = get ^% parseExpression strings
   let spec = get ^% getType parsed Map.empty
   match spec with
-  | FnSpec(FnSpec(FreeSpec a, FreeSpec b), FreeSpec c) when b = c && a = c -> () // allow a >=b
+  | FnSpec(FnSpec(FreeSpec a, FreeSpec b, []), FreeSpec c, []) when b = c && a = c -> () // allow a >=b
   | x -> Assert.True(false, sprintf "%A" x)
 
 [<Fact>]
