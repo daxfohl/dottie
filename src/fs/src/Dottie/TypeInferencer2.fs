@@ -36,16 +36,27 @@ module UnifyErrors =
   let exprAlreadyExists(expr: Expr) = sprintf "Expression %A already exists" expr
   let objectFieldsDiffer(spec1: Set<string>, spec2: Set<string>) = sprintf "Object fields differ {spec1=%A; spec2=%A}" spec1 spec2
 
-let fresh expr specs =
-  match Map.tryFind expr specs with
-  | None -> specs |> Map.add expr (FreeSpec expr)
-  | Some _ -> specs
-
 module Errors =
   let notAFunction fn fnspec = sprintf "function %A is not of type function but %A" fn fnspec
   let undefined x = sprintf "Val %s undefined" x
   let noField (fieldname: string) (object: Expr) = sprintf "No field %s in object %A" fieldname object
   let notObject (notObject: Spec) = sprintf "Not an object: %A" notObject
+  let alreadyExists (expr: Expr, spec: Spec) = sprintf "Already exists: %A as %A" expr spec
+
+
+let fresh expr specs =
+  match Map.tryFind expr specs with
+  | None ->
+    let free = FreeSpec expr
+    Choice1Of2(free, Map.add expr free specs)
+  | Some spec -> Choice2Of2 ^% Errors.alreadyExists(expr, spec)
+
+let freshOrFind expr specs =
+  match Map.tryFind expr specs with
+  | None ->
+    let free = FreeSpec expr
+    free, Map.add expr free specs
+  | Some spec -> spec, specs
 
 let rec getType (expr: Expr) (specs: Specs): Choice<Spec*Specs, string> =
   choose {
@@ -60,10 +71,10 @@ let rec getType (expr: Expr) (specs: Specs): Choice<Spec*Specs, string> =
       match Map.tryFind expr specs with
       | Some spec -> return spec, specs
       | None -> return! Choice2Of2(Errors.undefined s)
-    | LetExpr(s, expr, rest) ->
-      let valExpr = ValExpr s
-      let specs = fresh valExpr specs
-      let! spec, specs = getType expr specs
-      let! specs = constrain valExpr spec specs
-      return! getType rest specs
+    //| LetExpr(s, expr, rest) ->
+    //  let valExpr = ValExpr s
+    //  let! valSpec, specs = fresh valExpr specs
+    //  let! exprSpec, specs = getType expr specs
+    //  let! specs = constrain valSpec exprSpec specs
+    //  return! getType rest specs
     | _ -> return! Choice2Of2 "not implemented" }
