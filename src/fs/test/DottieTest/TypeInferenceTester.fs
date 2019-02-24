@@ -1,87 +1,73 @@
 ﻿module ``Type inference tester``
+
 open Xunit
 open Tokenizer
 open Expressions
 open ExpressionParser
 open TypeInferencer
 open Types
-open FSharpx.Control
+open SpecParser
+open FSharpx.Choice
 
 let get choice =
   match choice with
   | Choice1Of2 (x, _) -> x
   | Choice2Of2 x -> failwith x
-  
+
+let assertSpec(expression, expectedSpec) =
+  let spec = choose {
+    let strings = tokenize expression
+    let! parsed, _ = parseExpression strings
+    let! spec, _ = getType parsed Map.empty
+    return spec
+  }
+  let otherSpec = choose {
+    let strings = tokenize expectedSpec
+    let! parsed, _ = parseRawSpec strings
+    return parsed
+  }
+  Assert.StrictEqual(spec, otherSpec)
+
+let assertError(expression, expectedError) =
+  let spec = choose {
+    let strings = tokenize expression
+    let! parsed, _ = parseExpression strings
+    let! spec, _ = getType parsed Map.empty
+    return spec
+  }
+  Assert.Equal(Choice2Of2 expectedError, spec)
 
 [<Fact>]
 let ``Test undefined``() =
-  let strings = tokenize "x"
-  let parsed = get ^% parseExpression strings
-  let spec = getType parsed Map.empty
-  Assert.Equal(Choice2Of2(Errors.undefined "x"), spec)
+  assertError("x", Errors.undefined "x")
 
 [<Fact>]
 let ``Test number``() =
-  let strings = tokenize "2"
-  let parsed = get ^% parseExpression strings
-  let spec = get ^% getType parsed Map.empty
-  match spec with
-  | LitSpec IntSpec -> ()
-  | x -> Assert.True(false, sprintf "%A" x)
+  assertSpec("2", "literal int")
 
 [<Fact>]
 let ``Test string``() =
-  let strings = tokenize "\"test\""
-  let parsed = get ^% parseExpression strings
-  let spec = get ^% getType parsed Map.empty
-  match spec with
-  | LitSpec StrSpec -> ()
-  | x -> Assert.True(false, sprintf "%A" x)
+  assertSpec("\"test\"", "literal string")
   
 [<Fact>]
 let ``Test let``() =
-  let strings = tokenize "{ let x = 3; x }"
-  let parsed = get ^% parseExpression strings
-  let spec = get ^% getType parsed Map.empty
-  match spec with
-  | LitSpec IntSpec -> ()
-  | x -> Assert.True(false, sprintf "%A" x)
+  assertSpec("{ let x = 3; x }", "literal int")
 
 [<Fact>]
 let ``Test let two``() =
-  let strings = tokenize "{ let x = 3; let y = x; y }"
-  let parsed = get ^% parseExpression strings
-  let spec = get ^% getType parsed Map.empty
-  match spec with
-  | LitSpec IntSpec -> ()
-  | x -> Assert.True(false, sprintf "%A" x)
+  assertSpec("{ let x = 3; let y = x; y }}", "literal int")
 
 [<Fact>]
 let ``Test let mixed``() =
-  let strings = tokenize """{ let x = 3; let y = "test"; y }"""
-  let parsed = get ^% parseExpression strings
-  let spec = get ^% getType parsed Map.empty
-  match spec with
-  | LitSpec StrSpec -> ()
-  | x -> Assert.True(false, sprintf "%A" x)
+  assertSpec("""{ let x = 3; let y = "test"; y }""", "literal string")
 
 [<Fact>]
 let ``Test let mixed 2``() =
-  let strings = tokenize """{ let x = 3; let y = "test"; x }"""
-  let parsed = get ^% parseExpression strings
-  let spec = get ^% getType parsed Map.empty
-  match spec with
-  | LitSpec IntSpec -> ()
-  | x -> Assert.True(false, sprintf "%A" x)
+  assertSpec("""{ let x = 3; let y = "test"; x }""", "literal int")
 
 [<Fact>]
 let ``Test let nested``() =
-  let strings = tokenize "{ let z = { let x = 3; let y = x; y }; z }"
-  let parsed = get ^% parseExpression strings
-  let spec = get ^% getType parsed Map.empty
-  match spec with
-  | LitSpec IntSpec -> ()
-  | x -> Assert.True(false, sprintf "%A" x)
+  assertSpec("{ let z = { let x = 3; let y = x; y }; z }", "literal int")
 
 [<Fact>]
 let ``Test inc``() =

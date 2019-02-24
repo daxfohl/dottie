@@ -1,6 +1,6 @@
 ﻿module SpecParser
 
-open TypeInferencer2
+open Types
 open FSharpx.Choice
 
 let rec parseRawSpec (tokens: string list) : Choice<Spec * string list, string> =
