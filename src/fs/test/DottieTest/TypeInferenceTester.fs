@@ -89,10 +89,7 @@ let ``Test toStr``() =
 
 [<Fact>]
 let ``Test not function``() =
-  let strings = tokenize "{ let x = 3; x x }"
-  let parsed = get ^% parseExpression strings
-  let spec = getType parsed Map.empty
-  Assert.Equal(Choice2Of2 ^% Errors.notAFunction (ValExpr "x") (LitSpec IntSpec), spec)
+  assertError("{ let x = 3; x x }", Errors.notAFunction (ValExpr "x") (LitSpec IntSpec))
 
 [<Fact>]
 let ``Test wrong type``() =
@@ -182,30 +179,19 @@ let ``Test obj``() =
 
 [<Fact>]
 let ``Test obj empty``() =
-  let strings = tokenize "{ }"
-  let parsed = get ^% parseExpression strings
-  let spec = get ^% getType parsed Map.empty
-  match spec with
-  | ObjSpec x when x = Map.empty -> ()
-  | x -> Assert.True(false, sprintf "%A" x)
+  assertSpec("{}","{}")
 
 [<Fact>]
 let ``Test obj two``() =
-  let strings = tokenize "{ x: 4; y: \"test\" }"
-  let parsed = get ^% parseExpression strings
-  let spec = get ^% getType parsed Map.empty
-  match spec with
-  | ObjSpec x when x = Map.ofList ["x", LitSpec IntSpec; "y", LitSpec StrSpec] -> ()
-  | x -> Assert.True(false, sprintf "%A" x)
+  assertSpec(
+    "{ x: 4; y: \"test\" }",
+    "{ x: literal int, y: literal string }")
 
 [<Fact>]
 let ``Test obj with``() =
-  let strings = tokenize "{ let o = { x: 4; y: \"test\" }; { o with x: 5 } }"
-  let parsed = get ^% parseExpression strings
-  let spec = get ^% getType parsed Map.empty
-  match spec with
-  | ObjSpec x when x = Map.ofList ["x", LitSpec IntSpec; "y", LitSpec StrSpec] -> ()
-  | x -> Assert.True(false, sprintf "%A" x)
+  assertSpec(
+    "{ let o = { x: 4; y: \"test\" }; { o with x: 5 } }",
+    "{ x: literal int, y: literal string }")
 
 [<Fact>]
 let ``Test obj with wrong type``() =
