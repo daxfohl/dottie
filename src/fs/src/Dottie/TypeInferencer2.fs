@@ -38,7 +38,7 @@ module UnifyErrors =
 
 let fresh expr specs =
   match Map.tryFind expr specs with
-  | None -> Map.add expr (FreeSpec expr) specs
+  | None -> specs |> Map.add expr (FreeSpec expr)
   | Some _ -> specs
 
 module Errors =
@@ -60,4 +60,10 @@ let rec getType (expr: Expr) (specs: Specs): Choice<Spec*Specs, string> =
       match Map.tryFind expr specs with
       | Some spec -> return spec, specs
       | None -> return! Choice2Of2(Errors.undefined s)
+    | LetExpr(s, expr, rest) ->
+      let valExpr = ValExpr s
+      let specs = fresh valExpr specs
+      let! spec, specs = getType expr specs
+      let! specs = constrain valExpr spec specs
+      return! getType rest specs
     | _ -> return! Choice2Of2 "not implemented" }
