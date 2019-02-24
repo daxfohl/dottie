@@ -53,12 +53,6 @@ let rec unify (spec1: Spec) (spec2: Spec): Choice<(Expr * Spec) list, string> =
               return List.concat x
           | _ -> return! err }
 
-
-let fresh expr specs =
-  match Map.tryFind expr specs with
-  | None -> Map.add expr (FreeSpec expr) specs
-  | Some _ -> specs
-
 let rec replace (expr: Expr) (replacement: Spec) (domain: Spec) =
   match domain with
   | FreeSpec expr1 when expr = expr1 -> replacement
@@ -80,7 +74,21 @@ module Errors =
   let undefined x = sprintf "Val %s undefined" x
   let noField (fieldname: string) (object: Expr) = sprintf "No field %s in object %A" fieldname object
   let notObject (notObject: Spec) = sprintf "Not an object: %A" notObject
+  let alreadyExists (expr: Expr, spec: Spec) = sprintf "Already exists: %A as %A" expr spec
 
+let fresh expr specs =
+  match Map.tryFind expr specs with
+  | None ->
+    let free = FreeSpec expr
+    Choice1Of2(free, Map.add expr free specs)
+  | Some spec -> Choice2Of2 ^% Errors.alreadyExists(expr, spec)
+
+let freshOrFind expr specs =
+  match Map.tryFind expr specs with
+  | None ->
+    let free = FreeSpec expr
+    free, Map.add expr free specs
+  | Some spec -> spec, specs
 
 let rec getType (expr: Expr) (specs: Specs): Choice<Spec*Specs, string> =
   choose {
@@ -97,7 +105,7 @@ let rec getType (expr: Expr) (specs: Specs): Choice<Spec*Specs, string> =
       | None -> return! Choice2Of2(Errors.undefined s)
     | LetExpr(s, expr, rest) ->
       let valExpr = ValExpr s
-      let specs = fresh valExpr specs
+      let! spec, specs = fresh valExpr specs
       let! spec, specs = getType expr specs
       let! specs = constrain valExpr spec specs
       return! getType rest specs
@@ -106,7 +114,7 @@ let rec getType (expr: Expr) (specs: Specs): Choice<Spec*Specs, string> =
       match fnspec with
       | FnSpec(input, output, constraints) ->
         let! argspec, specs = getType arg specs
-        let specs = fresh arg specs
+        let spec, specs = freshOrFind arg specs
         let! specs = constrain arg argspec specs
         let! specs = constrain arg input specs
         return output, specs
@@ -117,7 +125,7 @@ let rec getType (expr: Expr) (specs: Specs): Choice<Spec*Specs, string> =
       | _ -> return! Choice2Of2 (Errors.notAFunction fn fnspec)
     | FnExpr(input, expr) ->
       let input = ValExpr input
-      let specs = fresh input specs
+      let! spec, specs = fresh input specs
       let! spec, specs = getType expr specs
       let inputSpec = Map.find input specs
       return FnSpec(inputSpec, spec, []), specs
