@@ -109,20 +109,6 @@ let rec getType (expr: Expr) (specs: Specs): Choice<Spec*Specs, string> =
       let! spec, specs = getType expr specs
       let! specs = constrain valExpr spec specs
       return! getType rest specs
-    | EvalExpr(fn, arg) ->
-      let! fnspec, specs = getType fn specs
-      match fnspec with
-      | FnSpec(input, output, constraints) ->
-        let! argspec, specs = getType arg specs
-        let spec, specs = freshOrFind arg specs
-        let! specs = constrain arg argspec specs
-        let! specs = constrain arg input specs
-        return output, specs
-      | FreeSpec x ->
-        let! argspec, specs = getType arg specs
-        let! specs = constrain x (FnSpec(argspec, FreeSpec expr, [])) specs
-        return FreeSpec expr, specs
-      | _ -> return! Choice2Of2 (Errors.notAFunction fn fnspec)
     | FnExpr(input, expr) ->
       let input = ValExpr input
       let! spec, specs = fresh input specs
@@ -137,6 +123,20 @@ let rec getType (expr: Expr) (specs: Specs): Choice<Spec*Specs, string> =
           return name, t }
       let! specFields = tryMap getNamedType fields
       return ObjSpec (Map.ofList specFields), specs
+    | EvalExpr(fn, arg) ->
+      let! fnspec, specs = getType fn specs
+      match fnspec with
+      | FnSpec(input, output, constraints) ->
+        let! argspec, specs = getType arg specs
+        let spec, specs = freshOrFind arg specs
+        let! specs = constrain arg argspec specs
+        let! specs = constrain arg input specs
+        return output, specs
+      | FreeSpec x ->
+        let! argspec, specs = getType arg specs
+        let! specs = constrain x (FnSpec(argspec, FreeSpec expr, [])) specs
+        return FreeSpec expr, specs
+      | _ -> return! Choice2Of2 (Errors.notAFunction fn fnspec)
     | WithExpr(objName, fields) ->
       let orig = ValExpr objName
       let! objType, specs = getType orig specs
