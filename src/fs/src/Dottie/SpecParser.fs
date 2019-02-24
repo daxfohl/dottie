@@ -24,11 +24,12 @@ and parseObjectFields (tokens: string list) : Choice<Map<string, Spec> * string 
   choose {
     let rec addFields = fun tokens fields ->
       choose {
-        let! declaration, tokens = parseObjectField tokens
-        let declarations = declaration::fields
         match tokens with
-        | "}"::t -> return declarations, t
-        | _ -> return! addFields tokens declarations }
+        | "}"::t -> return fields, t
+        | _ ->
+          let! declaration, tokens = parseObjectField tokens
+          let declarations = declaration::fields
+          return! addFields tokens declarations }
     let! fields, tokens = addFields tokens []
     return Map.ofList fields, tokens }
 and parseObjectField (tokens: string list) : Choice<(string * Spec) * string list, string> =
@@ -40,6 +41,6 @@ and parseObjectField (tokens: string list) : Choice<(string * Spec) * string lis
       | ";"::t -> return (name, spec), t
       | h::_ -> return! Choice2Of2 ^% sprintf "Expected ;, got %s" h
       | [] -> return! Choice2Of2 ^% sprintf "Expected ;, got end of list"
-    | h::m::t -> return! Choice2Of2 ^% sprintf "parseDeclaration got %s %s" h m
-    | h::t -> return! Choice2Of2 ^% sprintf "parseDeclaration got %s end" h
-    | [] -> return! Choice2Of2 "parseDeclaration got empty list" }
+    | h::m::t -> return! Choice2Of2 ^% sprintf "parseObjectField got %s %s" h m
+    | h::t -> return! Choice2Of2 ^% sprintf "parseObjectField got %s end" h
+    | [] -> return! Choice2Of2 "parseObjectField got empty list" }
