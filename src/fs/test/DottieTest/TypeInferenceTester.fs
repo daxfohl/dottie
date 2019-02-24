@@ -14,11 +14,11 @@ let get choice =
   | Choice1Of2 (x, _) -> x
   | Choice2Of2 x -> failwith x
 
-let assertSpec(expression, expectedSpec) =
+let assertSpec'(existing, expression, expectedSpec) =
   let spec = choose {
     let strings = tokenize expression
     let! parsed, _ = parseExpression strings
-    let! spec, _ = getType parsed Map.empty
+    let! spec, _ = getType parsed (Map.ofList existing)
     return spec
   }
   let otherSpec = choose {
@@ -28,14 +28,18 @@ let assertSpec(expression, expectedSpec) =
   }
   Assert.StrictEqual(spec, otherSpec)
 
-let assertError(expression, expectedError) =
+let assertSpec(expression, expectedSpec) = assertSpec'([], expression, expectedSpec)
+
+let assertError'(existing, expression, expectedError) =
   let spec = choose {
     let strings = tokenize expression
     let! parsed, _ = parseExpression strings
-    let! spec, _ = getType parsed Map.empty
+    let! spec, _ = getType parsed (Map.ofList existing)
     return spec
   }
   Assert.Equal(Choice2Of2 expectedError, spec)
+
+let assertError(expression, expectedError) = assertError'([], expression, expectedError)
 
 [<Fact>]
 let ``Test undefined``() =
@@ -71,66 +75,58 @@ let ``Test let nested``() =
 
 [<Fact>]
 let ``Test inc``() =
-  let strings = tokenize "{ let x = 3; inc x }"
-  let parsed = get ^% parseExpression strings
-  let spec = get ^% getType parsed (Map.ofList[(ValExpr "inc", FnSpec(LitSpec IntSpec, LitSpec IntSpec, []))])
-  match spec with
-  | LitSpec IntSpec -> ()
-  | x -> Assert.True(false, sprintf "%A" x)
+  assertSpec' (
+    [(ValExpr "inc", FnSpec(LitSpec IntSpec, LitSpec IntSpec, []))],
+    "{ let x = 3; inc x }",
+    "literal int")
 
 [<Fact>]
 let ``Test toStr``() =
-  let strings = tokenize "{ let x = 3; toStr x }"
-  let parsed = get ^% parseExpression strings
-  let spec = get ^% getType parsed (Map.ofList[(ValExpr "toStr", FnSpec(LitSpec IntSpec, LitSpec StrSpec, []))])
-  match spec with
-  | LitSpec StrSpec -> ()
-  | x -> Assert.True(false, sprintf "%A" x)
+  assertSpec' (
+    [(ValExpr "toStr", FnSpec(LitSpec IntSpec, LitSpec StrSpec, []))],
+    "{ let x = 3; toStr x }",
+    "literal string")
 
 [<Fact>]
 let ``Test not function``() =
-  assertError("{ let x = 3; x x }", Errors.notAFunction (ValExpr "x") (LitSpec IntSpec))
+  assertError(
+    "{ let x = 3; x x }",
+    Errors.notAFunction (ValExpr "x") (LitSpec IntSpec))
 
 [<Fact>]
 let ``Test wrong type``() =
-  let strings = tokenize "{ let x = 3; parse x }"
-  let parsed = get ^% parseExpression strings
-  let spec = getType parsed (Map.ofList[(ValExpr "parse", FnSpec(LitSpec StrSpec, LitSpec IntSpec, []))])
-  Assert.Equal(Choice2Of2 ^% UnifyErrors.cannotUnify(LitSpec IntSpec, LitSpec StrSpec), spec)
+  assertError' (
+    [(ValExpr "parse", FnSpec(LitSpec StrSpec, LitSpec IntSpec, []))],
+    "{ let x = 3; parse x }",
+    UnifyErrors.cannotUnify(LitSpec IntSpec, LitSpec StrSpec))
 
 [<Fact>]
 let ``Test inc def``() =
-  let strings = tokenize "fn x -> inc x"
-  let parsed = get ^% parseExpression strings
-  let spec = get ^% getType parsed (Map.ofList[(ValExpr "inc", FnSpec(LitSpec IntSpec, LitSpec IntSpec, []))])
-  match spec with
-  | FnSpec(LitSpec IntSpec, LitSpec IntSpec, []) -> ()
-  | x -> Assert.True(false, sprintf "%A" x)
+  assertSpec' (
+    [(ValExpr "inc", FnSpec(LitSpec IntSpec, LitSpec IntSpec, []))],
+    "fn x -> inc x",
+    "fn literal int -> literal int")
   
 [<Fact>]
 let ``Test inc inc def``() =
-  let strings = tokenize "fn x -> inc inc x"
-  let parsed = get ^% parseExpression strings
-  let spec = get ^% getType parsed (Map.ofList[(ValExpr "inc", FnSpec(LitSpec IntSpec, LitSpec IntSpec, []))])
-  match spec with
-  | FnSpec(LitSpec IntSpec, LitSpec IntSpec, []) -> ()
-  | x -> Assert.True(false, sprintf "%A" x)
+  assertSpec' (
+    [(ValExpr "inc", FnSpec(LitSpec IntSpec, LitSpec IntSpec, []))],
+    "fn x -> inc inc x",
+    "fn literal int -> literal int")
 
 [<Fact>]
 let ``Test inc inc eval``() =
-  let strings = tokenize "{ let inc2 = fn x -> inc inc x; inc2 4 }"
-  let parsed = get ^% parseExpression strings
-  let spec = get ^% getType parsed (Map.ofList[(ValExpr "inc", FnSpec(LitSpec IntSpec, LitSpec IntSpec, []))])
-  match spec with
-  | LitSpec IntSpec -> ()
-  | x -> Assert.True(false, sprintf "%A" x)
-  
+  assertSpec' (
+    [(ValExpr "inc", FnSpec(LitSpec IntSpec, LitSpec IntSpec, []))],
+    "{ let inc2 = fn x -> inc inc x; inc2 4 }",
+    "literal int")
+
 [<Fact>]
 let ``Test inc inc eval wrong type``() =
-  let strings = tokenize """{ let inc2 = fn x -> inc inc x; inc2 inc }"""
-  let parsed = get ^% parseExpression strings
-  let spec = getType parsed (Map.ofList[(ValExpr "inc", FnSpec(LitSpec IntSpec, LitSpec IntSpec, []))])
-  Assert.Equal(Choice2Of2 ^% UnifyErrors.cannotUnify (FnSpec(LitSpec IntSpec, LitSpec IntSpec, []), LitSpec IntSpec), spec)
+  assertError' (
+    [(ValExpr "inc", FnSpec(LitSpec IntSpec, LitSpec IntSpec, []))],
+    "{ let inc2 = fn x -> inc inc x; inc2 inc }",
+    UnifyErrors.cannotUnify (FnSpec(LitSpec IntSpec, LitSpec IntSpec, []), LitSpec IntSpec))
   
 [<Fact>]
 let ``Test higher order``() =
