@@ -7,7 +7,7 @@ type Relation = Is | Contains | ContainedBy
 
 type Spec =
 | LitSpec of LitSpec
-| FreeSpec of Expr
+| FreeSpec of Expr * Constraint list
 | FnSpec of Spec * Spec * Constraint list
 | ObjSpec of Map<string, Spec>
 | IntersectSpec of Set<Spec>

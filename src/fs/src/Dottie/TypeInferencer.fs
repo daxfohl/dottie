@@ -79,7 +79,7 @@ module Errors =
 let fresh expr specs =
   match Map.tryFind expr specs with
   | None ->
-    let free = FreeSpec expr
+    let free = FreeSpec(expr, [])
     Choice1Of2(free, Map.add expr free specs)
   | Some spec -> Choice2Of2 ^% Errors.alreadyExists(expr, spec)
 
@@ -141,7 +141,8 @@ let rec getType (expr: Expr) (specs: Specs): Choice<Spec*Specs, string> =
           let! newSpec, specs = Map.fold checkField (Choice1Of2(objType, specs)) fields
           let! specs = constrain orig newSpec specs
           return! getType orig specs
-        | FreeSpec x -> return! Choice2Of2 "Not yet implemented"
+        | FreeSpec(x, constraints) ->
+          return! Choice2Of2 "Not yet implemented"
         | spec -> return! Choice2Of2(Errors.notObject spec)
     | DotExpr(expr, field) ->
       let! objType, specs = getType expr specs
@@ -150,7 +151,7 @@ let rec getType (expr: Expr) (specs: Specs): Choice<Spec*Specs, string> =
         match Map.tryFind field fields with
         | Some spec -> return spec, specs
         | None -> return! Choice2Of2(Errors.noField field expr)
-      | FreeSpec x -> return! Choice2Of2 "Not yet implemented"
+      | FreeSpec(x, constraints) -> return! Choice2Of2 "Not yet implemented"
       | spec -> return! Choice2Of2(Errors.notObject spec)
     | EvalExpr(fn, arg) ->
       let! fnspec, specs = getType fn specs
@@ -161,7 +162,7 @@ let rec getType (expr: Expr) (specs: Specs): Choice<Spec*Specs, string> =
         let! specs = constrain arg argspec specs
         let! specs = constrain arg input specs
         return output, specs
-      | FreeSpec x ->
+      | FreeSpec(x, constraints) ->
         let! argspec, specs = getType arg specs
         let! specs = constrain x (FnSpec(argspec, FreeSpec expr, [])) specs
         return FreeSpec expr, specs
