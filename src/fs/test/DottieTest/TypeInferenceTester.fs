@@ -204,6 +204,18 @@ let ``Test obj with free``() =
     "{ x: literal int, y: literal string }")
 
 [<Fact>]
+let ``Test obj with fn``() =
+  assertSpec(
+    "fn x -> { x with i: 5 } }",
+    "{ x: literal int, y: literal string }")
+
+[<Fact>]
+let ``Test obj with fn big``() =
+  assertSpec(
+    "fn x -> { let a = { x with i: 5 }; let b = { a with j: 4}; { a with k: 3} }",
+    "{ x: literal int, y: literal string }")
+
+[<Fact>]
 let ``Test obj nested with wrong field type``() =
   let strings = tokenize "{ let o = { x: 4; y: { a: 3 } }; { o with y: { a: \"s\" } } }"
   let parsed = get ^% parseExpression strings
