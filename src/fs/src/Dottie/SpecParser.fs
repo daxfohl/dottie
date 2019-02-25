@@ -13,7 +13,7 @@ let rec parseRawSpec (tokens: string list) : Choice<Spec * string list, string> 
       match t with
       | "->"::t ->
         let! outputSpec, t = parseRawSpec t
-        return FnSpec(inputSpec, outputSpec, []), t
+        return FnSpec(inputSpec, outputSpec), t
       | _ -> return! Choice2Of2 "Expected -> in function declaration"
     | "{"::t ->
       let! properties, t = parseObjectFields t

@@ -32,9 +32,9 @@ let rec unify (spec1: Spec) (spec2: Spec): Choice<(Expr * Spec) list, string> =
         match spec2 with
         | LitSpec _ -> return! err
         | FreeSpec expr2 -> return [expr2, spec1]
-        | FnSpec(input, output, constraints) ->
+        | FnSpec(input, output) ->
           match spec1 with
-          | FnSpec(input1, output1, constraints) ->
+          | FnSpec(input1, output1) ->
             let! inputDeltas = unify input input1
             let! outputDeltas = unify output output1
             return List.append inputDeltas outputDeltas
@@ -56,7 +56,7 @@ let rec unify (spec1: Spec) (spec2: Spec): Choice<(Expr * Spec) list, string> =
 let rec replace (expr: Expr) (replacement: Spec) (domain: Spec) =
   match domain with
   | FreeSpec expr1 when expr = expr1 -> replacement
-  | FnSpec(input, output, constraints) -> FnSpec(replace expr replacement input, replace expr replacement output, constraints)
+  | FnSpec(input, output) -> FnSpec(replace expr replacement input, replace expr replacement output)
   | _ -> domain
 
 let replaceInMap (expr: Expr, replacement: Spec) = Map.map (fun _ -> replace expr replacement)
@@ -79,7 +79,7 @@ module Errors =
 let fresh expr specs =
   match Map.tryFind expr specs with
   | None ->
-    let free = FreeSpec(expr, [])
+    let free = FreeSpec expr
     Choice1Of2(free, Map.add expr free specs)
   | Some spec -> Choice2Of2 ^% Errors.alreadyExists(expr, spec)
 
@@ -114,7 +114,7 @@ let rec getType (expr: Expr) (specs: Specs): Choice<Spec*Specs, string> =
       let! spec, specs = fresh input specs
       let! spec, specs = getType expr specs
       let inputSpec = Map.find input specs
-      return FnSpec(inputSpec, spec, []), specs
+      return FnSpec(inputSpec, spec), specs
     | ObjExpr fields ->
       let fields = Map.toList fields
       let getNamedType(name, expr) =
@@ -141,8 +141,14 @@ let rec getType (expr: Expr) (specs: Specs): Choice<Spec*Specs, string> =
           let! newSpec, specs = Map.fold checkField (Choice1Of2(objType, specs)) fields
           let! specs = constrain orig newSpec specs
           return! getType orig specs
-        | FreeSpec(x, constraints) ->
-          return! Choice2Of2 "Not yet implemented"
+        | FreeSpec expr ->
+          let fields = Map.toList fields
+          let getNamedType(name, expr) =
+            choose {
+              let! t, _ = getType expr specs
+              return name, t }
+          let! specFields = tryMap getNamedType fields
+          return FreeObjSpec(expr, Map.ofList specFields), specs
         | spec -> return! Choice2Of2(Errors.notObject spec)
     | DotExpr(expr, field) ->
       let! objType, specs = getType expr specs
@@ -151,20 +157,20 @@ let rec getType (expr: Expr) (specs: Specs): Choice<Spec*Specs, string> =
         match Map.tryFind field fields with
         | Some spec -> return spec, specs
         | None -> return! Choice2Of2(Errors.noField field expr)
-      | FreeSpec(x, constraints) -> return! Choice2Of2 "Not yet implemented"
+      | FreeSpec(x) -> return! Choice2Of2 "Not yet implemented"
       | spec -> return! Choice2Of2(Errors.notObject spec)
     | EvalExpr(fn, arg) ->
       let! fnspec, specs = getType fn specs
       match fnspec with
-      | FnSpec(input, output, constraints) ->
+      | FnSpec(input, output) ->
         let! argspec, specs = getType arg specs
         let spec, specs = freshOrFind arg specs
         let! specs = constrain arg argspec specs
         let! specs = constrain arg input specs
         return output, specs
-      | FreeSpec(x, constraints) ->
+      | FreeSpec(x) ->
         let! argspec, specs = getType arg specs
-        let! specs = constrain x (FnSpec(argspec, FreeSpec expr, [])) specs
+        let! specs = constrain x (FnSpec(argspec, FreeSpec expr)) specs
         return FreeSpec expr, specs
       | _ -> return! Choice2Of2 (Errors.notAFunction fn fnspec)
     | ImportExpr(name) -> return! Choice2Of2 "not implemented" }

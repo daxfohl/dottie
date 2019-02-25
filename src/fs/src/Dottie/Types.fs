@@ -3,15 +3,14 @@
 open Expressions
 
 type LitSpec = StrSpec | IntSpec
-type Relation = Is | Contains | ContainedBy
+type Relation = Contains | ContainedBy
 
 type Spec =
 | LitSpec of LitSpec
-| FreeSpec of Expr * Constraint list
-| FnSpec of Spec * Spec * Constraint list
+| FreeSpec of Expr
+| FnSpec of Spec * Spec
 | ObjSpec of Map<string, Spec>
-| IntersectSpec of Set<Spec>
-| UnionSpec of Set<Spec>
+| FreeObjSpec of Expr * Map<string, Spec>
 and Constraint =
   { expr: Expr
     relation: Relation

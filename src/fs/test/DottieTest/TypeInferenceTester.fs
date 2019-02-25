@@ -76,14 +76,14 @@ let ``Test let nested``() =
 [<Fact>]
 let ``Test inc``() =
   assertSpec' (
-    [(ValExpr "inc", FnSpec(LitSpec IntSpec, LitSpec IntSpec, []))],
+    [(ValExpr "inc", FnSpec(LitSpec IntSpec, LitSpec IntSpec))],
     "{ let x = 3; inc x }",
     "literal int")
 
 [<Fact>]
 let ``Test toStr``() =
   assertSpec' (
-    [(ValExpr "toStr", FnSpec(LitSpec IntSpec, LitSpec StrSpec, []))],
+    [(ValExpr "toStr", FnSpec(LitSpec IntSpec, LitSpec StrSpec))],
     "{ let x = 3; toStr x }",
     "literal string")
 
@@ -96,37 +96,37 @@ let ``Test not function``() =
 [<Fact>]
 let ``Test wrong type``() =
   assertError' (
-    [(ValExpr "parse", FnSpec(LitSpec StrSpec, LitSpec IntSpec, []))],
+    [(ValExpr "parse", FnSpec(LitSpec StrSpec, LitSpec IntSpec))],
     "{ let x = 3; parse x }",
     UnifyErrors.cannotUnify(LitSpec IntSpec, LitSpec StrSpec))
 
 [<Fact>]
 let ``Test inc def``() =
   assertSpec' (
-    [(ValExpr "inc", FnSpec(LitSpec IntSpec, LitSpec IntSpec, []))],
+    [(ValExpr "inc", FnSpec(LitSpec IntSpec, LitSpec IntSpec))],
     "fn x -> inc x",
     "fn literal int -> literal int")
   
 [<Fact>]
 let ``Test inc inc def``() =
   assertSpec' (
-    [(ValExpr "inc", FnSpec(LitSpec IntSpec, LitSpec IntSpec, []))],
+    [(ValExpr "inc", FnSpec(LitSpec IntSpec, LitSpec IntSpec))],
     "fn x -> inc inc x",
     "fn literal int -> literal int")
 
 [<Fact>]
 let ``Test inc inc eval``() =
   assertSpec' (
-    [(ValExpr "inc", FnSpec(LitSpec IntSpec, LitSpec IntSpec, []))],
+    [(ValExpr "inc", FnSpec(LitSpec IntSpec, LitSpec IntSpec))],
     "{ let inc2 = fn x -> inc inc x; inc2 4 }",
     "literal int")
 
 [<Fact>]
 let ``Test inc inc eval wrong type``() =
   assertError' (
-    [(ValExpr "inc", FnSpec(LitSpec IntSpec, LitSpec IntSpec, []))],
+    [(ValExpr "inc", FnSpec(LitSpec IntSpec, LitSpec IntSpec))],
     "{ let inc2 = fn x -> inc inc x; inc2 inc }",
-    UnifyErrors.cannotUnify (FnSpec(LitSpec IntSpec, LitSpec IntSpec, []), LitSpec IntSpec))
+    UnifyErrors.cannotUnify (FnSpec(LitSpec IntSpec, LitSpec IntSpec), LitSpec IntSpec))
   
 [<Fact>]
 let ``Test higher order``() =
@@ -134,7 +134,7 @@ let ``Test higher order``() =
   let parsed = get ^% parseExpression strings
   let spec = get ^% getType parsed Map.empty
   match spec with
-  | FnSpec(FnSpec(LitSpec IntSpec,FreeSpec a, []), FreeSpec b, []) when a = b -> ()
+  | FnSpec(FnSpec(LitSpec IntSpec, FreeSpec a), FreeSpec b) when a = b -> ()
   | x -> Assert.True(false, sprintf "%A" x)
 
 [<Fact>]
@@ -143,7 +143,7 @@ let ``Test higher order 2``() =
   let parsed = get ^% parseExpression strings
   let spec = get ^% getType parsed Map.empty
   match spec with
-  | FnSpec(FreeSpec a, FnSpec(FnSpec(FreeSpec b, FreeSpec c, []), FreeSpec d, []), []) when a = b && c = d && a <> c -> () // allow a >= b
+  | FnSpec(FreeSpec a, FnSpec(FnSpec(FreeSpec b, FreeSpec c), FreeSpec d)) when a = b && c = d && a <> c -> () // allow a >= b
   | x -> Assert.True(false, sprintf "%A" x)
 
 [<Fact>]
@@ -152,7 +152,7 @@ let ``Test higher order 2a``() =
   let parsed = get ^% parseExpression strings
   let spec = get ^% getType parsed Map.empty
   match spec with
-  | FnSpec(FreeSpec a, FnSpec(FnSpec(FreeSpec b, FreeSpec c, []), FreeSpec d, []), []) when a = b && c = d && a <> c-> () // allow a >= b
+  | FnSpec(FreeSpec a, FnSpec(FnSpec(FreeSpec b, FreeSpec c), FreeSpec d)) when a = b && c = d && a <> c-> () // allow a >= b
   | x -> Assert.True(false, sprintf "%A" x)
   
 [<Fact>]
@@ -161,17 +161,12 @@ let ``Test y combinator``() =
   let parsed = get ^% parseExpression strings
   let spec = get ^% getType parsed Map.empty
   match spec with
-  | FnSpec(FnSpec(FreeSpec a, FreeSpec b, []), FreeSpec c, []) when b = c && a = c -> () // allow a >=b
+  | FnSpec(FnSpec(FreeSpec a, FreeSpec b), FreeSpec c) when b = c && a = c -> () // allow a >=b
   | x -> Assert.True(false, sprintf "%A" x)
 
 [<Fact>]
 let ``Test obj``() =
-  let strings = tokenize "{ x: 4 }"
-  let parsed = get ^% parseExpression strings
-  let spec = get ^% getType parsed Map.empty
-  match spec with
-  | ObjSpec x when x = Map.ofList ["x", LitSpec IntSpec] -> ()
-  | x -> Assert.True(false, sprintf "%A" x)
+  assertSpec("{ x: 4 }", "{x: literal int}")
 
 [<Fact>]
 let ``Test obj empty``() =
@@ -191,17 +186,22 @@ let ``Test obj with``() =
 
 [<Fact>]
 let ``Test obj with wrong type``() =
-  let strings = tokenize "{ let o = { x: 4; y: \"test\" }; { o with x: \"s\" } }"
-  let parsed = get ^% parseExpression strings
-  let spec = getType parsed Map.empty
-  Assert.Equal(Choice2Of2 ^% UnifyErrors.cannotUnify(LitSpec IntSpec, LitSpec StrSpec), spec)
+  assertError(
+    "{ let o = { x: 4; y: \"test\" }; { o with x: \"s\" } }",
+    UnifyErrors.cannotUnify(LitSpec IntSpec, LitSpec StrSpec))
 
 [<Fact>]
 let ``Test obj with wrong field name``() =
-  let strings = tokenize "{ let o = { x: 4; y: \"test\" }; { o with z: \"s\" } }"
-  let parsed = get ^% parseExpression strings
-  let spec = getType parsed Map.empty
-  Assert.Equal(Choice2Of2 ^% Errors.noField "z" (ValExpr "o"), spec)
+  assertError(
+    "{ let o = { x: 4; y: \"test\" }; { o with z: \"s\" } }",
+    Errors.noField "z" (ValExpr "o"))
+
+[<Fact>]
+let ``Test obj with free``() =
+  assertSpec'(
+    [(ValExpr "x", FreeSpec(ValExpr "x"))],
+    "{ x with i: 5 } }",
+    "{ x: literal int, y: literal string }")
 
 [<Fact>]
 let ``Test obj nested with wrong field type``() =

@@ -23,5 +23,5 @@ let ``Test Parser``() =
           ObjSpec ^% Map.ofList
             [("s2", LitSpec StrSpec);
              ("s1", LitSpec StrSpec)],
-          LitSpec StrSpec, []))]
+          LitSpec StrSpec))]
   assertSpec(spec, expected)
