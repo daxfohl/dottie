@@ -13,20 +13,25 @@ let get choice =
   match choice with
   | Choice1Of2 (x, _) -> x
   | Choice2Of2 x -> failwith x
-
-let assertSpec'(existing, expression, expectedSpec) =
+  
+let assertSpec''(existing, expression, otherSpec) =
   let spec = choose {
     let strings = tokenize expression
     let! parsed, _ = parseExpression strings
     let! spec, _ = getType parsed (Map.ofList existing)
     return spec
   }
+  Assert.StrictEqual(spec, otherSpec)
+
+let assertSpec'''(expression, otherSpec) = assertSpec''([], expression, Choice1Of2 otherSpec)
+
+let assertSpec'(existing, expression, expectedSpec) =
   let otherSpec = choose {
     let strings = tokenize expectedSpec
     let! parsed, _ = parseRawSpec strings
     return parsed
   }
-  Assert.StrictEqual(spec, otherSpec)
+  assertSpec''(existing, expression, otherSpec)
 
 let assertSpec(expression, expectedSpec) = assertSpec'([], expression, expectedSpec)
 
@@ -198,22 +203,26 @@ let ``Test obj with wrong field name``() =
 
 [<Fact>]
 let ``Test obj with free``() =
-  assertSpec'(
+  assertSpec''(
     [(ValExpr "x", FreeSpec(ValExpr "x"))],
     "{ x with i: 5 } }",
-    "{ x: literal int, y: literal string }")
+    Choice1Of2(FreeObjSpec (ValExpr "x",Map.ofList [("i", LitSpec IntSpec)])))
 
 [<Fact>]
 let ``Test obj with fn``() =
-  assertSpec(
+  assertSpec'''(
     "fn x -> { x with i: 5 } }",
-    "{ x: literal int, y: literal string }")
+    FnSpec
+      (FreeObjSpec (ValExpr "x",Map.ofList [("i", LitSpec IntSpec)]),
+       FreeObjSpec (ValExpr "x",Map.ofList [("i", LitSpec IntSpec)])))
 
 [<Fact>]
 let ``Test obj with fn big``() =
-  assertSpec(
-    "fn x -> { let a = { x with i: 5 }; let b = { a with j: 4}; { a with k: 3} }",
-    "{ x: literal int, y: literal string }")
+  assertSpec'''(
+    "fn x -> { let a = { x with i: 5 }; { a with j: 3 } }",
+    FnSpec
+      (FreeObjSpec (ValExpr "x",Map.ofList [("i", LitSpec IntSpec); ("j", LitSpec IntSpec)]),
+       FreeObjSpec (ValExpr "x",Map.ofList [("i", LitSpec IntSpec); ("j", LitSpec IntSpec)])))
 
 [<Fact>]
 let ``Test obj nested with wrong field type``() =

@@ -51,6 +51,18 @@ let rec unify (spec1: Spec) (spec2: Spec): Choice<(Expr * Spec) list, string> =
                 unify spec1 spec2
               let! x = tryMap unifyFields (fieldsMap1 |> Map.toList |> List.map fst)
               return List.concat x
+          | _ -> return! err
+        | FreeObjSpec(expr2, fieldsMap2) ->
+          match spec1 with
+          | FreeObjSpec(expr1, fieldsMap1) ->
+            let unifyFields name =
+              let spec1 = Map.find name fieldsMap1
+              let spec2 = Map.find name fieldsMap2
+              unify spec1 spec2
+            let! x = tryMap unifyFields (fieldsMap1 |> Map.toList |> List.map fst)
+            let changes = List.concat x
+            let merged = Map.fold (fun state k v -> Map.add k v state) fieldsMap1 fieldsMap2
+            return (expr2, FreeObjSpec(expr2, merged))::(expr1, FreeObjSpec(expr1, merged))::changes
           | _ -> return! err }
 
 let rec replace (expr: Expr) (replacement: Spec) (domain: Spec) =
@@ -148,7 +160,22 @@ let rec getType (expr: Expr) (specs: Specs): Choice<Spec*Specs, string> =
               let! t, _ = getType expr specs
               return name, t }
           let! specFields = tryMap getNamedType fields
-          return FreeObjSpec(expr, Map.ofList specFields), specs
+          let freeObj = FreeObjSpec(expr, Map.ofList specFields)
+          let! specs = constrain orig freeObj specs
+          let! specs = constrain expr freeObj specs
+          return freeObj, specs
+        | FreeObjSpec(expr, objFields) ->
+          let checkField (state: Choice<Spec*Specs, string>) (fieldName: string) (newSpec: Spec) : Choice<Spec*Specs, string> =
+            choose {
+              let! spec, specs = state
+              match spec with
+              | FreeObjSpec(expr, objFields) ->
+                return FreeObjSpec(expr, Map.add fieldName newSpec objFields), specs
+              | _ -> return! Choice2Of2 "Expected a free object" }
+          let! newSpec, specs = Map.fold checkField (Choice1Of2(objType, specs)) objFields
+          let! specs = constrain orig newSpec specs
+          let! specs = constrain expr newSpec specs
+          return! getType orig specs
         | spec -> return! Choice2Of2(Errors.notObject spec)
     | DotExpr(expr, field) ->
       let! objType, specs = getType expr specs
