@@ -68,6 +68,7 @@ let rec unify (spec1: Spec) (spec2: Spec): Choice<(Expr * Spec) list, string> =
 let rec replace (expr: Expr) (replacement: Spec) (domain: Spec) =
   match domain with
   | FreeSpec expr1 when expr = expr1 -> replacement
+  | FreeObjSpec(expr1, _) when expr = expr1 -> replacement
   | FnSpec(input, output) -> FnSpec(replace expr replacement input, replace expr replacement output)
   | _ -> domain
 
@@ -165,14 +166,15 @@ let rec getType (expr: Expr) (specs: Specs): Choice<Spec*Specs, string> =
           let! specs = constrain expr freeObj specs
           return freeObj, specs
         | FreeObjSpec(expr, objFields) ->
-          let checkField (state: Choice<Spec*Specs, string>) (fieldName: string) (newSpec: Spec) : Choice<Spec*Specs, string> =
+          let checkField (state: Choice<Spec*Specs, string>) (fieldName: string) (newExpr: Expr) : Choice<Spec*Specs, string> =
             choose {
               let! spec, specs = state
               match spec with
               | FreeObjSpec(expr, objFields) ->
+                let! newSpec, specs = getType newExpr specs
                 return FreeObjSpec(expr, Map.add fieldName newSpec objFields), specs
               | _ -> return! Choice2Of2 "Expected a free object" }
-          let! newSpec, specs = Map.fold checkField (Choice1Of2(objType, specs)) objFields
+          let! newSpec, specs = Map.fold checkField (Choice1Of2(objType, specs)) fields
           let! specs = constrain orig newSpec specs
           let! specs = constrain expr newSpec specs
           return! getType orig specs
