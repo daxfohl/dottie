@@ -229,8 +229,12 @@ let ``Test obj with fn nested``() =
   assertSpec'''(
     "fn x -> fn y -> fn z -> { let a = { x with i: y }; let b = { y with j: z }; let c = { z with k: 3 }; x }",
     FnSpec
-      (FreeObjSpec (ValExpr "x",Map.ofList [("i", FreeObjSpec (ValExpr "y", Map.ofList [("j", FreeObjSpec (ValExpr "z", Map.ofList [("k", LitSpec IntSpec)]))]))]),
-       FreeObjSpec (ValExpr "x",Map.ofList [("i", FreeObjSpec (ValExpr "y", Map.ofList [("j", FreeObjSpec (ValExpr "z", Map.ofList [("k", LitSpec IntSpec)]))]))])))
+       (FreeObjSpec (ValExpr "x",Map.ofList [("i", FreeSpec (ValExpr "y"))]),
+       FnSpec
+         (FreeObjSpec (ValExpr "y",Map.ofList [("j", FreeSpec (ValExpr "z"))]),
+          FnSpec
+            (FreeObjSpec (ValExpr "z",Map.ofList [("k", LitSpec IntSpec)]),
+             FreeObjSpec (ValExpr "x",Map.ofList [("i", FreeSpec (ValExpr "y"))])))))
 
 [<Fact>]
 let ``Test obj nested with wrong field type``() =
