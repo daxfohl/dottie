@@ -218,11 +218,21 @@ let ``Test obj with fn``() =
 
 [<Fact>]
 let ``Test dot with fn``() =
-  assertSpec'''(
-    "fn x -> { let z = x.i; x } }",
-    FnSpec
+  assertSpec''(
+    [(ValExpr "inc", FnSpec(LitSpec IntSpec, LitSpec IntSpec))],
+    "fn x -> { let z = x.i; z } }",
+    Choice1Of2 (FnSpec
       (FreeObjSpec (ValExpr "x",Map.ofList [("i", FreeSpec(ValExpr "x"))]),
-       FreeObjSpec (ValExpr "x",Map.ofList [("i", FreeSpec(ValExpr "x"))])))
+       FreeObjSpec (ValExpr "x",Map.ofList [("i", FreeSpec(ValExpr "x"))]))))
+
+[<Fact>]
+let ``Test dot with fn inc``() =
+  assertSpec''(
+    [(ValExpr "inc", FnSpec(LitSpec IntSpec, LitSpec IntSpec))],
+    "fn x -> { let z = x.i; let y = inc z; z } }",
+    Choice1Of2 (FnSpec
+      (FreeObjSpec (ValExpr "x",Map.ofList [("i", LitSpec IntSpec)]),
+       FreeObjSpec (ValExpr "x",Map.ofList [("i", LitSpec IntSpec)]))))
 
 [<Fact>]
 let ``Test obj with fn big``() =
