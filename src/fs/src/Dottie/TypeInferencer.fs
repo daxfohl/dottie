@@ -165,7 +165,7 @@ let rec getType (expr: Expr) (specs: Specs): Choice<Spec*Specs, string> =
           let! specs = constrain orig freeObj specs
           let! specs = constrain expr freeObj specs
           return freeObj, specs
-        | FreeObjSpec(expr, objFields) ->
+        | FreeObjSpec(expr, _) ->
           let checkField (state: Choice<Spec*Specs, string>) (fieldName: string) (newExpr: Expr) : Choice<Spec*Specs, string> =
             choose {
               let! spec, specs = state
@@ -186,7 +186,10 @@ let rec getType (expr: Expr) (specs: Specs): Choice<Spec*Specs, string> =
         match Map.tryFind field fields with
         | Some spec -> return spec, specs
         | None -> return! Choice2Of2(Errors.noField field expr)
-      | FreeSpec(x) -> return! Choice2Of2 "Not yet implemented"
+      | FreeSpec _ ->
+        let fieldSpec, specs = freshOrFind expr specs
+        let! specs = constrain expr (FreeObjSpec(expr, Map.ofList[field, fieldSpec])) specs
+        return fieldSpec, specs
       | spec -> return! Choice2Of2(Errors.notObject spec)
     | EvalExpr(fn, arg) ->
       let! fnspec, specs = getType fn specs

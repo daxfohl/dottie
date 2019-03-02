@@ -217,6 +217,14 @@ let ``Test obj with fn``() =
        FreeObjSpec (ValExpr "x",Map.ofList [("i", LitSpec IntSpec)])))
 
 [<Fact>]
+let ``Test dot with fn``() =
+  assertSpec'''(
+    "fn x -> { let z = x.i; x } }",
+    FnSpec
+      (FreeObjSpec (ValExpr "x",Map.ofList [("i", FreeSpec(ValExpr "x"))]),
+       FreeObjSpec (ValExpr "x",Map.ofList [("i", FreeSpec(ValExpr "x"))])))
+
+[<Fact>]
 let ``Test obj with fn big``() =
   assertSpec'''(
     "fn x -> { let a = { x with i: 5 }; let z = { x with j: 3 }; a }",
