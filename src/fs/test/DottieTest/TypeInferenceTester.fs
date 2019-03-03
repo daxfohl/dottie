@@ -270,6 +270,14 @@ let ``Test dot with fn concat 2``() =
       FreeObjSpec (DotExpr (ValExpr "ss","s1"), Map.ofList [("raw", LitSpec StrSpec)])))
 
 [<Fact>]
+let ``Test with with dot``() =
+  assertSpec''(
+    [ValExpr "x", FreeSpec(ValExpr "x")],
+    "{ x with s1: x.s2 }",
+     FreeObjSpec (ValExpr "x", Map.ofList ["s1", FreeSpec (DotExpr (ValExpr "x","s2"))
+                                           "s2", FreeSpec (DotExpr (ValExpr "x","s2"))]))
+
+[<Fact>]
 let ``Test obj with fn big``() =
   assertSpec'''(
     "fn x -> { let a = { x with i: 5 }; let z = { x with j: 3 }; a }",

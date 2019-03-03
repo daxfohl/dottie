@@ -14,6 +14,8 @@ let tryMap (f: 'a -> Choice<'b, 'c>) list =
     let! map = List.fold folder (Choice1Of2 []) list
     return List.rev map }
 
+let keys map = map |> Map.toList |> List.map fst |> Set.ofList
+
 module UnifyErrors =
   let cannotUnify(spec1: Spec, spec2: Spec) = sprintf "Cannot unify %A with %A" spec1 spec2
   let exprNotFound(expr: Expr) = sprintf "No expr %A found" expr
@@ -41,8 +43,7 @@ let rec unify (spec1: Spec) (spec2: Spec): Choice<(Expr * Spec) list, string> =
           | _ -> return! err
         | ObjSpec fieldsMap2 ->
           match spec1 with
-          | ObjSpec fieldsMap1 ->
-            let keys fields = fields |> Map.toList |> List.map fst |> Set.ofList 
+          | ObjSpec fieldsMap1 -> 
             if keys fieldsMap1 <> keys fieldsMap2 then return! Choice2Of2(UnifyErrors.objectFieldsDiffer(keys fieldsMap1, keys fieldsMap2))
             else
               let unifyFields name =
@@ -59,7 +60,7 @@ let rec unify (spec1: Spec) (spec2: Spec): Choice<(Expr * Spec) list, string> =
               let spec1 = Map.find name fieldsMap1
               let spec2 = Map.find name fieldsMap2
               unify spec1 spec2
-            let! x = tryMap unifyFields (fieldsMap1 |> Map.toList |> List.map fst)
+            let! x = tryMap unifyFields (Set.intersect (keys fieldsMap1) (keys fieldsMap2) |> Set.toList)
             let changes = List.concat x
             let merged = Map.fold (fun state k v -> Map.add k v state) fieldsMap1 fieldsMap2
             return (expr2, FreeObjSpec(expr2, merged))::(expr1, FreeObjSpec(expr1, merged))::changes
@@ -132,11 +133,14 @@ let rec getType (expr: Expr) (specs: Specs): Choice<Spec*Specs, string> =
       return FnSpec(inputSpec, spec), specs
     | ObjExpr fields ->
       let fields = Map.toList fields
-      let getNamedType(name, expr) =
+      let rec getNamedType fields specs solved =
         choose {
-          let! t, _ = getType expr specs
-          return name, t }
-      let! specFields = tryMap getNamedType fields
+          match fields with
+          | [] -> return solved, specs
+          | (name,expr)::t ->
+            let! spec, specs = getType expr specs
+            return! getNamedType t specs ((name, spec)::solved) }
+      let! specFields, specs = getNamedType fields specs []
       return ObjSpec (Map.ofList specFields), specs
     | WithExpr(objName, fields) ->
       let orig = ValExpr objName
@@ -158,15 +162,18 @@ let rec getType (expr: Expr) (specs: Specs): Choice<Spec*Specs, string> =
           return! getType orig specs
         | FreeSpec expr ->
           let fields = Map.toList fields
-          let getNamedType(name, expr) =
+          let rec getNamedType fields specs solved =
             choose {
-              let! t, _ = getType expr specs
-              return name, t }
-          let! specFields = tryMap getNamedType fields
+              match fields with
+              | [] -> return solved, specs
+              | (name,expr)::t ->
+                let! spec, specs = getType expr specs
+                return! getNamedType t specs ((name, spec)::solved) }
+          let! specFields, specs = getNamedType fields specs []
           let freeObj = FreeObjSpec(expr, Map.ofList specFields)
           let! specs = constrain orig freeObj specs
           let! specs = constrain expr freeObj specs
-          return freeObj, specs
+          return Map.find expr specs, specs
         | FreeObjSpec(expr, _) ->
           let checkField (state: Choice<Spec*Specs, string>) (fieldName: string) (newExpr: Expr) : Choice<Spec*Specs, string> =
             choose {
