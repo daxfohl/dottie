@@ -21,7 +21,7 @@ let assertSpec''(existing, expression, otherSpec) =
     let! spec, _ = getType parsed (Map.ofList existing)
     return spec
   }
-  Assert.StrictEqual(spec, otherSpec)
+  Assert.StrictEqual(otherSpec, spec)
 
 let assertSpec'''(expression, otherSpec) = assertSpec''([], expression, Choice1Of2 otherSpec)
 
@@ -218,18 +218,33 @@ let ``Test obj with fn``() =
 
 [<Fact>]
 let ``Test dot with fn``() =
-  assertSpec''(
-    [(ValExpr "inc", FnSpec(LitSpec IntSpec, LitSpec IntSpec))],
+  assertSpec'''(
     "fn x -> { let z = x.i; z } }",
-    Choice1Of2 (FnSpec
+    FnSpec
       (FreeObjSpec (ValExpr "x",Map.ofList [("i", FreeSpec(ValExpr "x"))]),
-       FreeObjSpec (ValExpr "x",Map.ofList [("i", FreeSpec(ValExpr "x"))]))))
+       FreeObjSpec (ValExpr "x",Map.ofList [("i", FreeSpec(ValExpr "x"))])))
 
 [<Fact>]
 let ``Test dot with fn inc``() =
   assertSpec''(
     [(ValExpr "inc", FnSpec(LitSpec IntSpec, LitSpec IntSpec))],
     "fn x -> { let z = x.i; let y = inc z; z } }",
+    Choice1Of2 (FnSpec
+      (FreeObjSpec (ValExpr "x",Map.ofList [("i", LitSpec IntSpec)]),
+       FreeObjSpec (ValExpr "x",Map.ofList [("i", LitSpec IntSpec)]))))
+
+[<Fact>]
+let ``Test dot with fn concat``() =
+  assertSpec''(
+    [ValExpr "concat", FnSpec(ObjSpec (Map.ofList["s1", LitSpec StrSpec]), LitSpec StrSpec)],
+    "fn ss -> {
+        let s1 = ss.s1
+        let s1raw = s1.raw
+        let concatinput = { s1: s1raw }
+        let sout = concat concatinput
+        let out = { s1 with raw: sout }
+        out
+      }",
     Choice1Of2 (FnSpec
       (FreeObjSpec (ValExpr "x",Map.ofList [("i", LitSpec IntSpec)]),
        FreeObjSpec (ValExpr "x",Map.ofList [("i", LitSpec IntSpec)]))))
