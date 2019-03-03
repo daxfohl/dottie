@@ -69,6 +69,8 @@ let rec replace (expr: Expr) (replacement: Spec) (domain: Spec) =
   match domain with
   | FreeSpec expr1 when expr = expr1 -> replacement
   | FreeObjSpec(expr1, _) when expr = expr1 -> replacement
+  | ObjSpec fields -> ObjSpec(Map.map (fun _ -> replace expr replacement) fields)
+  | FreeObjSpec(expr1, fields) -> FreeObjSpec(expr1, Map.map (fun _ -> replace expr replacement) fields)
   | FnSpec(input, output) -> FnSpec(replace expr replacement input, replace expr replacement output)
   | _ -> domain
 
@@ -187,7 +189,7 @@ let rec getType (expr: Expr) (specs: Specs): Choice<Spec*Specs, string> =
         | Some spec -> return spec, specs
         | None -> return! Choice2Of2(Errors.noField field objExpr)
       | FreeSpec _ ->
-        let fieldSpec, specs = freshOrFind expr specs
+        let! fieldSpec, specs = fresh expr specs
         let! specs = constrain objExpr (FreeObjSpec(objExpr, Map.ofList[field, fieldSpec])) specs
         return fieldSpec, specs
       | spec -> return! Choice2Of2(Errors.notObject spec)

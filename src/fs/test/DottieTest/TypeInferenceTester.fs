@@ -21,12 +21,12 @@ let assertSpec''(existing, expression, otherSpec) =
     let! spec, _ = getType parsed (Map.ofList existing)
     return spec
   }
-  Assert.StrictEqual(otherSpec, spec)
+  Assert.StrictEqual(Choice1Of2 otherSpec, spec)
 
-let assertSpec'''(expression, otherSpec) = assertSpec''([], expression, Choice1Of2 otherSpec)
+let assertSpec'''(expression, otherSpec) = assertSpec''([], expression, otherSpec)
 
 let assertSpec'(existing, expression, expectedSpec) =
-  let otherSpec = choose {
+  let (Choice1Of2 otherSpec) = choose {
     let strings = tokenize expectedSpec
     let! parsed, _ = parseRawSpec strings
     return parsed
@@ -206,7 +206,7 @@ let ``Test obj with free``() =
   assertSpec''(
     [(ValExpr "x", FreeSpec(ValExpr "x"))],
     "{ x with i: 5 }",
-    Choice1Of2(FreeObjSpec (ValExpr "x", Map.ofList [("i", LitSpec IntSpec)])))
+    FreeObjSpec (ValExpr "x", Map.ofList [("i", LitSpec IntSpec)]))
 
 [<Fact>]
 let ``Test obj with fn``() =
@@ -235,11 +235,10 @@ let ``Test dot with fn z``() =
 [<Fact>]
 let ``Test dot with fn inc``() =
   assertSpec''(
-    [(ValExpr "inc", FnSpec(LitSpec IntSpec, LitSpec IntSpec))],
-    "fn x -> { let z = x.i; let y = inc z; x }",
-    Choice1Of2 (FnSpec
-      (FreeObjSpec (ValExpr "x", Map.ofList [("i", LitSpec IntSpec)]),
-       FreeObjSpec (ValExpr "x", Map.ofList [("i", LitSpec IntSpec)]))))
+    [ValExpr "inc", FnSpec(LitSpec IntSpec, LitSpec IntSpec)
+     ValExpr "x", FreeSpec(ValExpr "x")],
+    "{ let z = inc x.i; x }",
+    FreeObjSpec (ValExpr "x", Map.ofList [("i", LitSpec IntSpec)]))
 
 [<Fact>]
 let ``Test dot with fn concat``() =
@@ -253,9 +252,9 @@ let ``Test dot with fn concat``() =
         let out = { s1 with raw: sout }
         out
       }",
-    Choice1Of2 (FnSpec
+    FnSpec
       (FreeObjSpec (ValExpr "x", Map.ofList [("i", LitSpec IntSpec)]),
-       FreeObjSpec (ValExpr "x", Map.ofList [("i", LitSpec IntSpec)]))))
+       FreeObjSpec (ValExpr "x", Map.ofList [("i", LitSpec IntSpec)])))
 
 [<Fact>]
 let ``Test obj with fn big``() =
@@ -269,13 +268,13 @@ let ``Test obj with fn big``() =
 let ``Test obj with fn nested``() =
   assertSpec'''(
     "fn x -> fn y -> fn z -> { let a = { x with i: y }; let b = { y with j: z }; let c = { z with k: 3 }; x }",
-    FnSpec
-       (FreeObjSpec (ValExpr "x", Map.ofList [("i", FreeSpec (ValExpr "y"))]),
-       FnSpec
-         (FreeObjSpec (ValExpr "y", Map.ofList [("j", FreeSpec (ValExpr "z"))]),
-          FnSpec
-            (FreeObjSpec (ValExpr "z", Map.ofList [("k", LitSpec IntSpec)]),
-             FreeObjSpec (ValExpr "x", Map.ofList [("i", FreeSpec (ValExpr "y"))])))))
+    FnSpec (
+      FreeObjSpec (ValExpr "x", Map.ofList [("i", FreeObjSpec (ValExpr "y", Map.ofList [("j", FreeObjSpec (ValExpr "z", Map.ofList [("k", LitSpec IntSpec)]))]))]),
+      FnSpec (
+        FreeObjSpec (ValExpr "y", Map.ofList [("j", FreeObjSpec (ValExpr "z", Map.ofList [("k", LitSpec IntSpec)]))]),
+        FnSpec (
+          FreeObjSpec (ValExpr "z", Map.ofList [("k", LitSpec IntSpec)]),
+          FreeObjSpec (ValExpr "x", Map.ofList [("i", FreeObjSpec (ValExpr "y", Map.ofList [("j", FreeObjSpec (ValExpr "z", Map.ofList [("k", LitSpec IntSpec)]))]))])))))
 
 [<Fact>]
 let ``Test obj nested with wrong field type``() =
