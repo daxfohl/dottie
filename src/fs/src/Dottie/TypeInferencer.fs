@@ -192,6 +192,13 @@ let rec getType (expr: Expr) (specs: Specs): Choice<Spec*Specs, string> =
         let! fieldSpec, specs = fresh expr specs
         let! specs = constrain objExpr (FreeObjSpec(objExpr, Map.ofList[field, fieldSpec])) specs
         return fieldSpec, specs
+      | FreeObjSpec(objExpr, fields) ->
+        match Map.tryFind field fields with
+        | Some spec -> return spec, specs
+        | None -> 
+          let! fieldSpec, specs = fresh expr specs
+          let! specs = constrain objExpr (FreeObjSpec(objExpr, Map.add field fieldSpec fields)) specs
+          return fieldSpec, specs
       | spec -> return! Choice2Of2(Errors.notObject spec)
     | EvalExpr(fn, arg) ->
       let! fnspec, specs = getType fn specs

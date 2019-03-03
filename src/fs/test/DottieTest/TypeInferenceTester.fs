@@ -243,18 +243,31 @@ let ``Test dot with fn inc``() =
 [<Fact>]
 let ``Test dot with fn concat``() =
   assertSpec''(
-    [ValExpr "concat", FnSpec(ObjSpec (Map.ofList["s1", LitSpec StrSpec]), LitSpec StrSpec)],
+    [ValExpr "concat", FnSpec(ObjSpec(Map.ofList[("s1", LitSpec StrSpec); ("s2", LitSpec StrSpec)]), LitSpec StrSpec)],
     "fn ss -> {
         let s1 = ss.s1
+        let s2 = ss.s2
         let s1raw = s1.raw
-        let concatinput = { s1: s1raw }
+        let s2raw = s2.raw
+        let concatinput = { s1: s1raw, s2: s2raw }
         let sout = concat concatinput
         let out = { s1 with raw: sout }
         out
       }",
-    FnSpec
-      (FreeObjSpec (ValExpr "x", Map.ofList [("i", LitSpec IntSpec)]),
-       FreeObjSpec (ValExpr "x", Map.ofList [("i", LitSpec IntSpec)])))
+    FnSpec (
+      FreeObjSpec (ValExpr "ss", Map.ofList [("s1", FreeObjSpec (ValExpr "s1", Map.ofList [("raw", LitSpec StrSpec)]))
+                                             ("s2", FreeObjSpec (ValExpr "s2", Map.ofList [("raw", LitSpec StrSpec)]))]),
+      FreeObjSpec (ValExpr "s1", Map.ofList [("raw", LitSpec StrSpec)])))
+
+[<Fact>]
+let ``Test dot with fn concat 2``() =
+  assertSpec''(
+    [ValExpr "concat", FnSpec(ObjSpec(Map.ofList[("s1", LitSpec StrSpec); ("s2", LitSpec StrSpec)]), LitSpec StrSpec)],
+    "fn ss -> { let s1 = ss.s1; { s1 with raw: concat { s1: ss.s1.raw, s2: ss.s2.raw } } }",
+    FnSpec (
+      FreeObjSpec (ValExpr "ss", Map.ofList [("s1", FreeObjSpec (DotExpr (ValExpr "ss","s1"), Map.ofList [("raw", LitSpec StrSpec)]))
+                                             ("s2", FreeObjSpec (DotExpr (ValExpr "ss","s2"), Map.ofList [("raw", LitSpec StrSpec)]))]),
+      FreeObjSpec (DotExpr (ValExpr "ss","s1"), Map.ofList [("raw", LitSpec StrSpec)])))
 
 [<Fact>]
 let ``Test obj with fn big``() =
