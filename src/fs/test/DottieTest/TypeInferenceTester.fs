@@ -233,6 +233,14 @@ let ``Test dot with fn z``() =
        FreeSpec(DotExpr(ValExpr "x", "i"))))
 
 [<Fact>]
+let ``Test three fn``() =
+  assertSpec'''(
+    "fn x -> { x with a: x.f x.x, b: x.f x.y, c: x.g x.y, d: x.g x.z, e: x.h x.z, e1: x.h x.x }",
+    FnSpec
+      (FreeObjSpec (ValExpr "x", Map.ofList [("i", FreeSpec(DotExpr(ValExpr "x", "i")))]),
+       FreeSpec(DotExpr(ValExpr "x", "i"))))
+
+[<Fact>]
 let ``Test dot with fn inc``() =
   assertSpec''(
     [ValExpr "inc", FnSpec(LitSpec IntSpec, LitSpec IntSpec)
