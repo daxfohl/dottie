@@ -219,7 +219,13 @@ let rec getType (expr: Expr) (specs: Specs): Choice<Spec*Specs, string> =
         return output, specs
       | FreeSpec(x) ->
         let! argspec, specs = getType arg specs
-        let! specs = constrain x (FnSpec(argspec, FreeSpec expr)) specs
+        let fnspec = match argspec with | ObjSpec fields -> FreeFnSpec(x, fields, FreeSpec expr) | _ -> FnSpec(argspec, FreeSpec expr)
+        let! specs = constrain x fnspec specs
         return FreeSpec expr, specs
+      | FreeFnSpec(x, fields, output) ->
+        let! argspec, specs = getType arg specs
+        let fnspec = match argspec with | ObjSpec fields -> FreeFnSpec(x, fields, FreeSpec expr) | _ -> FnSpec(argspec, FreeSpec expr)
+        let! specs = constrain x fnspec specs
+        return output, specs
       | _ -> return! Choice2Of2 (Errors.notAFunction fn fnspec)
     | ImportExpr(name) -> return! Choice2Of2 "not implemented" }
