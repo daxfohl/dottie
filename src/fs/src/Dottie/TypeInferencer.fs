@@ -214,6 +214,7 @@ let rec getType (expr: Expr) (specs: Specs): Choice<Spec*Specs, string> =
         let! argspec, specs = getType arg specs
         let spec, specs = freshOrFind arg specs
         let! specs = constrain arg argspec specs
+        let input = match input, argspec with | ObjSpec _, ObjSpec _ -> input | ObjSpec fields, _ -> FreeObjSpec(arg, fields) | _ -> input
         let! specs = constrain arg input specs
         return output, specs
       | FreeSpec(x) ->
