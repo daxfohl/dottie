@@ -276,6 +276,21 @@ let ``Test with with dot``() =
     "{ x with s1: x.s2 }",
      FreeObjSpec (ValExpr "x", Map.ofList ["s1", FreeSpec (DotExpr (ValExpr "x","s2"))
                                            "s2", FreeSpec (DotExpr (ValExpr "x","s2"))]))
+                                           
+[<Fact>]
+let ``Test with with dot 2``() =
+  assertSpec''(
+    [ValExpr "x", FreeSpec(ValExpr "x")],
+    "{ let y = { x with i: 1 }; x.i }",
+    LitSpec IntSpec)
+
+[<Fact>]
+let ``Test with with dot 2f``() =
+  assertError'(
+    [ValExpr "inc", FnSpec(LitSpec IntSpec, LitSpec IntSpec)
+     ValExpr "x", FreeSpec(ValExpr "x")],
+    "{ let y = x.i; let j = inc x.i; {x with i: \"test\" } }",
+    UnifyErrors.cannotUnify(LitSpec IntSpec, LitSpec StrSpec))
 
 [<Fact>]
 let ``Test obj with fn big``() =
