@@ -278,6 +278,20 @@ let ``Test free concat``() =
     FreeObjSpec(ValExpr "x", Map.ofList[("s1", LitSpec StrSpec); ("s2", LitSpec StrSpec)]))
 
 [<Fact>]
+let ``Test free f object input``() =
+  assertSpec''(
+    [ValExpr "f", FreeSpec(ValExpr "f")],
+    "{ let y = f {i: 3}; f }",
+    FnSpec(ObjSpec(Map.ofList["i", LitSpec IntSpec]), FreeSpec (EvalExpr (ValExpr "f",ObjExpr (Map.ofList[("i", LitExpr (IntExpr 3))])))))
+
+[<Fact>]
+let ``Test free f object mixed input``() =
+  assertSpec''(
+    [ValExpr "f", FreeSpec(ValExpr "f")],
+    "{ let y = f {i: 3}; let z = f {j: 3}; f }",
+    FnSpec(ObjSpec(Map.ofList["i", LitSpec IntSpec]), FreeSpec (EvalExpr (ValExpr "f",ObjExpr (Map.ofList[("i", LitExpr (IntExpr 3))])))))
+
+[<Fact>]
 let ``Test free concat2``() =
   assertSpec''(
     [ValExpr "x", FreeSpec(ValExpr "x")
