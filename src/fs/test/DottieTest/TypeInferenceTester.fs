@@ -289,7 +289,7 @@ let ``Test with with dot 2f``() =
   assertError'(
     [ValExpr "inc", FnSpec(LitSpec IntSpec, LitSpec IntSpec)
      ValExpr "x", FreeSpec(ValExpr "x")],
-    "{ let y = x.i; let j = inc x.i; {x with i: \"test\" } }",
+    "{ let y = x.i; let j = inc y; { x with i: \"test\" } }",
     UnifyErrors.cannotUnify(LitSpec IntSpec, LitSpec StrSpec))
 
 [<Fact>]
