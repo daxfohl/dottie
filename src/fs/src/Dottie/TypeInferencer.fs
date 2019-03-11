@@ -64,6 +64,21 @@ let rec unify (spec1: Spec) (spec2: Spec): Choice<(Expr * Spec) list, string> =
             let changes = List.concat x
             let merged = Map.fold (fun state k v -> Map.add k v state) fieldsMap1 fieldsMap2
             return (expr2, FreeObjSpec(expr2, merged))::(expr1, FreeObjSpec(expr1, merged))::changes
+          | _ -> return! err
+        | FreeFnSpec(expr2, fieldsMap2, output2) ->
+          match spec1 with
+          | FreeFnSpec(expr1, fieldsMap1, output1) ->
+            let unifyFields name =
+              let spec1 = Map.find name fieldsMap1
+              let spec2 = Map.find name fieldsMap2
+              unify spec1 spec2
+            let fields = Set.intersect (keys fieldsMap1) (keys fieldsMap2) |> Set.toList
+            let! x = tryMap unifyFields fields
+            let changes = List.concat x
+            let! outputDeltas = unify output1 output2
+            let changes = List.concat [changes; outputDeltas]
+            let merged = fields |> List.map (fun field -> field, Map.find field fieldsMap1) |> Map.ofList
+            return (expr2, FreeFnSpec(expr2, merged, output2))::(expr1, FreeFnSpec(expr1, merged, output1))::changes
           | _ -> return! err }
 
 let rec replace (expr: Expr) (replacement: Spec) (domain: Spec) =

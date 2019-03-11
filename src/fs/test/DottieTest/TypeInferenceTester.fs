@@ -21,17 +21,20 @@ let assertSpec''(existing, expression, otherSpec) =
     let! spec, _ = getType parsed (Map.ofList existing)
     return spec
   }
+  let s = sprintf "%A" spec
+  System.Console.WriteLine(s)
   Assert.StrictEqual(Choice1Of2 otherSpec, spec)
 
 let assertSpec'''(expression, otherSpec) = assertSpec''([], expression, otherSpec)
-
 let assertSpec'(existing, expression, expectedSpec) =
-  let (Choice1Of2 otherSpec) = choose {
-    let strings = tokenize expectedSpec
-    let! parsed, _ = parseRawSpec strings
-    return parsed
-  }
-  assertSpec''(existing, expression, otherSpec)
+  match choose
+    {
+      let strings = tokenize expectedSpec
+      let! parsed, _ = parseRawSpec strings
+      return parsed
+    } with
+  | Choice1Of2 otherSpec -> assertSpec''(existing, expression, otherSpec)
+  | Choice2Of2 s -> failwith s
 
 let assertSpec(expression, expectedSpec) = assertSpec'([], expression, expectedSpec)
 
@@ -286,26 +289,26 @@ let ``Test free concat``() =
     FreeObjSpec(ValExpr "x", Map.ofList[("s1", LitSpec StrSpec); ("s2", LitSpec StrSpec)]))
 
 [<Fact>]
-let ``Test free f object input``() =
-  assertSpec''(
-    [ValExpr "f", FreeSpec(ValExpr "f")],
-    "{ let y = f {i: 3}; f }",
-    FnSpec(ObjSpec(Map.ofList["i", LitSpec IntSpec]), FreeSpec (EvalExpr (ValExpr "f",ObjExpr (Map.ofList[("i", LitExpr (IntExpr 3))])))))
-
-[<Fact>]
-let ``Test free f object mixed input``() =
-  assertSpec''(
-    [ValExpr "f", FreeSpec(ValExpr "f")],
-    "{ let y = f {i: 3}; let z = f {j: 3}; f }",
-    FnSpec(ObjSpec(Map.ofList["i", LitSpec IntSpec]), FreeSpec (EvalExpr (ValExpr "f",ObjExpr (Map.ofList[("i", LitExpr (IntExpr 3))])))))
-
-[<Fact>]
 let ``Test free concat2``() =
   assertSpec''(
     [ValExpr "x", FreeSpec(ValExpr "x")
      ValExpr "concat", FnSpec(ObjSpec(Map.ofList[("s1", LitSpec StrSpec); ("s2", LitSpec StrSpec)]), LitSpec StrSpec)],
     "{ let y = concat x; { x with s3: 3 } }",
     FreeObjSpec(ValExpr "x", Map.ofList[("s1", LitSpec StrSpec); ("s2", LitSpec StrSpec); ("s3", LitSpec IntSpec)]))
+
+[<Fact>]
+let ``Test free f object input``() =
+  assertSpec''(
+    [ValExpr "f", FreeSpec(ValExpr "f")],
+    "{ let y = f {i: 3}; f }",
+    FreeFnSpec(ValExpr "f", Map.ofList["i", LitSpec IntSpec], FreeSpec (EvalExpr (ValExpr "f",ObjExpr (Map.ofList[("i", LitExpr (IntExpr 3))])))))
+
+[<Fact>]
+let ``Test free f object mixed input``() =
+  assertSpec''(
+    [ValExpr "f", FreeSpec(ValExpr "f")],
+    "{ let y = f {i: 3}; let z = f {j: 3}; f }",
+    FreeFnSpec(ValExpr "f", Map.ofList["i", LitSpec IntSpec], FreeSpec (EvalExpr (ValExpr "f",ObjExpr (Map.ofList[("i", LitExpr (IntExpr 3))])))))
 
 [<Fact>]
 let ``Test with with dot``() =
