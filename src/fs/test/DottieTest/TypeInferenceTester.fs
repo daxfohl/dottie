@@ -240,8 +240,90 @@ let ``Test three fn``() =
   assertSpec'''(
     "fn x -> { x with a: x.f x.x, b: x.f x.y, c: x.g x.y, d: x.g x.z, e: x.h x.z, e1: x.h x.x }",
     FnSpec
-      (FreeObjSpec (ValExpr "x", Map.ofList [("i", FreeSpec(DotExpr(ValExpr "x", "i")))]),
-       FreeSpec(DotExpr(ValExpr "x", "i"))))
+     (FreeObjSpec
+        (ValExpr "x",
+         Map.ofList
+           [("a",
+             FreeSpec
+               (EvalExpr (DotExpr (ValExpr "x","f"),DotExpr (ValExpr "x","x"))));
+            ("b",
+             FreeSpec
+               (EvalExpr (DotExpr (ValExpr "x","f"),DotExpr (ValExpr "x","x"))));
+            ("c",
+             FreeSpec
+               (EvalExpr (DotExpr (ValExpr "x","g"),DotExpr (ValExpr "x","y"))));
+            ("d",
+             FreeSpec
+               (EvalExpr (DotExpr (ValExpr "x","g"),DotExpr (ValExpr "x","y"))));
+            ("e",
+             FreeSpec
+               (EvalExpr (DotExpr (ValExpr "x","h"),DotExpr (ValExpr "x","z"))));
+            ("e1",
+             FreeSpec
+               (EvalExpr (DotExpr (ValExpr "x","h"),DotExpr (ValExpr "x","z"))));
+            ("f",
+             FnSpec
+               (FreeSpec (DotExpr (ValExpr "x","x")),
+                FreeSpec
+                  (EvalExpr
+                     (DotExpr (ValExpr "x","f"),DotExpr (ValExpr "x","x")))));
+            ("g",
+             FnSpec
+               (FreeSpec (DotExpr (ValExpr "x","x")),
+                FreeSpec
+                  (EvalExpr
+                     (DotExpr (ValExpr "x","g"),DotExpr (ValExpr "x","y")))));
+            ("h",
+             FnSpec
+               (FreeSpec (DotExpr (ValExpr "x","x")),
+                FreeSpec
+                  (EvalExpr
+                     (DotExpr (ValExpr "x","h"),DotExpr (ValExpr "x","z")))));
+            ("x", FreeSpec(DotExpr (ValExpr "x","x")));
+            ("y", FreeSpec(DotExpr (ValExpr "x","x")));
+            ("z", FreeSpec(DotExpr (ValExpr "x","x")))]),
+      FreeObjSpec
+        (ValExpr "x",
+         Map.ofList
+           [("a",
+             FreeSpec
+               (EvalExpr (DotExpr (ValExpr "x","f"),DotExpr (ValExpr "x","x"))));
+            ("b",
+             FreeSpec
+               (EvalExpr (DotExpr (ValExpr "x","f"),DotExpr (ValExpr "x","x"))));
+            ("c",
+             FreeSpec
+               (EvalExpr (DotExpr (ValExpr "x","g"),DotExpr (ValExpr "x","y"))));
+            ("d",
+             FreeSpec
+               (EvalExpr (DotExpr (ValExpr "x","g"),DotExpr (ValExpr "x","y"))));
+            ("e",
+             FreeSpec
+               (EvalExpr (DotExpr (ValExpr "x","h"),DotExpr (ValExpr "x","z"))));
+            ("e1",
+             FreeSpec
+               (EvalExpr (DotExpr (ValExpr "x","h"),DotExpr (ValExpr "x","z"))));
+            ("f",
+             FnSpec
+               (FreeSpec (DotExpr (ValExpr "x","x")),
+                FreeSpec
+                  (EvalExpr
+                     (DotExpr (ValExpr "x","f"),DotExpr (ValExpr "x","x")))));
+            ("g",
+             FnSpec
+               (FreeSpec (DotExpr (ValExpr "x","x")),
+                FreeSpec
+                  (EvalExpr
+                     (DotExpr (ValExpr "x","g"),DotExpr (ValExpr "x","y")))));
+            ("h",
+             FnSpec
+               (FreeSpec (DotExpr (ValExpr "x","x")),
+                FreeSpec
+                  (EvalExpr
+                     (DotExpr (ValExpr "x","h"),DotExpr (ValExpr "x","z")))));
+            ("x", FreeSpec(DotExpr (ValExpr "x","x")));
+            ("y", FreeSpec(DotExpr (ValExpr "x","x")));
+            ("z", FreeSpec(DotExpr (ValExpr "x","x")))])))
 
 [<Fact>]
 let ``Test dot with fn inc``() =
