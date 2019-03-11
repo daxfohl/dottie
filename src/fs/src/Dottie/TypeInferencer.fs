@@ -85,8 +85,10 @@ let rec replace (expr: Expr) (replacement: Spec) (domain: Spec) =
   match domain with
   | FreeSpec expr1 when expr = expr1 -> replacement
   | FreeObjSpec(expr1, _) when expr = expr1 -> replacement
+  | FreeFnSpec(expr1, _, _) when expr = expr1 -> replacement
   | ObjSpec fields -> ObjSpec(Map.map (fun _ -> replace expr replacement) fields)
   | FreeObjSpec(expr1, fields) -> FreeObjSpec(expr1, Map.map (fun _ -> replace expr replacement) fields)
+  | FreeFnSpec(expr1, fields, result1) -> failwith "No idea what to do here"//FreeFnSpec(expr1, Map.map (fun _ -> replace expr replacement) fields, result1)
   | FnSpec(input, output) -> FnSpec(replace expr replacement input, replace expr replacement output)
   | _ -> domain
 
