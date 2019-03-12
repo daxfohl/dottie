@@ -154,7 +154,7 @@ let ``Test higher order 2``() =
   let parsed = get ^% parseExpression strings
   let spec = get ^% getType parsed Map.empty
   match spec with
-  | FnSpec(FreeSpec a, FnSpec(FnSpec(FreeSpec b, FreeSpec c), FreeSpec d)) when a = b && c = d && a <> c -> () // allow a >= b
+  | FnSpec(FreeSpec a, FnSpec(FreeFnSpec(_, b, FreeSpec c), FreeSpec d)) when c = d && a <> c && b = set[FreeSpec a] -> () // allow a >= b
   | x -> Assert.True(false, sprintf "%A" x)
 
 [<Fact>]
@@ -163,7 +163,7 @@ let ``Test higher order 2a``() =
   let parsed = get ^% parseExpression strings
   let spec = get ^% getType parsed Map.empty
   match spec with
-  | FnSpec(FreeSpec a, FnSpec(FnSpec(FreeSpec b, FreeSpec c), FreeSpec d)) when a = b && c = d && a <> c-> () // allow a >= b
+  | FnSpec(FreeSpec a, FnSpec(FreeFnSpec(_, b, FreeSpec c), FreeSpec d)) when c = d && a <> c && b = set[FreeSpec a] -> () // allow a >= b
   | x -> Assert.True(false, sprintf "%A" x)
   
 [<Fact>]
@@ -246,87 +246,33 @@ let ``Test three fn``() =
      (FreeObjSpec
         (ValExpr "x",
          map
-           [("a",
-             FreeSpec
-               (EvalExpr (DotExpr (ValExpr "x","f"),DotExpr (ValExpr "x","x"))));
-            ("b",
-             FreeSpec
-               (EvalExpr (DotExpr (ValExpr "x","f"),DotExpr (ValExpr "x","x"))));
-            ("c",
-             FreeSpec
-               (EvalExpr (DotExpr (ValExpr "x","g"),DotExpr (ValExpr "x","y"))));
-            ("d",
-             FreeSpec
-               (EvalExpr (DotExpr (ValExpr "x","g"),DotExpr (ValExpr "x","y"))));
-            ("e",
-             FreeSpec
-               (EvalExpr (DotExpr (ValExpr "x","h"),DotExpr (ValExpr "x","z"))));
-            ("e1",
-             FreeSpec
-               (EvalExpr (DotExpr (ValExpr "x","h"),DotExpr (ValExpr "x","z"))));
-            ("f",
-             FnSpec
-               (FreeSpec (DotExpr (ValExpr "x","x")),
-                FreeSpec
-                  (EvalExpr
-                     (DotExpr (ValExpr "x","f"),DotExpr (ValExpr "x","x")))));
-            ("g",
-             FnSpec
-               (FreeSpec (DotExpr (ValExpr "x","x")),
-                FreeSpec
-                  (EvalExpr
-                     (DotExpr (ValExpr "x","g"),DotExpr (ValExpr "x","y")))));
-            ("h",
-             FnSpec
-               (FreeSpec (DotExpr (ValExpr "x","x")),
-                FreeSpec
-                  (EvalExpr
-                     (DotExpr (ValExpr "x","h"),DotExpr (ValExpr "x","z")))));
-            ("x", FreeSpec(DotExpr (ValExpr "x","x")));
-            ("y", FreeSpec(DotExpr (ValExpr "x","x")));
-            ("z", FreeSpec(DotExpr (ValExpr "x","x")))]),
+           ["a", FreeSpec(EvalExpr (DotExpr (ValExpr "x","f"),DotExpr (ValExpr "x","x")))
+            "b", FreeSpec(EvalExpr (DotExpr (ValExpr "x","f"),DotExpr (ValExpr "x","x")))
+            "c", FreeSpec(EvalExpr (DotExpr (ValExpr "x","g"),DotExpr (ValExpr "x","y")))
+            "d", FreeSpec(EvalExpr (DotExpr (ValExpr "x","g"),DotExpr (ValExpr "x","y")))
+            "e", FreeSpec(EvalExpr (DotExpr (ValExpr "x","h"),DotExpr (ValExpr "x","z")))
+            "e1", FreeSpec(EvalExpr (DotExpr (ValExpr "x","h"),DotExpr (ValExpr "x","z")))
+            "f", FreeFnSpec(DotExpr (ValExpr "x","f"), set [FreeSpec (DotExpr (ValExpr "x","x")); FreeSpec (DotExpr (ValExpr "x","y"))], FreeSpec (EvalExpr (DotExpr (ValExpr "x","f"),DotExpr (ValExpr "x","y"))))
+            "g", FreeFnSpec(DotExpr (ValExpr "x","g"), set [FreeSpec (DotExpr (ValExpr "x","y")); FreeSpec (DotExpr (ValExpr "x","z"))], FreeSpec (EvalExpr (DotExpr (ValExpr "x","g"),DotExpr (ValExpr "x","z"))))
+            "h", FreeFnSpec(DotExpr (ValExpr "x","h"), set [FreeSpec (DotExpr (ValExpr "x","x")); FreeSpec (DotExpr (ValExpr "x","z"))], FreeSpec (EvalExpr (DotExpr (ValExpr "x","h"),DotExpr (ValExpr "x","x"))))
+            "x", FreeSpec(DotExpr (ValExpr "x","x"))
+            "y", FreeSpec(DotExpr (ValExpr "x","y"))
+            "z", FreeSpec(DotExpr (ValExpr "x","z"))]),
       FreeObjSpec
         (ValExpr "x",
          map
-           [("a",
-             FreeSpec
-               (EvalExpr (DotExpr (ValExpr "x","f"),DotExpr (ValExpr "x","x"))));
-            ("b",
-             FreeSpec
-               (EvalExpr (DotExpr (ValExpr "x","f"),DotExpr (ValExpr "x","x"))));
-            ("c",
-             FreeSpec
-               (EvalExpr (DotExpr (ValExpr "x","g"),DotExpr (ValExpr "x","y"))));
-            ("d",
-             FreeSpec
-               (EvalExpr (DotExpr (ValExpr "x","g"),DotExpr (ValExpr "x","y"))));
-            ("e",
-             FreeSpec
-               (EvalExpr (DotExpr (ValExpr "x","h"),DotExpr (ValExpr "x","z"))));
-            ("e1",
-             FreeSpec
-               (EvalExpr (DotExpr (ValExpr "x","h"),DotExpr (ValExpr "x","z"))));
-            ("f",
-             FnSpec
-               (FreeSpec (DotExpr (ValExpr "x","x")),
-                FreeSpec
-                  (EvalExpr
-                     (DotExpr (ValExpr "x","f"),DotExpr (ValExpr "x","x")))));
-            ("g",
-             FnSpec
-               (FreeSpec (DotExpr (ValExpr "x","x")),
-                FreeSpec
-                  (EvalExpr
-                     (DotExpr (ValExpr "x","g"),DotExpr (ValExpr "x","y")))));
-            ("h",
-             FnSpec
-               (FreeSpec (DotExpr (ValExpr "x","x")),
-                FreeSpec
-                  (EvalExpr
-                     (DotExpr (ValExpr "x","h"),DotExpr (ValExpr "x","z")))));
-            ("x", FreeSpec(DotExpr (ValExpr "x","x")));
-            ("y", FreeSpec(DotExpr (ValExpr "x","x")));
-            ("z", FreeSpec(DotExpr (ValExpr "x","x")))])))
+           ["a", FreeSpec(EvalExpr (DotExpr (ValExpr "x","f"),DotExpr (ValExpr "x","x")))
+            "b", FreeSpec(EvalExpr (DotExpr (ValExpr "x","f"),DotExpr (ValExpr "x","x")))
+            "c", FreeSpec(EvalExpr (DotExpr (ValExpr "x","g"),DotExpr (ValExpr "x","y")))
+            "d", FreeSpec(EvalExpr (DotExpr (ValExpr "x","g"),DotExpr (ValExpr "x","y")))
+            "e", FreeSpec(EvalExpr (DotExpr (ValExpr "x","h"),DotExpr (ValExpr "x","z")))
+            "e1", FreeSpec(EvalExpr (DotExpr (ValExpr "x","h"),DotExpr (ValExpr "x","z")))
+            "f", FreeFnSpec(DotExpr (ValExpr "x","f"), set [FreeSpec (DotExpr (ValExpr "x","x")); FreeSpec (DotExpr (ValExpr "x","y"))], FreeSpec (EvalExpr (DotExpr (ValExpr "x","f"),DotExpr (ValExpr "x","y"))))
+            "g", FreeFnSpec(DotExpr (ValExpr "x","g"), set [FreeSpec (DotExpr (ValExpr "x","y")); FreeSpec (DotExpr (ValExpr "x","z"))], FreeSpec (EvalExpr (DotExpr (ValExpr "x","g"),DotExpr (ValExpr "x","z"))))
+            "h", FreeFnSpec(DotExpr (ValExpr "x","h"), set [FreeSpec (DotExpr (ValExpr "x","x")); FreeSpec (DotExpr (ValExpr "x","z"))], FreeSpec (EvalExpr (DotExpr (ValExpr "x","h"),DotExpr (ValExpr "x","x"))))
+            "x", FreeSpec(DotExpr (ValExpr "x","x"))
+            "y", FreeSpec(DotExpr (ValExpr "x","y"))
+            "z", FreeSpec(DotExpr (ValExpr "x","z"))])))
 
 [<Fact>]
 let ``Test dot with fn inc``() =
@@ -395,7 +341,6 @@ let ``Test free f free object input``() =
      ValExpr "x", FreeSpec(ValExpr "x")],
     "{ let y = f x; let z = { x with i: 3 }; f }",
     FreeFnSpec(ValExpr "f", set [FreeObjSpec (ValExpr "x",map [("i", LitSpec IntSpec)])], FreeSpec (EvalExpr (ValExpr "f", ValExpr "x"))))
-
 
 [<Fact>]
 let ``Test free f free object input 2``() =

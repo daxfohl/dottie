@@ -3,6 +3,7 @@
 open Expressions
 open Types
 open FSharpx.Choice
+open System.Threading
 
 let tryMap (f: 'a -> Choice<'b, 'c>) list =
   let folder (state: Choice<'b list, 'c>) (x: 'a) =
@@ -228,12 +229,12 @@ let rec getType (expr: Expr) (specs: Specs): Choice<Spec*Specs, string> =
         return output, specs
       | FreeSpec(x) ->
         let! argspec, specs = getType arg specs
-        let fnspec = match argspec with ObjSpec _ | FreeObjSpec _ -> FreeFnSpec(x, Set.singleton argspec, FreeSpec expr) | _ -> FnSpec(argspec, FreeSpec expr)
+        let fnspec = match argspec with ObjSpec _ | FreeObjSpec _ | FreeSpec _ -> FreeFnSpec(x, Set.singleton argspec, FreeSpec expr) | _ -> FnSpec(argspec, FreeSpec expr)
         let! specs = constrain x fnspec specs
         return FreeSpec expr, specs
       | FreeFnSpec(x, inputs, output) ->
         let! argspec, specs = getType arg specs
-        let fnspec = match argspec with ObjSpec _ | FreeObjSpec _ -> FreeFnSpec(x, Set.add argspec inputs, FreeSpec expr) | _ -> FnSpec(argspec, FreeSpec expr)
+        let fnspec = match argspec with ObjSpec _ | FreeObjSpec _ | FreeSpec _ -> FreeFnSpec(x, Set.add argspec inputs, FreeSpec expr) | _ -> FnSpec(argspec, FreeSpec expr)
         let! specs = constrain x fnspec specs
         return output, specs
       | _ -> return! Choice2Of2 (Errors.notAFunction fn fnspec)
