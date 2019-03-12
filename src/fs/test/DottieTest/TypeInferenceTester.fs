@@ -386,6 +386,30 @@ let ``Test free f object input``() =
     FreeFnSpec(ValExpr "f", Map.ofList["i", LitSpec IntSpec], FreeSpec (EvalExpr (ValExpr "f",ObjExpr (Map.ofList[("i", LitExpr (IntExpr 3))])))))
 
 [<Fact>]
+let ``Test free f free object input``() =
+  assertSpec''(
+    [ValExpr "f", FreeSpec(ValExpr "f")
+     ValExpr "x", FreeSpec(ValExpr "x")],
+    "{ let y = f x; let z = { x with i: 3 }; f }",
+    FreeFnSpec(ValExpr "f", Map.ofList["i", LitSpec IntSpec], FreeSpec (EvalExpr (ValExpr "f",ObjExpr (Map.ofList[("i", LitExpr (IntExpr 3))])))))
+
+[<Fact>]
+let ``Test free f free object input 2``() =
+  assertSpec''(
+    [ValExpr "f", FreeSpec(ValExpr "f")
+     ValExpr "x", FreeSpec(ValExpr "x")],
+    "{ let z = { x with i: 3 }; let y = f x; f }",
+    FreeFnSpec(ValExpr "f", Map.ofList["i", LitSpec IntSpec], FreeSpec (EvalExpr (ValExpr "f",ObjExpr (Map.ofList[("i", LitExpr (IntExpr 3))])))))
+
+[<Fact>]
+let ``Test free f free object input 3``() =
+  assertSpec''(
+    [ValExpr "f", FreeSpec(ValExpr "f")
+     ValExpr "x", FreeSpec(ValExpr "x")],
+    "{ let z = { x with i: 3 }; let y = f z; f }",
+    FreeFnSpec(ValExpr "f", Map.ofList["i", LitSpec IntSpec], FreeSpec (EvalExpr (ValExpr "f",ObjExpr (Map.ofList[("i", LitExpr (IntExpr 3))])))))
+
+[<Fact>]
 let ``Test free f object mixed input``() =
   assertSpec''(
     [ValExpr "f", FreeSpec(ValExpr "f")],
