@@ -88,7 +88,7 @@ let rec replace (expr: Expr) (replacement: Spec) (existing: Spec) =
   | FreeFnSpec(expr1, _, _) when expr = expr1 -> replacement
   | ObjSpec fields -> ObjSpec(Map.map (fun _ -> replace expr replacement) fields)
   | FreeObjSpec(expr1, fields) -> FreeObjSpec(expr1, Map.map (fun _ -> replace expr replacement) fields)
-  | FreeFnSpec(expr1, fields, result1) -> FreeFnSpec(expr1, Map.map (fun _ -> replace expr replacement) fields, result1)
+  | FreeFnSpec(expr1, fields, result1) -> FreeFnSpec(expr1, Map.map (fun _ -> replace expr replacement) fields, replace expr replacement result1)
   | FnSpec(input, output) -> FnSpec(replace expr replacement input, replace expr replacement output)
   | _ -> existing
 
