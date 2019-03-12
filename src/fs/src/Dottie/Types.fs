@@ -11,7 +11,7 @@ type Spec =
 | FnSpec of Spec * Spec
 | ObjSpec of Map<string, Spec>
 | FreeObjSpec of Expr * Map<string, Spec>
-| FreeFnSpec of Expr * Map<string, Spec> * Spec
+| FreeFnSpec of Expr * Set<Spec> * Spec
 and Constraint =
   { expr: Expr
     relation: Relation

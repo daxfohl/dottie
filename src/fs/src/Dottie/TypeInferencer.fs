@@ -65,20 +65,12 @@ let rec unify (spec1: Spec) (spec2: Spec): Choice<(Expr * Spec) list, string> =
             let merged = Map.fold (fun state k v -> Map.add k v state) fieldsMap1 fieldsMap2
             return (expr2, FreeObjSpec(expr2, merged))::(expr1, FreeObjSpec(expr1, merged))::changes
           | _ -> return! err
-        | FreeFnSpec(expr2, fieldsMap2, output2) ->
+        | FreeFnSpec(expr2, inputs2, output2) ->
           match spec1 with
-          | FreeFnSpec(expr1, fieldsMap1, output1) ->
-            let unifyFields name =
-              let spec1 = Map.find name fieldsMap1
-              let spec2 = Map.find name fieldsMap2
-              unify spec1 spec2
-            let fields = Set.intersect (keys fieldsMap1) (keys fieldsMap2) |> Set.toList
-            let! x = tryMap unifyFields fields
-            let changes = List.concat x
-            let! outputDeltas = unify output1 output2
-            let changes = List.concat [changes; outputDeltas]
-            let merged = fields |> List.map (fun field -> field, Map.find field fieldsMap1) |> Map.ofList
-            return (expr2, FreeFnSpec(expr2, merged, output2))::(expr1, FreeFnSpec(expr1, merged, output1))::changes
+          | FreeFnSpec(expr1, inputs1, output1) ->
+            let inputs = Set.union inputs1 inputs2
+            return [expr2, FreeFnSpec(expr2, inputs, output2)
+                    expr1, FreeFnSpec(expr1, inputs, output1)]
           | _ -> return! err }
 
 let rec replace (expr: Expr) (replacement: Spec) (existing: Spec) =
@@ -88,7 +80,7 @@ let rec replace (expr: Expr) (replacement: Spec) (existing: Spec) =
   | FreeFnSpec(expr1, _, _) when expr = expr1 -> replacement
   | ObjSpec fields -> ObjSpec(Map.map (fun _ -> replace expr replacement) fields)
   | FreeObjSpec(expr1, fields) -> FreeObjSpec(expr1, Map.map (fun _ -> replace expr replacement) fields)
-  | FreeFnSpec(expr1, fields, result1) -> FreeFnSpec(expr1, Map.map (fun _ -> replace expr replacement) fields, replace expr replacement result1)
+  | FreeFnSpec(expr1, inputs, result1) -> FreeFnSpec(expr1, Set.map (replace expr replacement) inputs, replace expr replacement result1)
   | FnSpec(input, output) -> FnSpec(replace expr replacement input, replace expr replacement output)
   | _ -> existing
 
@@ -236,12 +228,12 @@ let rec getType (expr: Expr) (specs: Specs): Choice<Spec*Specs, string> =
         return output, specs
       | FreeSpec(x) ->
         let! argspec, specs = getType arg specs
-        let fnspec = match argspec with | ObjSpec fields -> FreeFnSpec(x, fields, FreeSpec expr) | _ -> FnSpec(argspec, FreeSpec expr)
+        let fnspec = match argspec with ObjSpec _ | FreeObjSpec _ -> FreeFnSpec(x, Set.singleton argspec, FreeSpec expr) | _ -> FnSpec(argspec, FreeSpec expr)
         let! specs = constrain x fnspec specs
         return FreeSpec expr, specs
-      | FreeFnSpec(x, fields, output) ->
+      | FreeFnSpec(x, inputs, output) ->
         let! argspec, specs = getType arg specs
-        let fnspec = match argspec with | ObjSpec fields -> FreeFnSpec(x, fields, FreeSpec expr) | _ -> FnSpec(argspec, FreeSpec expr)
+        let fnspec = match argspec with ObjSpec _ | FreeObjSpec _ -> FreeFnSpec(x, Set.add argspec inputs, FreeSpec expr) | _ -> FnSpec(argspec, FreeSpec expr)
         let! specs = constrain x fnspec specs
         return output, specs
       | _ -> return! Choice2Of2 (Errors.notAFunction fn fnspec)
