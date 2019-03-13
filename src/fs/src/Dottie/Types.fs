@@ -2,19 +2,19 @@
 
 open Expressions
 
-type LitSpec = StrSpec | IntSpec
+type SLit = SStr | SInt
 type Relation = Contains | ContainedBy
 
-type Spec =
-| LitSpec of LitSpec
-| FreeSpec of Expr
-| FnSpec of Spec * Spec
-| ObjSpec of Map<string, Spec>
-| FreeObjSpec of Expr * Map<string, Spec>
-| FreeFnSpec of Expr * Set<Spec> * Spec
+type S =
+| SLit of SLit
+| SFree of E
+| SFn of S * S
+| SObj of Map<string, S>
+| SFreeObj of E * Map<string, S>
+| SFreeFn of E * Set<S> * S
 and Constraint =
-  { expr: Expr
+  { expr: E
     relation: Relation
-    spec: Spec }
+    spec: S }
 
-type Specs = Map<Expr, Spec>
+type Specs = Map<E, S>

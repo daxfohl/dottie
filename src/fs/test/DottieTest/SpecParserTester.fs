@@ -5,7 +5,7 @@ open SpecParser
 open Tokenizer
 open FSharpx.Choice
 
-let assertSpec(spec: string, expectedSpec: Spec) =
+let assertSpec(spec: string, expectedSpec: S) =
   let spec = choose {
     let strings = tokenize spec
     let! parsed, _ = parseRawSpec strings
@@ -17,11 +17,11 @@ let assertSpec(spec: string, expectedSpec: Spec) =
 let ``Test Parser``() =
   let spec = "{ concat: fn { s1: literal string, s2: literal string } -> literal string }"
   let expected =
-    ObjSpec ^% Map.ofList
+    SObj ^% Map.ofList
       [("concat",
-        FnSpec(
-          ObjSpec ^% Map.ofList
-            [("s2", LitSpec StrSpec);
-             ("s1", LitSpec StrSpec)],
-          LitSpec StrSpec))]
+        SFn(
+          SObj ^% Map.ofList
+            [("s2", SLit SStr);
+             ("s1", SLit SStr)],
+          SLit SStr))]
   assertSpec(spec, expected)

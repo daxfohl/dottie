@@ -1,18 +1,16 @@
 ﻿module Expressions
 
-open System
+type ELit =
+  | EStr of string
+  | EInt of int
 
-type LitExpr =
-  | StrExpr of string
-  | IntExpr of int
-
-type Expr =
-  | LitExpr of LitExpr
-  | ValExpr of string
-  | LetExpr of string * Expr * Expr
-  | EvalExpr of Expr * Expr
-  | FnExpr of string * Expr
-  | ObjExpr of Map<string, Expr>
-  | WithExpr of string * Map<string, Expr>
-  | DotExpr of Expr * string
-  | ImportExpr of string
+type E =
+  | ELit of ELit
+  | EVal of string
+  | ELet of string * E * E
+  | EEval of E * E
+  | EFn of string * E
+  | EObj of Map<string, E>
+  | EWith of string * Map<string, E>
+  | EDot of E * string
+  | EImport of string

@@ -18,36 +18,36 @@ let tryMap (f: 'a -> Choice<'b, 'c>) list =
 let keys map = map |> Map.toList |> List.map fst |> Set.ofList
 
 module UnifyErrors =
-  let cannotUnify(spec1: Spec, spec2: Spec) = sprintf "Cannot unify %A with %A" spec1 spec2
-  let exprNotFound(expr: Expr) = sprintf "No expr %A found" expr
-  let exprAlreadyExists(expr: Expr) = sprintf "Expression %A already exists" expr
+  let cannotUnify(spec1: S, spec2: S) = sprintf "Cannot unify %A with %A" spec1 spec2
+  let exprNotFound(expr: E) = sprintf "No expr %A found" expr
+  let exprAlreadyExists(expr: E) = sprintf "Expression %A already exists" expr
   let objectFieldsDiffer(spec1: Set<string>, spec2: Set<string>) = sprintf "Object fields differ {spec1=%A; spec2=%A}" spec1 spec2
 
 
-let rec unify (spec1: Spec) (spec2: Spec): Choice<(Expr * Spec) list, string> =
+let rec unify (spec1: S) (spec2: S): Choice<(E * S) list, string> =
   choose {
     if spec1 = spec2 then return []
     else
       match spec1 with
-      | FreeSpec expr1 -> return [expr1, spec2]
+      | SFree expr1 -> return [expr1, spec2]
       | _ ->
         let err = Choice2Of2(UnifyErrors.cannotUnify(spec1, spec2))
         match spec2 with
-        | LitSpec _ -> return! err
-        | FreeSpec expr2 -> return [expr2, spec1]
-        | FnSpec(input, output) ->
+        | SLit _ -> return! err
+        | SFree expr2 -> return [expr2, spec1]
+        | SFn(input, output) ->
           match spec1 with
-          | FnSpec(input1, output1) ->
+          | SFn(input1, output1) ->
             let! inputDeltas = unify input input1
             let! outputDeltas = unify output output1
             return List.append inputDeltas outputDeltas
-          | FreeFnSpec(expr1, inputs1, output1) ->
+          | SFreeFn(expr1, inputs1, output1) ->
             let! outputDeltas = unify output1 output
             return (expr1, spec2)::outputDeltas
           | _ -> return! err
-        | ObjSpec fieldsMap2 ->
+        | SObj fieldsMap2 ->
           match spec1 with
-          | ObjSpec fieldsMap1 -> 
+          | SObj fieldsMap1 -> 
             if keys fieldsMap1 <> keys fieldsMap2 then return! Choice2Of2(UnifyErrors.objectFieldsDiffer(keys fieldsMap1, keys fieldsMap2))
             else
               let unifyFields name =
@@ -57,9 +57,9 @@ let rec unify (spec1: Spec) (spec2: Spec): Choice<(Expr * Spec) list, string> =
               let! x = tryMap unifyFields (fieldsMap1 |> Map.toList |> List.map fst)
               return List.concat x
           | _ -> return! err
-        | FreeObjSpec(expr2, fieldsMap2) ->
+        | SFreeObj(expr2, fieldsMap2) ->
           match spec1 with
-          | FreeObjSpec(expr1, fieldsMap1) ->
+          | SFreeObj(expr1, fieldsMap1) ->
             let unifyFields name =
               let spec1 = Map.find name fieldsMap1
               let spec2 = Map.find name fieldsMap2
@@ -67,39 +67,39 @@ let rec unify (spec1: Spec) (spec2: Spec): Choice<(Expr * Spec) list, string> =
             let! x = tryMap unifyFields (Set.intersect (keys fieldsMap1) (keys fieldsMap2) |> Set.toList)
             let changes = List.concat x
             let merged = Map.fold (fun state k v -> Map.add k v state) fieldsMap1 fieldsMap2
-            return (expr2, FreeObjSpec(expr2, merged))::(expr1, FreeObjSpec(expr1, merged))::changes
+            return (expr2, SFreeObj(expr2, merged))::(expr1, SFreeObj(expr1, merged))::changes
           | _ -> return! err
-        | FreeFnSpec(expr2, inputs2, output2) ->
+        | SFreeFn(expr2, inputs2, output2) ->
           match spec1 with
-          | FreeFnSpec(expr1, inputs1, output1) ->
+          | SFreeFn(expr1, inputs1, output1) ->
             let inputs = Set.union inputs1 inputs2
             let! outputDeltas = unify output2 output1
-            return (expr2, FreeFnSpec(expr2, inputs, output2))::(expr1, FreeFnSpec(expr1, inputs, output1))::outputDeltas
-          | FnSpec(input, output1) ->
+            return (expr2, SFreeFn(expr2, inputs, output2))::(expr1, SFreeFn(expr1, inputs, output1))::outputDeltas
+          | SFn(input, output1) ->
             //todo error if input > inputs.  ooh, depends. error if Objects can't fulfill, but for FreeObjectshave to propagate update :(
             let! outputDeltas = unify output1 output2
             return (expr2, spec1)::outputDeltas
           | _ -> return! err }
 
-let rec replace (expr: Expr) (replacement: Spec) (existing: Spec) =
+let rec replace (expr: E) (replacement: S) (existing: S) =
   match existing with
-  | FreeSpec expr1 when expr = expr1 -> replacement
-  | FreeObjSpec(expr1, _) when expr = expr1 -> replacement
-  | FreeFnSpec(expr1, _, _) when expr = expr1 -> replacement
-  | ObjSpec fields -> ObjSpec(Map.map (fun _ -> replace expr replacement) fields)
-  | FreeObjSpec(expr1, fields) -> FreeObjSpec(expr1, Map.map (fun _ -> replace expr replacement) fields)
-  | FreeFnSpec(expr1, inputs, result1) ->
+  | SFree expr1 when expr = expr1 -> replacement
+  | SFreeObj(expr1, _) when expr = expr1 -> replacement
+  | SFreeFn(expr1, _, _) when expr = expr1 -> replacement
+  | SObj fields -> SObj(Map.map (fun _ -> replace expr replacement) fields)
+  | SFreeObj(expr1, fields) -> SFreeObj(expr1, Map.map (fun _ -> replace expr replacement) fields)
+  | SFreeFn(expr1, inputs, result1) ->
     let newInputs = Set.map (replace expr replacement) inputs
-    let x = FreeFnSpec(expr1, newInputs, replace expr replacement result1)
+    let x = SFreeFn(expr1, newInputs, replace expr replacement result1)
     x
-  | FnSpec(input, output) -> FnSpec(replace expr replacement input, replace expr replacement output)
+  | SFn(input, output) -> SFn(replace expr replacement input, replace expr replacement output)
   | _ -> existing
 
-let replaceInMap (expr: Expr, replacement: Spec) =
+let replaceInMap (expr: E, replacement: S) =
   Map.map (fun dummyKey spec ->
     replace expr replacement spec)
 
-let rec replaceDeltasInRest (completed: list<Expr*Spec>, tail: list<Expr*Spec>) =
+let rec replaceDeltasInRest (completed: list<E*S>, tail: list<E*S>) =
   match tail with
   | [] -> completed
   | h::t ->
@@ -120,50 +120,50 @@ let constrain expr spec specs: Choice<Specs, string> =
 module Errors =
   let notAFunction fn fnspec = sprintf "function %A is not of type function but %A" fn fnspec
   let undefined x = sprintf "Val %s undefined" x
-  let noField (fieldname: string) (object: Expr) = sprintf "No field %s in object %A" fieldname object
-  let notObject (notObject: Spec) = sprintf "Not an object: %A" notObject
-  let alreadyExists (expr: Expr, spec: Spec) = sprintf "Already exists: %A as %A" expr spec
+  let noField (fieldname: string) (object: E) = sprintf "No field %s in object %A" fieldname object
+  let notObject (notObject: S) = sprintf "Not an object: %A" notObject
+  let alreadyExists (expr: E, spec: S) = sprintf "Already exists: %A as %A" expr spec
 
 let fresh expr specs =
   match Map.tryFind expr specs with
   | None ->
-    let free = FreeSpec expr
+    let free = SFree expr
     Choice1Of2(free, Map.add expr free specs)
   | Some spec -> Choice2Of2 ^% Errors.alreadyExists(expr, spec)
 
 let freshOrFind expr specs =
   match Map.tryFind expr specs with
   | None ->
-    let free = FreeSpec expr
+    let free = SFree expr
     free, Map.add expr free specs
   | Some spec -> spec, specs
 
-let rec getType (expr: Expr) (specs: Specs): Choice<Spec*Specs, string> =
+let rec getType (expr: E) (specs: Specs): Choice<S*Specs, string> =
   choose {
     match expr with
-    | LitExpr x ->
+    | ELit x ->
       let spec =
         match x with 
-        | StrExpr _ -> StrSpec
-        | IntExpr _ -> IntSpec
-      return LitSpec spec, specs
-    | ValExpr s ->
+        | EStr _ -> SStr
+        | EInt _ -> SInt
+      return SLit spec, specs
+    | EVal s ->
       match Map.tryFind expr specs with
       | Some spec -> return spec, specs
       | None -> return! Choice2Of2(Errors.undefined s)
-    | LetExpr(s, expr, rest) ->
-      let valExpr = ValExpr s
+    | ELet(s, expr, rest) ->
+      let valExpr = EVal s
       let! spec, specs = fresh valExpr specs
       let! spec, specs = getType expr specs
       let! specs = constrain valExpr spec specs
       return! getType rest specs
-    | FnExpr(input, expr) ->
-      let input = ValExpr input
+    | EFn(input, expr) ->
+      let input = EVal input
       let! spec, specs = fresh input specs
       let! spec, specs = getType expr specs
       let inputSpec = Map.find input specs
-      return FnSpec(inputSpec, spec), specs
-    | ObjExpr fields ->
+      return SFn(inputSpec, spec), specs
+    | EObj fields ->
       let fields = Map.toList fields
       let rec getNamedType fields specs solved =
         choose {
@@ -173,26 +173,26 @@ let rec getType (expr: Expr) (specs: Specs): Choice<Spec*Specs, string> =
             let! spec, specs = getType expr specs
             return! getNamedType t specs ((name, spec)::solved) }
       let! specFields, specs = getNamedType fields specs []
-      return ObjSpec (Map.ofList specFields), specs
-    | WithExpr(objName, fields) ->
-      let orig = ValExpr objName
+      return SObj (Map.ofList specFields), specs
+    | EWith(objName, fields) ->
+      let orig = EVal objName
       let! objType, specs = getType orig specs
       match objType with
-        | ObjSpec objFields ->
-          let checkField (state: Choice<Spec*Specs, string>) (fieldName: string) (newExpr: Expr) : Choice<Spec*Specs, string> =
+        | SObj objFields ->
+          let checkField (state: Choice<S*Specs, string>) (fieldName: string) (newExpr: E) : Choice<S*Specs, string> =
             choose {
               let! spec, specs = state
               if not(objFields.ContainsKey fieldName) then return! Choice2Of2(Errors.noField fieldName orig)
               else
                 match spec with
-                | ObjSpec objFields ->
+                | SObj objFields ->
                   let! newSpec, specs = getType newExpr specs
-                  return ObjSpec(Map.add fieldName newSpec objFields), specs
+                  return SObj(Map.add fieldName newSpec objFields), specs
                 | _ -> return! Choice2Of2 "Expected an object" }
           let! newSpec, specs = Map.fold checkField (Choice1Of2(objType, specs)) fields
           let! specs = constrain orig newSpec specs
           return! getType orig specs
-        | FreeSpec expr ->
+        | SFree expr ->
           let fields = Map.toList fields
           let rec getNamedType fields specs solved =
             choose {
@@ -202,62 +202,62 @@ let rec getType (expr: Expr) (specs: Specs): Choice<Spec*Specs, string> =
                 let! spec, specs = getType expr specs
                 return! getNamedType t specs ((name, spec)::solved) }
           let! specFields, specs = getNamedType fields specs []
-          let freeObj = FreeObjSpec(expr, Map.ofList specFields)
+          let freeObj = SFreeObj(expr, Map.ofList specFields)
           let! specs = constrain orig freeObj specs
           let! specs = constrain expr freeObj specs
           return Map.find expr specs, specs
-        | FreeObjSpec(expr, _) ->
-          let checkField (state: Choice<Spec*Specs, string>) (fieldName: string) (newExpr: Expr) : Choice<Spec*Specs, string> =
+        | SFreeObj(expr, _) ->
+          let checkField (state: Choice<S*Specs, string>) (fieldName: string) (newExpr: E) : Choice<S*Specs, string> =
             choose {
               let! spec, specs = state
               match spec with
-              | FreeObjSpec(expr, objFields) ->
+              | SFreeObj(expr, objFields) ->
                 let! newSpec, specs = getType newExpr specs
-                return FreeObjSpec(expr, Map.add fieldName newSpec objFields), specs
+                return SFreeObj(expr, Map.add fieldName newSpec objFields), specs
               | _ -> return! Choice2Of2 "Expected a free object" }
           let! newSpec, specs = Map.fold checkField (Choice1Of2(objType, specs)) fields
           let! specs = constrain orig newSpec specs
           let! specs = constrain expr newSpec specs
           return! getType orig specs
         | spec -> return! Choice2Of2(Errors.notObject spec)
-    | DotExpr(objExpr, field) ->
+    | EDot(objExpr, field) ->
       let! objType, specs = getType objExpr specs
       match objType with
-      | ObjSpec fields ->
+      | SObj fields ->
         match Map.tryFind field fields with
         | Some spec -> return spec, specs
         | None -> return! Choice2Of2(Errors.noField field objExpr)
-      | FreeSpec _ ->
+      | SFree _ ->
         let! fieldSpec, specs = fresh expr specs
-        let! specs = constrain objExpr (FreeObjSpec(objExpr, Map.ofList[field, fieldSpec])) specs
+        let! specs = constrain objExpr (SFreeObj(objExpr, Map.ofList[field, fieldSpec])) specs
         return fieldSpec, specs
-      | FreeObjSpec(objExpr, fields) ->
+      | SFreeObj(objExpr, fields) ->
         match Map.tryFind field fields with
         | Some spec -> return spec, specs
         | None -> 
           let! fieldSpec, specs = fresh expr specs
-          let! specs = constrain objExpr (FreeObjSpec(objExpr, Map.add field fieldSpec fields)) specs
+          let! specs = constrain objExpr (SFreeObj(objExpr, Map.add field fieldSpec fields)) specs
           return fieldSpec, specs
       | spec -> return! Choice2Of2(Errors.notObject spec)
-    | EvalExpr(fn, arg) ->
+    | EEval(fn, arg) ->
       let! fnspec, specs = getType fn specs
       match fnspec with
-      | FnSpec(input, output) ->
+      | SFn(input, output) ->
         let! argspec, specs = getType arg specs
         let spec, specs = freshOrFind arg specs
         let! specs = constrain arg argspec specs
-        let input = match input, argspec with | ObjSpec _, ObjSpec _ -> input | ObjSpec fields, _ -> FreeObjSpec(arg, fields) | _ -> input
+        let input = match input, argspec with | SObj _, SObj _ -> input | SObj fields, _ -> SFreeObj(arg, fields) | _ -> input
         let! specs = constrain arg input specs
         return output, specs
-      | FreeSpec(x) ->
+      | SFree(x) ->
         let! argspec, specs = getType arg specs
-        let fnspec = match argspec with ObjSpec _ | FreeObjSpec _ | FreeSpec _ -> FreeFnSpec(x, Set.singleton argspec, FreeSpec expr) | _ -> FnSpec(argspec, FreeSpec expr)
+        let fnspec = match argspec with SObj _ | SFreeObj _ | SFree _ -> SFreeFn(x, Set.singleton argspec, SFree expr) | _ -> SFn(argspec, SFree expr)
         let! specs = constrain x fnspec specs
-        return FreeSpec expr, specs
-      | FreeFnSpec(x, inputs, output) ->
+        return SFree expr, specs
+      | SFreeFn(x, inputs, output) ->
         let! argspec, specs = getType arg specs
-        let fnspec = match argspec with ObjSpec _ | FreeObjSpec _ | FreeSpec _ -> FreeFnSpec(x, Set.add argspec inputs, FreeSpec expr) | _ -> FnSpec(argspec, FreeSpec expr)
+        let fnspec = match argspec with SObj _ | SFreeObj _ | SFree _ -> SFreeFn(x, Set.add argspec inputs, SFree expr) | _ -> SFn(argspec, SFree expr)
         let! specs = constrain x fnspec specs
         return output, specs
       | _ -> return! Choice2Of2 (Errors.notAFunction fn fnspec)
-    | ImportExpr(name) -> return! Choice2Of2 "not implemented" }
+    | EImport(name) -> return! Choice2Of2 "not implemented" }

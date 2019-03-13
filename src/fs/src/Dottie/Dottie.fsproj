@@ -64,9 +64,9 @@
     <Compile Include="SpecParser.fs" />
     <Compile Include="Tokenizer.fs" />
     <Compile Include="Linker.fs" />
-    <Compile Include="Program.fs" />
     <None Include="App.config" />
     <Content Include="paket.references" />
+    <Compile Include="Program.fs" />
   </ItemGroup>
   <ItemGroup>
     <Reference Include="mscorlib" />

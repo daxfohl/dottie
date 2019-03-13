@@ -87,14 +87,14 @@ let ``Test let nested``() =
 [<Fact>]
 let ``Test inc``() =
   assertSpec' (
-    [(ValExpr "inc", FnSpec(LitSpec IntSpec, LitSpec IntSpec))],
+    [EVal "inc", SFn(SLit SInt, SLit SInt)],
     "{ let x = 3; inc x }",
     "literal int")
 
 [<Fact>]
 let ``Test toStr``() =
   assertSpec' (
-    [(ValExpr "toStr", FnSpec(LitSpec IntSpec, LitSpec StrSpec))],
+    [EVal "toStr", SFn(SLit SInt, SLit SStr)],
     "{ let x = 3; toStr x }",
     "literal string")
 
@@ -102,42 +102,42 @@ let ``Test toStr``() =
 let ``Test not function``() =
   assertError(
     "{ let x = 3; x x }",
-    Errors.notAFunction (ValExpr "x") (LitSpec IntSpec))
+    Errors.notAFunction (EVal "x") (SLit SInt))
 
 [<Fact>]
 let ``Test wrong type``() =
   assertError' (
-    [(ValExpr "parse", FnSpec(LitSpec StrSpec, LitSpec IntSpec))],
+    [EVal "parse", SFn(SLit SStr, SLit SInt)],
     "{ let x = 3; parse x }",
-    UnifyErrors.cannotUnify(LitSpec IntSpec, LitSpec StrSpec))
+    UnifyErrors.cannotUnify(SLit SInt, SLit SStr))
 
 [<Fact>]
 let ``Test inc def``() =
   assertSpec' (
-    [(ValExpr "inc", FnSpec(LitSpec IntSpec, LitSpec IntSpec))],
+    [EVal "inc", SFn(SLit SInt, SLit SInt)],
     "fn x -> inc x",
     "fn literal int -> literal int")
   
 [<Fact>]
 let ``Test inc inc def``() =
   assertSpec' (
-    [(ValExpr "inc", FnSpec(LitSpec IntSpec, LitSpec IntSpec))],
+    [EVal "inc", SFn(SLit SInt, SLit SInt)],
     "fn x -> inc inc x",
     "fn literal int -> literal int")
 
 [<Fact>]
 let ``Test inc inc eval``() =
   assertSpec' (
-    [(ValExpr "inc", FnSpec(LitSpec IntSpec, LitSpec IntSpec))],
+    [EVal "inc", SFn(SLit SInt, SLit SInt)],
     "{ let inc2 = fn x -> inc inc x; inc2 4 }",
     "literal int")
 
 [<Fact>]
 let ``Test inc inc eval wrong type``() =
   assertError' (
-    [(ValExpr "inc", FnSpec(LitSpec IntSpec, LitSpec IntSpec))],
+    [EVal "inc", SFn(SLit SInt, SLit SInt)],
     "{ let inc2 = fn x -> inc inc x; inc2 inc }",
-    UnifyErrors.cannotUnify (FnSpec(LitSpec IntSpec, LitSpec IntSpec), LitSpec IntSpec))
+    UnifyErrors.cannotUnify (SFn(SLit SInt, SLit SInt), SLit SInt))
   
 [<Fact>]
 let ``Test higher order``() =
@@ -145,7 +145,7 @@ let ``Test higher order``() =
   let parsed = get ^% parseExpression strings
   let spec = get ^% getType parsed Map.empty
   match spec with
-  | FnSpec(FnSpec(LitSpec IntSpec, FreeSpec a), FreeSpec b) when a = b -> ()
+  | SFn(SFn(SLit SInt, SFree a), SFree b) when a = b -> ()
   | x -> Assert.True(false, sprintf "%A" x)
 
 [<Fact>]
@@ -154,7 +154,7 @@ let ``Test higher order 2``() =
   let parsed = get ^% parseExpression strings
   let spec = get ^% getType parsed Map.empty
   match spec with
-  | FnSpec(FreeSpec a, FnSpec(FreeFnSpec(_, b, FreeSpec c), FreeSpec d)) when c = d && a <> c && b = set[FreeSpec a] -> () // allow a >= b
+  | SFn(SFree a, SFn(SFreeFn(_, b, SFree c), SFree d)) when c = d && a <> c && b = set[SFree a] -> () // allow a >= b
   | x -> Assert.True(false, sprintf "%A" x)
 
 [<Fact>]
@@ -163,7 +163,7 @@ let ``Test higher order 2a``() =
   let parsed = get ^% parseExpression strings
   let spec = get ^% getType parsed Map.empty
   match spec with
-  | FnSpec(FreeSpec a, FnSpec(FreeFnSpec(_, b, FreeSpec c), FreeSpec d)) when c = d && a <> c && b = set[FreeSpec a] -> () // allow a >= b
+  | SFn(SFree a, SFn(SFreeFn(_, b, SFree c), SFree d)) when c = d && a <> c && b = set[SFree a] -> () // allow a >= b
   | x -> Assert.True(false, sprintf "%A" x)
   
 [<Fact>]
@@ -172,7 +172,7 @@ let ``Test y combinator``() =
   let parsed = get ^% parseExpression strings
   let spec = get^% getType parsed Map.empty
   match spec with
-  | FnSpec(FreeFnSpec(_, a, FreeSpec b), FreeSpec c) when b = c && a = set[FreeSpec c] -> () // allow a >=b
+  | SFn(SFreeFn(_, a, SFree b), SFree c) when b = c && a = set[SFree c] -> () // allow a >=b
   | x -> Assert.True(false, sprintf "%A" x)
 
 [<Fact>]
@@ -199,93 +199,93 @@ let ``Test obj with``() =
 let ``Test obj with wrong type``() =
   assertError(
     "{ let o = { x: 4; y: \"test\" }; { o with x: \"s\" } }",
-    UnifyErrors.cannotUnify(LitSpec IntSpec, LitSpec StrSpec))
+    UnifyErrors.cannotUnify(SLit SInt, SLit SStr))
 
 [<Fact>]
 let ``Test obj with wrong field name``() =
   assertError(
     "{ let o = { x: 4; y: \"test\" }; { o with z: \"s\" } }",
-    Errors.noField "z" (ValExpr "o"))
+    Errors.noField "z" (EVal "o"))
 
 [<Fact>]
 let ``Test obj with free``() =
   assertSpec''(
-    [(ValExpr "x", FreeSpec(ValExpr "x"))],
+    [EVal "x", SFree(EVal "x")],
     "{ x with i: 5 }",
-    FreeObjSpec (ValExpr "x", map [("i", LitSpec IntSpec)]))
+    SFreeObj (EVal "x", map ["i", SLit SInt]))
 
 [<Fact>]
 let ``Test obj with fn``() =
   assertSpec'''(
     "fn x -> { x with i: 5 }",
-    FnSpec
-      (FreeObjSpec (ValExpr "x", map [("i", LitSpec IntSpec)]),
-       FreeObjSpec (ValExpr "x", map [("i", LitSpec IntSpec)])))
+    SFn
+      (SFreeObj (EVal "x", map ["i", SLit SInt]),
+       SFreeObj (EVal "x", map ["i", SLit SInt])))
 
 [<Fact>]
 let ``Test dot with fn``() =
   assertSpec'''(
     "fn x -> { let z = x.i; x }",
-    FnSpec
-      (FreeObjSpec (ValExpr "x", map [("i", FreeSpec(DotExpr(ValExpr "x", "i")))]),
-       FreeObjSpec (ValExpr "x", map [("i", FreeSpec(DotExpr(ValExpr "x", "i")))])))
+    SFn
+      (SFreeObj (EVal "x", map ["i", SFree(EDot(EVal "x", "i"))]),
+       SFreeObj (EVal "x", map ["i", SFree(EDot(EVal "x", "i"))])))
 
 [<Fact>]
 let ``Test dot with fn z``() =
   assertSpec'''(
     "fn x -> { let z = x.i; z }",
-    FnSpec
-      (FreeObjSpec (ValExpr "x", map [("i", FreeSpec(DotExpr(ValExpr "x", "i")))]),
-       FreeSpec(DotExpr(ValExpr "x", "i"))))
+    SFn
+      (SFreeObj (EVal "x", map ["i", SFree(EDot(EVal "x", "i"))]),
+       SFree(EDot(EVal "x", "i"))))
 
 [<Fact>]
 let ``Test three fn``() =
   assertSpec'''(
     "fn x -> { x with a: x.f x.x, b: x.f x.y, c: x.g x.y, d: x.g x.z, e: x.h x.z, e1: x.h x.x }",
-    FnSpec
-     (FreeObjSpec
-        (ValExpr "x",
+    SFn
+     (SFreeObj
+        (EVal "x",
          map
-           ["a", FreeSpec(EvalExpr (DotExpr (ValExpr "x","f"),DotExpr (ValExpr "x","x")))
-            "b", FreeSpec(EvalExpr (DotExpr (ValExpr "x","f"),DotExpr (ValExpr "x","x")))
-            "c", FreeSpec(EvalExpr (DotExpr (ValExpr "x","g"),DotExpr (ValExpr "x","y")))
-            "d", FreeSpec(EvalExpr (DotExpr (ValExpr "x","g"),DotExpr (ValExpr "x","y")))
-            "e", FreeSpec(EvalExpr (DotExpr (ValExpr "x","h"),DotExpr (ValExpr "x","z")))
-            "e1", FreeSpec(EvalExpr (DotExpr (ValExpr "x","h"),DotExpr (ValExpr "x","z")))
-            "f", FreeFnSpec(DotExpr (ValExpr "x","f"), set [FreeSpec (DotExpr (ValExpr "x","x")); FreeSpec (DotExpr (ValExpr "x","y"))], FreeSpec (EvalExpr (DotExpr (ValExpr "x","f"),DotExpr (ValExpr "x","x"))))
-            "g", FreeFnSpec(DotExpr (ValExpr "x","g"), set [FreeSpec (DotExpr (ValExpr "x","y")); FreeSpec (DotExpr (ValExpr "x","z"))], FreeSpec (EvalExpr (DotExpr (ValExpr "x","g"),DotExpr (ValExpr "x","y"))))
-            "h", FreeFnSpec(DotExpr (ValExpr "x","h"), set [FreeSpec (DotExpr (ValExpr "x","x")); FreeSpec (DotExpr (ValExpr "x","z"))], FreeSpec (EvalExpr (DotExpr (ValExpr "x","h"),DotExpr (ValExpr "x","z"))))
-            "x", FreeSpec(DotExpr (ValExpr "x","x"))
-            "y", FreeSpec(DotExpr (ValExpr "x","y"))
-            "z", FreeSpec(DotExpr (ValExpr "x","z"))]),
-      FreeObjSpec
-        (ValExpr "x",
+           ["a", SFree(EEval (EDot (EVal "x","f"),EDot (EVal "x","x")))
+            "b", SFree(EEval (EDot (EVal "x","f"),EDot (EVal "x","x")))
+            "c", SFree(EEval (EDot (EVal "x","g"),EDot (EVal "x","y")))
+            "d", SFree(EEval (EDot (EVal "x","g"),EDot (EVal "x","y")))
+            "e", SFree(EEval (EDot (EVal "x","h"),EDot (EVal "x","z")))
+            "e1", SFree(EEval (EDot (EVal "x","h"),EDot (EVal "x","z")))
+            "f", SFreeFn(EDot (EVal "x","f"), set [SFree (EDot (EVal "x","x")); SFree (EDot (EVal "x","y"))], SFree (EEval (EDot (EVal "x","f"),EDot (EVal "x","x"))))
+            "g", SFreeFn(EDot (EVal "x","g"), set [SFree (EDot (EVal "x","y")); SFree (EDot (EVal "x","z"))], SFree (EEval (EDot (EVal "x","g"),EDot (EVal "x","y"))))
+            "h", SFreeFn(EDot (EVal "x","h"), set [SFree (EDot (EVal "x","x")); SFree (EDot (EVal "x","z"))], SFree (EEval (EDot (EVal "x","h"),EDot (EVal "x","z"))))
+            "x", SFree(EDot (EVal "x","x"))
+            "y", SFree(EDot (EVal "x","y"))
+            "z", SFree(EDot (EVal "x","z"))]),
+      SFreeObj
+        (EVal "x",
          map
-           ["a", FreeSpec(EvalExpr (DotExpr (ValExpr "x","f"),DotExpr (ValExpr "x","x")))
-            "b", FreeSpec(EvalExpr (DotExpr (ValExpr "x","f"),DotExpr (ValExpr "x","x")))
-            "c", FreeSpec(EvalExpr (DotExpr (ValExpr "x","g"),DotExpr (ValExpr "x","y")))
-            "d", FreeSpec(EvalExpr (DotExpr (ValExpr "x","g"),DotExpr (ValExpr "x","y")))
-            "e", FreeSpec(EvalExpr (DotExpr (ValExpr "x","h"),DotExpr (ValExpr "x","z")))
-            "e1", FreeSpec(EvalExpr (DotExpr (ValExpr "x","h"),DotExpr (ValExpr "x","z")))
-            "f", FreeFnSpec(DotExpr (ValExpr "x","f"), set [FreeSpec (DotExpr (ValExpr "x","x")); FreeSpec (DotExpr (ValExpr "x","y"))], FreeSpec (EvalExpr (DotExpr (ValExpr "x","f"),DotExpr (ValExpr "x","x"))))
-            "g", FreeFnSpec(DotExpr (ValExpr "x","g"), set [FreeSpec (DotExpr (ValExpr "x","y")); FreeSpec (DotExpr (ValExpr "x","z"))], FreeSpec (EvalExpr (DotExpr (ValExpr "x","g"),DotExpr (ValExpr "x","y"))))
-            "h", FreeFnSpec(DotExpr (ValExpr "x","h"), set [FreeSpec (DotExpr (ValExpr "x","x")); FreeSpec (DotExpr (ValExpr "x","z"))], FreeSpec (EvalExpr (DotExpr (ValExpr "x","h"),DotExpr (ValExpr "x","z"))))
-            "x", FreeSpec(DotExpr (ValExpr "x","x"))
-            "y", FreeSpec(DotExpr (ValExpr "x","y"))
-            "z", FreeSpec(DotExpr (ValExpr "x","z"))])))
+           ["a", SFree(EEval (EDot (EVal "x","f"),EDot (EVal "x","x")))
+            "b", SFree(EEval (EDot (EVal "x","f"),EDot (EVal "x","x")))
+            "c", SFree(EEval (EDot (EVal "x","g"),EDot (EVal "x","y")))
+            "d", SFree(EEval (EDot (EVal "x","g"),EDot (EVal "x","y")))
+            "e", SFree(EEval (EDot (EVal "x","h"),EDot (EVal "x","z")))
+            "e1", SFree(EEval (EDot (EVal "x","h"),EDot (EVal "x","z")))
+            "f", SFreeFn(EDot (EVal "x","f"), set [SFree (EDot (EVal "x","x")); SFree (EDot (EVal "x","y"))], SFree (EEval (EDot (EVal "x","f"),EDot (EVal "x","x"))))
+            "g", SFreeFn(EDot (EVal "x","g"), set [SFree (EDot (EVal "x","y")); SFree (EDot (EVal "x","z"))], SFree (EEval (EDot (EVal "x","g"),EDot (EVal "x","y"))))
+            "h", SFreeFn(EDot (EVal "x","h"), set [SFree (EDot (EVal "x","x")); SFree (EDot (EVal "x","z"))], SFree (EEval (EDot (EVal "x","h"),EDot (EVal "x","z"))))
+            "x", SFree(EDot (EVal "x","x"))
+            "y", SFree(EDot (EVal "x","y"))
+            "z", SFree(EDot (EVal "x","z"))])))
 
 [<Fact>]
 let ``Test dot with fn inc``() =
   assertSpec''(
-    [ValExpr "inc", FnSpec(LitSpec IntSpec, LitSpec IntSpec)
-     ValExpr "x", FreeSpec(ValExpr "x")],
+    [EVal "inc", SFn(SLit SInt, SLit SInt)
+     EVal "x", SFree(EVal "x")],
     "{ let z = inc x.i; x }",
-    FreeObjSpec (ValExpr "x", map [("i", LitSpec IntSpec)]))
+    SFreeObj (EVal "x", map ["i", SLit SInt]))
 
 [<Fact>]
 let ``Test dot with fn concat``() =
   assertSpec''(
-    [ValExpr "concat", FnSpec(ObjSpec(map[("s1", LitSpec StrSpec); ("s2", LitSpec StrSpec)]), LitSpec StrSpec)],
+    [EVal "concat", SFn(SObj(map["s1", SLit SStr; "s2", SLit SStr]), SLit SStr)],
     "fn ss -> {
         let s1 = ss.s1
         let s2 = ss.s2
@@ -296,124 +296,124 @@ let ``Test dot with fn concat``() =
         let out = { s1 with raw: sout }
         out
       }",
-    FnSpec (
-      FreeObjSpec (ValExpr "ss", map [("s1", FreeObjSpec (ValExpr "s1", map [("raw", LitSpec StrSpec)]))
-                                      ("s2", FreeObjSpec (ValExpr "s2", map [("raw", LitSpec StrSpec)]))]),
-      FreeObjSpec (ValExpr "s1", map [("raw", LitSpec StrSpec)])))
+    SFn (
+      SFreeObj (EVal "ss", map ["s1", SFreeObj (EVal "s1", map ["raw", SLit SStr])
+                                "s2", SFreeObj (EVal "s2", map ["raw", SLit SStr])]),
+      SFreeObj (EVal "s1", map ["raw", SLit SStr])))
 
 [<Fact>]
 let ``Test dot with fn concat 2``() =
   assertSpec''(
-    [ValExpr "concat", FnSpec(ObjSpec(map[("s1", LitSpec StrSpec); ("s2", LitSpec StrSpec)]), LitSpec StrSpec)],
+    [EVal "concat", SFn(SObj(map["s1", SLit SStr; "s2", SLit SStr]), SLit SStr)],
     "fn ss -> { let s1 = ss.s1; { s1 with raw: concat { s1: ss.s1.raw, s2: ss.s2.raw } } }",
-    FnSpec (
-      FreeObjSpec (ValExpr "ss", map ["s1", FreeObjSpec (DotExpr (ValExpr "ss","s1"), map ["raw", LitSpec StrSpec])
-                                      "s2", FreeObjSpec (DotExpr (ValExpr "ss","s2"), map ["raw", LitSpec StrSpec])]),
-      FreeObjSpec (DotExpr (ValExpr "ss","s1"), map [("raw", LitSpec StrSpec)])))
+    SFn (
+      SFreeObj (EVal "ss", map ["s1", SFreeObj (EDot (EVal "ss","s1"), map ["raw", SLit SStr])
+                                "s2", SFreeObj (EDot (EVal "ss","s2"), map ["raw", SLit SStr])]),
+      SFreeObj (EDot (EVal "ss","s1"), map ["raw", SLit SStr])))
 
 [<Fact>]
 let ``Test free concat``() =
   assertSpec''(
-    [ValExpr "x", FreeSpec(ValExpr "x")
-     ValExpr "concat", FnSpec(ObjSpec(map[("s1", LitSpec StrSpec); ("s2", LitSpec StrSpec)]), LitSpec StrSpec)],
+    [EVal "x", SFree(EVal "x")
+     EVal "concat", SFn(SObj(map["s1", SLit SStr; "s2", SLit SStr]), SLit SStr)],
     "{ let y = concat x; x }",
-    FreeObjSpec(ValExpr "x", map[("s1", LitSpec StrSpec); ("s2", LitSpec StrSpec)]))
+    SFreeObj(EVal "x", map["s1", SLit SStr; "s2", SLit SStr]))
 
 [<Fact>]
 let ``Test free concat2``() =
   assertSpec''(
-    [ValExpr "x", FreeSpec(ValExpr "x")
-     ValExpr "concat", FnSpec(ObjSpec(map[("s1", LitSpec StrSpec); ("s2", LitSpec StrSpec)]), LitSpec StrSpec)],
+    [EVal "x", SFree(EVal "x")
+     EVal "concat", SFn(SObj(map["s1", SLit SStr;"s2", SLit SStr]), SLit SStr)],
     "{ let y = concat x; { x with s3: 3 } }",
-    FreeObjSpec(ValExpr "x", map[("s1", LitSpec StrSpec); ("s2", LitSpec StrSpec); ("s3", LitSpec IntSpec)]))
+    SFreeObj(EVal "x", map["s1", SLit SStr;"s2", SLit SStr;"s3", SLit SInt]))
 
 [<Fact>]
 let ``Test free f object input``() =
   assertSpec''(
-    [ValExpr "f", FreeSpec(ValExpr "f")],
+    [EVal "f", SFree(EVal "f")],
     "{ let y = f {i: 3}; f }",
-    FreeFnSpec(ValExpr "f", set [ObjSpec (map [("i", LitSpec IntSpec)])], FreeSpec (EvalExpr (ValExpr "f",ObjExpr (map[("i", LitExpr (IntExpr 3))])))))
+    SFreeFn(EVal "f", set [SObj (map ["i", SLit SInt])], SFree (EEval (EVal "f",EObj (map["i", ELit (EInt 3)])))))
 
 [<Fact>]
 let ``Test free f free object input``() =
   assertSpec''(
-    [ValExpr "f", FreeSpec(ValExpr "f")
-     ValExpr "x", FreeSpec(ValExpr "x")],
+    [EVal "f", SFree(EVal "f")
+     EVal "x", SFree(EVal "x")],
     "{ let y = f x; let z = { x with i: 3 }; f }",
-    FreeFnSpec(ValExpr "f", set [FreeObjSpec (ValExpr "x",map [("i", LitSpec IntSpec)])], FreeSpec (EvalExpr (ValExpr "f", ValExpr "x"))))
+    SFreeFn(EVal "f", set [SFreeObj (EVal "x",map ["i", SLit SInt])], SFree (EEval (EVal "f", EVal "x"))))
 
 [<Fact>]
 let ``Test free f free object input 2``() =
   assertSpec''(
-    [ValExpr "f", FreeSpec(ValExpr "f")
-     ValExpr "x", FreeSpec(ValExpr "x")],
+    [EVal "f", SFree(EVal "f")
+     EVal "x", SFree(EVal "x")],
     "{ let z = { x with i: 3 }; let y = f x; f }",
-    FreeFnSpec(ValExpr "f", set [FreeObjSpec (ValExpr "x",map [("i", LitSpec IntSpec)])], FreeSpec (EvalExpr (ValExpr "f", ValExpr "x"))))
+    SFreeFn(EVal "f", set [SFreeObj (EVal "x",map ["i", SLit SInt])], SFree (EEval (EVal "f", EVal "x"))))
 
 [<Fact>]
 let ``Test free f free object input 3``() =
   assertSpec''(
-    [ValExpr "f", FreeSpec(ValExpr "f")
-     ValExpr "x", FreeSpec(ValExpr "x")],
+    [EVal "f", SFree(EVal "f")
+     EVal "x", SFree(EVal "x")],
     "{ let z = { x with i: 3 }; let y = f z; f }",
-    FreeFnSpec(ValExpr "f", set [FreeObjSpec (ValExpr "x",map [("i", LitSpec IntSpec)])], FreeSpec (EvalExpr (ValExpr "f", ValExpr "z"))))
+    SFreeFn(EVal "f", set [SFreeObj (EVal "x",map ["i", SLit SInt])], SFree (EEval (EVal "f", EVal "z"))))
 
 [<Fact>]
 let ``Test free f object mixed input``() =
   assertSpec''(
-    [ValExpr "f", FreeSpec(ValExpr "f")],
+    [EVal "f", SFree(EVal "f")],
     "{ let y = f {i: 3}; let z = f {j: 3}; f }",
-    FreeFnSpec(ValExpr "f", set [ObjSpec (map [("i", LitSpec IntSpec)]); ObjSpec (map [("j", LitSpec IntSpec)])], FreeSpec (EvalExpr (ValExpr "f",ObjExpr (map[("i", LitExpr (IntExpr 3))])))))
+    SFreeFn(EVal "f", set [SObj (map ["i", SLit SInt]); SObj (map ["j", SLit SInt])], SFree (EEval (EVal "f",EObj (map["i", ELit (EInt 3)])))))
 
 [<Fact>]
 let ``Test with with dot``() =
   assertSpec''(
-    [ValExpr "x", FreeSpec(ValExpr "x")],
+    [EVal "x", SFree(EVal "x")],
     "{ x with s1: x.s2 }",
-    FreeObjSpec (ValExpr "x", map ["s1", FreeSpec (DotExpr (ValExpr "x","s2"))
-                                   "s2", FreeSpec (DotExpr (ValExpr "x","s2"))]))
+    SFreeObj (EVal "x", map ["s1", SFree (EDot (EVal "x","s2"))
+                             "s2", SFree (EDot (EVal "x","s2"))]))
 
 [<Fact>]
 let ``Test with with dot 2``() =
   assertSpec''(
-    [ValExpr "x", FreeSpec(ValExpr "x")],
+    [EVal "x", SFree(EVal "x")],
     "{ let y = { x with i: 1 }; x.i }",
-    LitSpec IntSpec)
+    SLit SInt)
 
 [<Fact>]
 let ``Test with with dot 2f``() =
   assertError'(
-    [ValExpr "inc", FnSpec(LitSpec IntSpec, LitSpec IntSpec)
-     ValExpr "x", FreeSpec(ValExpr "x")],
+    [EVal "inc", SFn(SLit SInt, SLit SInt)
+     EVal "x", SFree(EVal "x")],
     "{ let y = x.i; let j = inc y; { x with i: \"test\" } }",
-    UnifyErrors.cannotUnify(LitSpec IntSpec, LitSpec StrSpec))
+    UnifyErrors.cannotUnify(SLit SInt, SLit SStr))
 
 [<Fact>]
 let ``Test obj with fn big``() =
   assertSpec'''(
     "fn x -> { let a = { x with i: 5 }; let z = { x with j: 3 }; a }",
-    FnSpec
-      (FreeObjSpec (ValExpr "x", map [("i", LitSpec IntSpec); ("j", LitSpec IntSpec)]),
-       FreeObjSpec (ValExpr "x", map [("i", LitSpec IntSpec); ("j", LitSpec IntSpec)])))
+    SFn
+      (SFreeObj (EVal "x", map ["i", SLit SInt;"j", SLit SInt]),
+       SFreeObj (EVal "x", map ["i", SLit SInt;"j", SLit SInt])))
 
 [<Fact>]
 let ``Test obj with fn nested``() =
   assertSpec'''(
     "fn x -> fn y -> fn z -> { let a = { x with i: y }; let b = { y with j: z }; let c = { z with k: 3 }; x }",
-    FnSpec (
-      FreeObjSpec (ValExpr "x", map [("i", FreeObjSpec (ValExpr "y", map [("j", FreeObjSpec (ValExpr "z", map [("k", LitSpec IntSpec)]))]))]),
-      FnSpec (
-        FreeObjSpec (ValExpr "y", map [("j", FreeObjSpec (ValExpr "z", map [("k", LitSpec IntSpec)]))]),
-        FnSpec (
-          FreeObjSpec (ValExpr "z", map [("k", LitSpec IntSpec)]),
-          FreeObjSpec (ValExpr "x", map [("i", FreeObjSpec (ValExpr "y", map [("j", FreeObjSpec (ValExpr "z", map [("k", LitSpec IntSpec)]))]))])))))
+    SFn (
+      SFreeObj (EVal "x", map ["i", SFreeObj (EVal "y", map ["j", SFreeObj (EVal "z", map ["k", SLit SInt])])]),
+      SFn (
+        SFreeObj (EVal "y", map ["j", SFreeObj (EVal "z", map ["k", SLit SInt])]),
+        SFn (
+          SFreeObj (EVal "z", map ["k", SLit SInt]),
+          SFreeObj (EVal "x", map ["i", SFreeObj (EVal "y", map ["j", SFreeObj (EVal "z", map ["k", SLit SInt])])])))))
 
 [<Fact>]
 let ``Test obj nested with wrong field type``() =
   let strings = tokenize "{ let o = { x: 4; y: { a: 3 } }; { o with y: { a: \"s\" } } }"
   let parsed = get ^% parseExpression strings
   let spec = getType parsed Map.empty
-  Assert.Equal(Choice2Of2 ^% UnifyErrors.cannotUnify(LitSpec IntSpec, LitSpec StrSpec), spec)
+  Assert.Equal(Choice2Of2 ^% UnifyErrors.cannotUnify(SLit SInt, SLit SStr), spec)
 
 [<Fact>]
 let ``Test obj nested with wrong field name``() =
@@ -428,7 +428,7 @@ let ``Test dot``() =
   let parsed = get ^% parseExpression strings
   let spec = get ^% getType parsed Map.empty
   match spec with
-  | LitSpec IntSpec -> ()
+  | SLit SInt -> ()
   | x -> Assert.True(false, sprintf "%A" x)
 
 [<Fact>]
@@ -437,7 +437,7 @@ let ``Test dot with in let``() =
   let parsed = get ^% parseExpression strings
   let spec = get ^% getType parsed Map.empty
   match spec with
-  | LitSpec IntSpec -> ()
+  | SLit SInt -> ()
   | x -> Assert.True(false, sprintf "%A" x)
 
 [<Fact>]
@@ -446,7 +446,7 @@ let ``Test dot nested``() =
   let parsed = get ^% parseExpression strings
   let spec = get ^% getType parsed Map.empty
   match spec with
-  | LitSpec IntSpec -> ()
+  | SLit SInt -> ()
   | x -> Assert.True(false, sprintf "%A" x)
 
 [<Fact>]
@@ -455,7 +455,7 @@ let ``Test dot nested 2``() =
   let parsed = get ^% parseExpression strings
   let spec = get ^% getType parsed Map.empty
   match spec with
-  | LitSpec IntSpec -> ()
+  | SLit SInt -> ()
   | x -> Assert.True(false, sprintf "%A" x)
 
 [<Fact>]
@@ -463,4 +463,4 @@ let ``Test dot non object``() =
   let strings = tokenize "{ x: 4 }.x.y"
   let parsed = get ^% parseExpression strings
   let spec = getType parsed Map.empty
-  Assert.Equal(Choice2Of2 ^% Errors.notObject (LitSpec IntSpec), spec)
+  Assert.Equal(Choice2Of2 ^% Errors.notObject (SLit SInt), spec)
