@@ -99,13 +99,22 @@ let replaceInMap (expr: Expr, replacement: Spec) =
   Map.map (fun dummyKey spec ->
     replace expr replacement spec)
 
+let rec replaceDeltasInRest (completed: list<Expr*Spec>, tail: list<Expr*Spec>) =
+  match tail with
+  | [] -> completed
+  | h::t ->
+    let expr, spec = h
+    let t = List.map (fun (e, s) -> e, replace expr spec s) t
+    replaceDeltasInRest(h::completed, t)
+
 let constrain expr spec specs: Choice<Specs, string> =
   match Map.tryFind expr specs with
   | None -> Choice2Of2(UnifyErrors.exprNotFound expr)
   | Some existing ->
     choose {
       let! deltas = unify existing spec
-      let specs1 = List.foldBack replaceInMap deltas specs
+      let deltas1 = replaceDeltasInRest([], deltas)
+      let specs1 = List.foldBack replaceInMap deltas1 specs
       return specs1 }
 
 module Errors =

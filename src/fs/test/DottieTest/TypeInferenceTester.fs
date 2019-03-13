@@ -172,7 +172,7 @@ let ``Test y combinator``() =
   let parsed = get ^% parseExpression strings
   let spec = getType parsed Map.empty
   match spec with
-  | Choice1Of2(FnSpec(FreeFnSpec(_, a, FreeSpec b), FreeSpec c), specs) -> 
+  | Choice1Of2(FnSpec(FreeFnSpec(_, a, FreeSpec b), FreeSpec c), specs) when b = c && a = set[FreeSpec c] -> 
     printfn "%A" a
     printfn "%A" b
     printfn "%A" specs
@@ -265,9 +265,9 @@ let ``Test three fn``() =
             "d", FreeSpec(EvalExpr (DotExpr (ValExpr "x","g"),DotExpr (ValExpr "x","y")))
             "e", FreeSpec(EvalExpr (DotExpr (ValExpr "x","h"),DotExpr (ValExpr "x","z")))
             "e1", FreeSpec(EvalExpr (DotExpr (ValExpr "x","h"),DotExpr (ValExpr "x","z")))
-            "f", FreeFnSpec(DotExpr (ValExpr "x","f"), set [FreeSpec (DotExpr (ValExpr "x","x")); FreeSpec (DotExpr (ValExpr "x","y"))], FreeSpec (EvalExpr (DotExpr (ValExpr "x","f"),DotExpr (ValExpr "x","y"))))
-            "g", FreeFnSpec(DotExpr (ValExpr "x","g"), set [FreeSpec (DotExpr (ValExpr "x","y")); FreeSpec (DotExpr (ValExpr "x","z"))], FreeSpec (EvalExpr (DotExpr (ValExpr "x","g"),DotExpr (ValExpr "x","z"))))
-            "h", FreeFnSpec(DotExpr (ValExpr "x","h"), set [FreeSpec (DotExpr (ValExpr "x","x")); FreeSpec (DotExpr (ValExpr "x","z"))], FreeSpec (EvalExpr (DotExpr (ValExpr "x","h"),DotExpr (ValExpr "x","x"))))
+            "f", FreeFnSpec(DotExpr (ValExpr "x","f"), set [FreeSpec (DotExpr (ValExpr "x","x")); FreeSpec (DotExpr (ValExpr "x","y"))], FreeSpec (EvalExpr (DotExpr (ValExpr "x","f"),DotExpr (ValExpr "x","x"))))
+            "g", FreeFnSpec(DotExpr (ValExpr "x","g"), set [FreeSpec (DotExpr (ValExpr "x","y")); FreeSpec (DotExpr (ValExpr "x","z"))], FreeSpec (EvalExpr (DotExpr (ValExpr "x","g"),DotExpr (ValExpr "x","y"))))
+            "h", FreeFnSpec(DotExpr (ValExpr "x","h"), set [FreeSpec (DotExpr (ValExpr "x","x")); FreeSpec (DotExpr (ValExpr "x","z"))], FreeSpec (EvalExpr (DotExpr (ValExpr "x","h"),DotExpr (ValExpr "x","z"))))
             "x", FreeSpec(DotExpr (ValExpr "x","x"))
             "y", FreeSpec(DotExpr (ValExpr "x","y"))
             "z", FreeSpec(DotExpr (ValExpr "x","z"))]),
@@ -280,9 +280,9 @@ let ``Test three fn``() =
             "d", FreeSpec(EvalExpr (DotExpr (ValExpr "x","g"),DotExpr (ValExpr "x","y")))
             "e", FreeSpec(EvalExpr (DotExpr (ValExpr "x","h"),DotExpr (ValExpr "x","z")))
             "e1", FreeSpec(EvalExpr (DotExpr (ValExpr "x","h"),DotExpr (ValExpr "x","z")))
-            "f", FreeFnSpec(DotExpr (ValExpr "x","f"), set [FreeSpec (DotExpr (ValExpr "x","x")); FreeSpec (DotExpr (ValExpr "x","y"))], FreeSpec (EvalExpr (DotExpr (ValExpr "x","f"),DotExpr (ValExpr "x","y"))))
-            "g", FreeFnSpec(DotExpr (ValExpr "x","g"), set [FreeSpec (DotExpr (ValExpr "x","y")); FreeSpec (DotExpr (ValExpr "x","z"))], FreeSpec (EvalExpr (DotExpr (ValExpr "x","g"),DotExpr (ValExpr "x","z"))))
-            "h", FreeFnSpec(DotExpr (ValExpr "x","h"), set [FreeSpec (DotExpr (ValExpr "x","x")); FreeSpec (DotExpr (ValExpr "x","z"))], FreeSpec (EvalExpr (DotExpr (ValExpr "x","h"),DotExpr (ValExpr "x","x"))))
+            "f", FreeFnSpec(DotExpr (ValExpr "x","f"), set [FreeSpec (DotExpr (ValExpr "x","x")); FreeSpec (DotExpr (ValExpr "x","y"))], FreeSpec (EvalExpr (DotExpr (ValExpr "x","f"),DotExpr (ValExpr "x","x"))))
+            "g", FreeFnSpec(DotExpr (ValExpr "x","g"), set [FreeSpec (DotExpr (ValExpr "x","y")); FreeSpec (DotExpr (ValExpr "x","z"))], FreeSpec (EvalExpr (DotExpr (ValExpr "x","g"),DotExpr (ValExpr "x","y"))))
+            "h", FreeFnSpec(DotExpr (ValExpr "x","h"), set [FreeSpec (DotExpr (ValExpr "x","x")); FreeSpec (DotExpr (ValExpr "x","z"))], FreeSpec (EvalExpr (DotExpr (ValExpr "x","h"),DotExpr (ValExpr "x","z"))))
             "x", FreeSpec(DotExpr (ValExpr "x","x"))
             "y", FreeSpec(DotExpr (ValExpr "x","y"))
             "z", FreeSpec(DotExpr (ValExpr "x","z"))])))
@@ -376,7 +376,7 @@ let ``Test free f object mixed input``() =
   assertSpec''(
     [ValExpr "f", FreeSpec(ValExpr "f")],
     "{ let y = f {i: 3}; let z = f {j: 3}; f }",
-    FreeFnSpec(ValExpr "f", set [ObjSpec (map [("i", LitSpec IntSpec)]); ObjSpec (map [("j", LitSpec IntSpec)])], FreeSpec (EvalExpr (ValExpr "f",ObjExpr (map[("j", LitExpr (IntExpr 3))])))))
+    FreeFnSpec(ValExpr "f", set [ObjSpec (map [("i", LitSpec IntSpec)]); ObjSpec (map [("j", LitSpec IntSpec)])], FreeSpec (EvalExpr (ValExpr "f",ObjExpr (map[("i", LitExpr (IntExpr 3))])))))
 
 [<Fact>]
 let ``Test with with dot``() =
