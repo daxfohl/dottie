@@ -170,23 +170,10 @@ let ``Test higher order 2a``() =
 let ``Test y combinator``() =
   let strings = tokenize "{ let y = fn f -> f y f; y }"
   let parsed = get ^% parseExpression strings
-  let spec = getType parsed Map.empty
+  let spec = get^% getType parsed Map.empty
   match spec with
-  | Choice1Of2(FnSpec(FreeFnSpec(_, a, FreeSpec b), FreeSpec c), specs) when b = c && a = set[FreeSpec c] -> 
-    printfn "%A" a
-    printfn "%A" b
-    printfn "%A" specs
-    () // allow a >=b
+  | FnSpec(FreeFnSpec(_, a, FreeSpec b), FreeSpec c) when b = c && a = set[FreeSpec c] -> () // allow a >=b
   | x -> Assert.True(false, sprintf "%A" x)
-
-let yc1 = FreeFnSpec(ValExpr "y", set[FreeFnSpec(ValExpr "f",set [FreeSpec (EvalExpr (ValExpr "y",ValExpr "f"))], FreeSpec (EvalExpr (ValExpr "f",EvalExpr (ValExpr "y",ValExpr "f"))))], FreeSpec (EvalExpr (ValExpr "y",ValExpr "f")))
-let yc2 = FnSpec(                     FreeFnSpec(ValExpr "f",set [FreeSpec (EvalExpr (ValExpr "y",ValExpr "f"))], FreeSpec (EvalExpr (ValExpr "f",EvalExpr (ValExpr "y",ValExpr "f")))),  FreeSpec (EvalExpr (ValExpr "f",EvalExpr (ValExpr "y",ValExpr "f"))))
-let yc3 = FnSpec(
-            FreeFnSpec(
-              ValExpr "f",
-              set [FreeSpec (EvalExpr (ValExpr "y",ValExpr "f"))],
-              FreeSpec (EvalExpr (ValExpr "f",EvalExpr (ValExpr "y",ValExpr "f")))),
-            FreeSpec (EvalExpr (ValExpr "f",EvalExpr (ValExpr "y",ValExpr "f"))))
 
 [<Fact>]
 let ``Test obj``() =
