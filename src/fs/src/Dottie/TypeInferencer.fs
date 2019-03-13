@@ -41,6 +41,9 @@ let rec unify (spec1: Spec) (spec2: Spec): Choice<(Expr * Spec) list, string> =
             let! inputDeltas = unify input input1
             let! outputDeltas = unify output output1
             return List.append inputDeltas outputDeltas
+          | FreeFnSpec(expr1, inputs1, output1) ->
+            let! outputDeltas = unify output1 output
+            return (expr1, spec2)::outputDeltas
           | _ -> return! err
         | ObjSpec fieldsMap2 ->
           match spec1 with
@@ -70,8 +73,12 @@ let rec unify (spec1: Spec) (spec2: Spec): Choice<(Expr * Spec) list, string> =
           match spec1 with
           | FreeFnSpec(expr1, inputs1, output1) ->
             let inputs = Set.union inputs1 inputs2
-            return [expr2, FreeFnSpec(expr2, inputs, output2)
-                    expr1, FreeFnSpec(expr1, inputs, output1)]
+            let! outputDeltas = unify output2 output1
+            return (expr2, FreeFnSpec(expr2, inputs, output2))::(expr1, FreeFnSpec(expr1, inputs, output1))::outputDeltas
+          | FnSpec(input, output1) ->
+            //todo error if input > inputs.  ooh, depends. error if Objects can't fulfill, but for FreeObjectshave to propagate update :(
+            let! outputDeltas = unify output1 output2
+            return (expr2, spec1)::outputDeltas
           | _ -> return! err }
 
 let rec replace (expr: Expr) (replacement: Spec) (existing: Spec) =
@@ -81,11 +88,16 @@ let rec replace (expr: Expr) (replacement: Spec) (existing: Spec) =
   | FreeFnSpec(expr1, _, _) when expr = expr1 -> replacement
   | ObjSpec fields -> ObjSpec(Map.map (fun _ -> replace expr replacement) fields)
   | FreeObjSpec(expr1, fields) -> FreeObjSpec(expr1, Map.map (fun _ -> replace expr replacement) fields)
-  | FreeFnSpec(expr1, inputs, result1) -> FreeFnSpec(expr1, Set.map (replace expr replacement) inputs, replace expr replacement result1)
+  | FreeFnSpec(expr1, inputs, result1) ->
+    let newInputs = Set.map (replace expr replacement) inputs
+    let x = FreeFnSpec(expr1, newInputs, replace expr replacement result1)
+    x
   | FnSpec(input, output) -> FnSpec(replace expr replacement input, replace expr replacement output)
   | _ -> existing
 
-let replaceInMap (expr: Expr, replacement: Spec) = Map.map (fun _ -> replace expr replacement)
+let replaceInMap (expr: Expr, replacement: Spec) =
+  Map.map (fun dummyKey spec ->
+    replace expr replacement spec)
 
 let constrain expr spec specs: Choice<Specs, string> =
   match Map.tryFind expr specs with
@@ -93,7 +105,8 @@ let constrain expr spec specs: Choice<Specs, string> =
   | Some existing ->
     choose {
       let! deltas = unify existing spec
-      return List.foldBack replaceInMap deltas specs }
+      let specs1 = List.foldBack replaceInMap deltas specs
+      return specs1 }
 
 module Errors =
   let notAFunction fn fnspec = sprintf "function %A is not of type function but %A" fn fnspec
