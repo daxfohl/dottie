@@ -99,34 +99,6 @@ let ``Test function on const``() =
   Assert.Equal(expected, parsed)
 
 [<Fact>]
-let ``Test import``() =
-  let strings = tokenize "import A"
-  let parsed = parseExpression strings
-  let expected = Choice1Of2 (EImport "A", [])
-  Assert.Equal(expected, parsed)
-  
-[<Fact>]
-let ``Test subfield of import``() =
-  let strings = tokenize "import A.x"
-  let parsed = parseExpression strings
-  let expected = Choice1Of2 (EDot(EImport "A", "x"), [])
-  Assert.Equal(expected, parsed)
-
-[<Fact>]
-let ``Test function of import``() =
-  let strings = tokenize "import A.f x"
-  let parsed = parseExpression strings
-  let expected = Choice1Of2 (EEval(EDot(EImport "A", "f"), EVal "x"), [])
-  Assert.Equal(expected, parsed)
-
-[<Fact>]
-let ``Test function on import``() =
-  let strings = tokenize "f import A"
-  let parsed = parseExpression strings
-  let expected = Choice1Of2 (EEval(EVal "f", EImport "A"), [])
-  Assert.Equal(expected, parsed)
-  
-[<Fact>]
 let ``Test hash empty``() =
   let strings = tokenize "{ }"
   let parsed = parseExpression strings

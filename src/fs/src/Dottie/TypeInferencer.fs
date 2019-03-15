@@ -259,5 +259,4 @@ let rec getType (expr: E) (specs: Specs): Choice<S*Specs, string> =
         let fnspec = match argspec with SObj _ | SFreeObj _ | SFree _ -> SFreeFn(x, Set.add argspec inputs, SFree expr) | _ -> SFn(argspec, SFree expr)
         let! specs = constrain x fnspec specs
         return output, specs
-      | _ -> return! Choice2Of2 (Errors.notAFunction fn fnspec)
-    | EImport(name) -> return! Choice2Of2 "not implemented" }
+      | _ -> return! Choice2Of2 (Errors.notAFunction fn fnspec) }

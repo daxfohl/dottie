@@ -13,4 +13,3 @@ type E =
   | EObj of Map<string, E>
   | EWith of string * Map<string, E>
   | EDot of E * string
-  | EImport of string
