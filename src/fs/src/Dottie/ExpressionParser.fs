@@ -66,12 +66,18 @@ let rec parseExpression (tokens: string list) : Choice<E * string list, string> 
       | "let"::_::"="::_ ->
         let! expr, t = parseLetBlock t
         return! parseContinuation t expr
-      | name::"with"::t ->
+      | "}"::_
+      | _::":"::_ ->
         let! expr, t = parseObjectFields t Map.empty
-        return! parseContinuation t (EWith(name, expr))
+        return! parseContinuation t (EObj expr)
       | _ ->
-        let! expr, t = parseObjectFields t Map.empty
-        return! parseContinuation t (EObj expr) }
+        let! name, t = parseExpression t
+        match t with
+        | "with"::t ->
+          let! expr, t = parseObjectFields t Map.empty
+          return! parseContinuation t (EWith(name, expr))
+        | h::_ -> return! Choice2Of2 <| sprintf "Expected `with` but got %s" h
+        | _ -> return! Choice2Of2 "Expected `with` but got EOF" }
   | "fn"::name::"->"::t ->
     choose {
       let! expr, t = parseExpression t

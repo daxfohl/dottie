@@ -305,7 +305,7 @@ let ``Test dot with fn concat``() =
 let ``Test dot with fn concat 2``() =
   assertSpec''(
     [EVal "concat", SFn(SObj(map["s1", SLit SStr; "s2", SLit SStr]), SLit SStr)],
-    "fn ss -> { let s1 = ss.s1; { s1 with raw: concat { s1: ss.s1.raw, s2: ss.s2.raw } } }",
+    "fn ss -> { ss.s1 with raw: concat { s1: ss.s1.raw, s2: ss.s2.raw } }",
     SFn (
       SFreeObj (EVal "ss", map ["s1", SFreeObj (EDot (EVal "ss","s1"), map ["raw", SLit SStr])
                                 "s2", SFreeObj (EDot (EVal "ss","s2"), map ["raw", SLit SStr])]),

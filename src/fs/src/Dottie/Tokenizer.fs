@@ -27,6 +27,7 @@ let insertSemicolon (tokens: string list) =
     function
     | [] -> List.rev newTokens
     | "}"::t -> insertSemicolon ("}"::";"::newTokens) t
+    | "with"::t -> insertSemicolon ("with"::";"::newTokens) t
     | x::t -> insertSemicolon (x::newTokens) t
   insertSemicolon [] tokens
 

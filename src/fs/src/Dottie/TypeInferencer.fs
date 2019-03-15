@@ -174,8 +174,7 @@ let rec getType (expr: E) (specs: Specs): Choice<S*Specs, string> =
             return! getNamedType t specs ((name, spec)::solved) }
       let! specFields, specs = getNamedType fields specs []
       return SObj (Map.ofList specFields), specs
-    | EWith(objName, fields) ->
-      let orig = EVal objName
+    | EWith(orig, fields) ->
       let! objType, specs = getType orig specs
       match objType with
         | SObj objFields ->

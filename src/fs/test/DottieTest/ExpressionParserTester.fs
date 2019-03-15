@@ -168,8 +168,8 @@ let ``Test hash applied``() =
 let ``Test hashwith more dots``() =
   let strings = tokenize "{a with x: a.b, y: 3}"
   let parsed = parseExpression strings
-  let expected = Choice1Of2 (EWith ("a", (map ["x", EDot(EVal "a", "b")
-                                               "y", ELit(EInt 3)])), [])
+  let expected = Choice1Of2 (EWith (EVal "a", (map ["x", EDot(EVal "a", "b")
+                                                    "y", ELit(EInt 3)])), [])
   Assert.Equal(expected, parsed)
   
 [<Fact>]
@@ -257,7 +257,7 @@ let ``Test fn block in object``() =
 let ``Parse concat``() =
   let strings = tokenize "fn ss -> { s1 with raw: ffi.concat { s1: ss.s1.raw, s2: ss.s2.raw } }"
   let parsed = parseExpression strings
-  let expected = Choice1Of2 (EFn("ss", EWith("s1", map["raw", EEval(EDot(EVal "ffi","concat"), EObj(map["s1", EDot(EDot(EVal "ss","s1"),"raw"); "s2", EDot(EDot(EVal "ss","s2"),"raw")]))])), [])
+  let expected = Choice1Of2 (EFn("ss", EWith(EVal "s1", map["raw", EEval(EDot(EVal "ffi","concat"), EObj(map["s1", EDot(EDot(EVal "ss","s1"),"raw"); "s2", EDot(EDot(EVal "ss","s2"),"raw")]))])), [])
   Assert.Equal(expected, parsed)
   
 
@@ -291,7 +291,7 @@ let ``Parse concat2``() =
                                                          ELet("sout",
                                                              EEval(EVal "concat",EVal "concatinput"),
                                                              ELet("out",
-                                                                 EWith("s1", map ["raw", EVal "sout"]),
+                                                                 EWith(EVal "s1", map ["raw", EVal "sout"]),
                                                                  EVal "out"))))))))),
                              [])
   Assert.Equal(expected, parsed)

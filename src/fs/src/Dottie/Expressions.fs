@@ -11,5 +11,7 @@ type E =
   | EEval of E * E
   | EFn of string * E
   | EObj of Map<string, E>
-  | EWith of string * Map<string, E>
+  | EWith of E * Map<string, E>
   | EDot of E * string
+  | EProc of string * E
+  | EDo of E
