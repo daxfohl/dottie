@@ -23,5 +23,6 @@ let ``Test Parser``() =
           SObj ^% Map.ofList
             [("s2", SLit SStr);
              ("s1", SLit SStr)],
-          SLit SStr))]
+          SLit SStr,
+          false))]
   assertSpec(spec, expected)

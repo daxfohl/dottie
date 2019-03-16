@@ -18,7 +18,7 @@ let assertSpec''(existing, expression, otherSpec) =
   let spec = choose {
     let strings = tokenize expression
     let! parsed, _ = parseExpression strings
-    let! spec, _ = getType parsed (Map.ofList existing)
+    let! spec, _ = getType parsed (Map.ofList existing) Normal
     return spec
   }
   let s = sprintf "%A" spec
@@ -42,7 +42,7 @@ let assertError'(existing, expression, expectedError) =
   let spec = choose {
     let strings = tokenize expression
     let! parsed, _ = parseExpression strings
-    let! spec, _ = getType parsed (Map.ofList existing)
+    let! spec, _ = getType parsed (Map.ofList existing) Normal
     return spec
   }
   Assert.Equal(Choice2Of2 expectedError, spec)
@@ -87,14 +87,14 @@ let ``Test let nested``() =
 [<Fact>]
 let ``Test inc``() =
   assertSpec' (
-    [EVal "inc", SFn(SLit SInt, SLit SInt)],
+    [EVal "inc", SFn(SLit SInt, SLit SInt, false)],
     "{ let x = 3; inc x }",
     "literal int")
 
 [<Fact>]
 let ``Test toStr``() =
   assertSpec' (
-    [EVal "toStr", SFn(SLit SInt, SLit SStr)],
+    [EVal "toStr", SFn(SLit SInt, SLit SStr, false)],
     "{ let x = 3; toStr x }",
     "literal string")
 
@@ -107,72 +107,72 @@ let ``Test not function``() =
 [<Fact>]
 let ``Test wrong type``() =
   assertError' (
-    [EVal "parse", SFn(SLit SStr, SLit SInt)],
+    [EVal "parse", SFn(SLit SStr, SLit SInt, false)],
     "{ let x = 3; parse x }",
     UnifyErrors.cannotUnify(SLit SInt, SLit SStr))
 
 [<Fact>]
 let ``Test inc def``() =
   assertSpec' (
-    [EVal "inc", SFn(SLit SInt, SLit SInt)],
+    [EVal "inc", SFn(SLit SInt, SLit SInt, false)],
     "fn x -> inc x",
     "fn literal int -> literal int")
   
 [<Fact>]
 let ``Test inc inc def``() =
   assertSpec' (
-    [EVal "inc", SFn(SLit SInt, SLit SInt)],
+    [EVal "inc", SFn(SLit SInt, SLit SInt, false)],
     "fn x -> inc inc x",
     "fn literal int -> literal int")
 
 [<Fact>]
 let ``Test inc inc eval``() =
   assertSpec' (
-    [EVal "inc", SFn(SLit SInt, SLit SInt)],
+    [EVal "inc", SFn(SLit SInt, SLit SInt, false)],
     "{ let inc2 = fn x -> inc inc x; inc2 4 }",
     "literal int")
 
 [<Fact>]
 let ``Test inc inc eval wrong type``() =
   assertError' (
-    [EVal "inc", SFn(SLit SInt, SLit SInt)],
+    [EVal "inc", SFn(SLit SInt, SLit SInt, false)],
     "{ let inc2 = fn x -> inc inc x; inc2 inc }",
-    UnifyErrors.cannotUnify (SFn(SLit SInt, SLit SInt), SLit SInt))
+    UnifyErrors.cannotUnify (SFn(SLit SInt, SLit SInt, false), SLit SInt))
   
 [<Fact>]
 let ``Test higher order``() =
   let strings = tokenize "{ let x = 3; let doToX = fn f -> f x; doToX }"
   let parsed = get ^% parseExpression strings
-  let spec = get ^% getType parsed Map.empty
+  let spec = get ^% getType parsed Map.empty Normal
   match spec with
-  | SFn(SFn(SLit SInt, SFree a), SFree b) when a = b -> ()
+  | SFn(SFn(SLit SInt, SFree a, false), SFree b, false) when a = b -> ()
   | x -> Assert.True(false, sprintf "%A" x)
 
 [<Fact>]
 let ``Test higher order 2``() =
   let strings = tokenize "fn x -> { let doToX = fn f -> f x; doToX }"
   let parsed = get ^% parseExpression strings
-  let spec = get ^% getType parsed Map.empty
+  let spec = get ^% getType parsed Map.empty Normal
   match spec with
-  | SFn(SFree a, SFn(SFreeFn(_, b, SFree c), SFree d)) when c = d && a <> c && b = set[SFree a] -> () // allow a >= b
+  | SFn(SFree a, SFn(SFreeFn(_, b, SFree c, false), SFree d, false), false) when c = d && a <> c && b = set[SFree a] -> () // allow a >= b
   | x -> Assert.True(false, sprintf "%A" x)
 
 [<Fact>]
 let ``Test higher order 2a``() =
   let strings = tokenize "fn x -> fn f -> f x"
   let parsed = get ^% parseExpression strings
-  let spec = get ^% getType parsed Map.empty
+  let spec = get ^% getType parsed Map.empty Normal
   match spec with
-  | SFn(SFree a, SFn(SFreeFn(_, b, SFree c), SFree d)) when c = d && a <> c && b = set[SFree a] -> () // allow a >= b
+  | SFn(SFree a, SFn(SFreeFn(_, b, SFree c, false), SFree d, false), false) when c = d && a <> c && b = set[SFree a] -> () // allow a >= b
   | x -> Assert.True(false, sprintf "%A" x)
   
 [<Fact>]
 let ``Test y combinator``() =
   let strings = tokenize "{ let y = fn f -> f y f; y }"
   let parsed = get ^% parseExpression strings
-  let spec = get^% getType parsed Map.empty
+  let spec = get^% getType parsed Map.empty Normal
   match spec with
-  | SFn(SFreeFn(_, a, SFree b), SFree c) when b = c && a = set[SFree c] -> () // allow a >=b
+  | SFn(SFreeFn(_, a, SFree b, false), SFree c, false) when b = c && a = set[SFree c] -> () // allow a >=b
   | x -> Assert.True(false, sprintf "%A" x)
 
 [<Fact>]
@@ -220,7 +220,7 @@ let ``Test obj with fn``() =
     "fn x -> { x with i: 5 }",
     SFn
       (SFreeObj (EVal "x", map ["i", SLit SInt]),
-       SFreeObj (EVal "x", map ["i", SLit SInt])))
+       SFreeObj (EVal "x", map ["i", SLit SInt]), false))
 
 [<Fact>]
 let ``Test dot with fn``() =
@@ -228,7 +228,7 @@ let ``Test dot with fn``() =
     "fn x -> { let z = x.i; x }",
     SFn
       (SFreeObj (EVal "x", map ["i", SFree(EDot(EVal "x", "i"))]),
-       SFreeObj (EVal "x", map ["i", SFree(EDot(EVal "x", "i"))])))
+       SFreeObj (EVal "x", map ["i", SFree(EDot(EVal "x", "i"))]), false))
 
 [<Fact>]
 let ``Test dot with fn z``() =
@@ -236,7 +236,7 @@ let ``Test dot with fn z``() =
     "fn x -> { let z = x.i; z }",
     SFn
       (SFreeObj (EVal "x", map ["i", SFree(EDot(EVal "x", "i"))]),
-       SFree(EDot(EVal "x", "i"))))
+       SFree(EDot(EVal "x", "i")), false))
 
 [<Fact>]
 let ``Test three fn``() =
@@ -252,9 +252,9 @@ let ``Test three fn``() =
             "d", SFree(EEval (EDot (EVal "x","g"),EDot (EVal "x","y")))
             "e", SFree(EEval (EDot (EVal "x","h"),EDot (EVal "x","z")))
             "e1", SFree(EEval (EDot (EVal "x","h"),EDot (EVal "x","z")))
-            "f", SFreeFn(EDot (EVal "x","f"), set [SFree (EDot (EVal "x","x")); SFree (EDot (EVal "x","y"))], SFree (EEval (EDot (EVal "x","f"),EDot (EVal "x","x"))))
-            "g", SFreeFn(EDot (EVal "x","g"), set [SFree (EDot (EVal "x","y")); SFree (EDot (EVal "x","z"))], SFree (EEval (EDot (EVal "x","g"),EDot (EVal "x","y"))))
-            "h", SFreeFn(EDot (EVal "x","h"), set [SFree (EDot (EVal "x","x")); SFree (EDot (EVal "x","z"))], SFree (EEval (EDot (EVal "x","h"),EDot (EVal "x","z"))))
+            "f", SFreeFn(EDot (EVal "x","f"), set [SFree (EDot (EVal "x","x")); SFree (EDot (EVal "x","y"))], SFree (EEval (EDot (EVal "x","f"),EDot (EVal "x","x"))), false)
+            "g", SFreeFn(EDot (EVal "x","g"), set [SFree (EDot (EVal "x","y")); SFree (EDot (EVal "x","z"))], SFree (EEval (EDot (EVal "x","g"),EDot (EVal "x","y"))), false)
+            "h", SFreeFn(EDot (EVal "x","h"), set [SFree (EDot (EVal "x","x")); SFree (EDot (EVal "x","z"))], SFree (EEval (EDot (EVal "x","h"),EDot (EVal "x","z"))), false)
             "x", SFree(EDot (EVal "x","x"))
             "y", SFree(EDot (EVal "x","y"))
             "z", SFree(EDot (EVal "x","z"))]),
@@ -267,17 +267,17 @@ let ``Test three fn``() =
             "d", SFree(EEval (EDot (EVal "x","g"),EDot (EVal "x","y")))
             "e", SFree(EEval (EDot (EVal "x","h"),EDot (EVal "x","z")))
             "e1", SFree(EEval (EDot (EVal "x","h"),EDot (EVal "x","z")))
-            "f", SFreeFn(EDot (EVal "x","f"), set [SFree (EDot (EVal "x","x")); SFree (EDot (EVal "x","y"))], SFree (EEval (EDot (EVal "x","f"),EDot (EVal "x","x"))))
-            "g", SFreeFn(EDot (EVal "x","g"), set [SFree (EDot (EVal "x","y")); SFree (EDot (EVal "x","z"))], SFree (EEval (EDot (EVal "x","g"),EDot (EVal "x","y"))))
-            "h", SFreeFn(EDot (EVal "x","h"), set [SFree (EDot (EVal "x","x")); SFree (EDot (EVal "x","z"))], SFree (EEval (EDot (EVal "x","h"),EDot (EVal "x","z"))))
+            "f", SFreeFn(EDot (EVal "x","f"), set [SFree (EDot (EVal "x","x")); SFree (EDot (EVal "x","y"))], SFree (EEval (EDot (EVal "x","f"),EDot (EVal "x","x"))), false)
+            "g", SFreeFn(EDot (EVal "x","g"), set [SFree (EDot (EVal "x","y")); SFree (EDot (EVal "x","z"))], SFree (EEval (EDot (EVal "x","g"),EDot (EVal "x","y"))), false)
+            "h", SFreeFn(EDot (EVal "x","h"), set [SFree (EDot (EVal "x","x")); SFree (EDot (EVal "x","z"))], SFree (EEval (EDot (EVal "x","h"),EDot (EVal "x","z"))), false)
             "x", SFree(EDot (EVal "x","x"))
             "y", SFree(EDot (EVal "x","y"))
-            "z", SFree(EDot (EVal "x","z"))])))
+            "z", SFree(EDot (EVal "x","z"))]), false))
 
 [<Fact>]
 let ``Test dot with fn inc``() =
   assertSpec''(
-    [EVal "inc", SFn(SLit SInt, SLit SInt)
+    [EVal "inc", SFn(SLit SInt, SLit SInt, false)
      EVal "x", SFree(EVal "x")],
     "{ let z = inc x.i; x }",
     SFreeObj (EVal "x", map ["i", SLit SInt]))
@@ -285,7 +285,7 @@ let ``Test dot with fn inc``() =
 [<Fact>]
 let ``Test dot with fn concat``() =
   assertSpec''(
-    [EVal "concat", SFn(SObj(map["s1", SLit SStr; "s2", SLit SStr]), SLit SStr)],
+    [EVal "concat", SFn(SObj(map["s1", SLit SStr; "s2", SLit SStr]), SLit SStr, false)],
     "fn ss -> {
         let s1 = ss.s1
         let s2 = ss.s2
@@ -299,23 +299,23 @@ let ``Test dot with fn concat``() =
     SFn (
       SFreeObj (EVal "ss", map ["s1", SFreeObj (EVal "s1", map ["raw", SLit SStr])
                                 "s2", SFreeObj (EVal "s2", map ["raw", SLit SStr])]),
-      SFreeObj (EVal "s1", map ["raw", SLit SStr])))
+      SFreeObj (EVal "s1", map ["raw", SLit SStr]), false))
 
 [<Fact>]
 let ``Test dot with fn concat 2``() =
   assertSpec''(
-    [EVal "concat", SFn(SObj(map["s1", SLit SStr; "s2", SLit SStr]), SLit SStr)],
+    [EVal "concat", SFn(SObj(map["s1", SLit SStr; "s2", SLit SStr]), SLit SStr, false)],
     "fn ss -> { ss.s1 with raw: concat { s1: ss.s1.raw, s2: ss.s2.raw } }",
     SFn (
       SFreeObj (EVal "ss", map ["s1", SFreeObj (EDot (EVal "ss","s1"), map ["raw", SLit SStr])
                                 "s2", SFreeObj (EDot (EVal "ss","s2"), map ["raw", SLit SStr])]),
-      SFreeObj (EDot (EVal "ss","s1"), map ["raw", SLit SStr])))
+      SFreeObj (EDot (EVal "ss","s1"), map ["raw", SLit SStr]), false))
 
 [<Fact>]
 let ``Test free concat``() =
   assertSpec''(
     [EVal "x", SFree(EVal "x")
-     EVal "concat", SFn(SObj(map["s1", SLit SStr; "s2", SLit SStr]), SLit SStr)],
+     EVal "concat", SFn(SObj(map["s1", SLit SStr; "s2", SLit SStr]), SLit SStr, false)],
     "{ let y = concat x; x }",
     SFreeObj(EVal "x", map["s1", SLit SStr; "s2", SLit SStr]))
 
@@ -323,7 +323,7 @@ let ``Test free concat``() =
 let ``Test free concat2``() =
   assertSpec''(
     [EVal "x", SFree(EVal "x")
-     EVal "concat", SFn(SObj(map["s1", SLit SStr;"s2", SLit SStr]), SLit SStr)],
+     EVal "concat", SFn(SObj(map["s1", SLit SStr;"s2", SLit SStr]), SLit SStr, false)],
     "{ let y = concat x; { x with s3: 3 } }",
     SFreeObj(EVal "x", map["s1", SLit SStr;"s2", SLit SStr;"s3", SLit SInt]))
 
@@ -332,7 +332,7 @@ let ``Test free f object input``() =
   assertSpec''(
     [EVal "f", SFree(EVal "f")],
     "{ let y = f {i: 3}; f }",
-    SFreeFn(EVal "f", set [SObj (map ["i", SLit SInt])], SFree (EEval (EVal "f",EObj (map["i", ELit (EInt 3)])))))
+    SFreeFn(EVal "f", set [SObj (map ["i", SLit SInt])], SFree (EEval (EVal "f",EObj (map["i", ELit (EInt 3)]))), false))
 
 [<Fact>]
 let ``Test free f free object input``() =
@@ -340,7 +340,7 @@ let ``Test free f free object input``() =
     [EVal "f", SFree(EVal "f")
      EVal "x", SFree(EVal "x")],
     "{ let y = f x; let z = { x with i: 3 }; f }",
-    SFreeFn(EVal "f", set [SFreeObj (EVal "x",map ["i", SLit SInt])], SFree (EEval (EVal "f", EVal "x"))))
+    SFreeFn(EVal "f", set [SFreeObj (EVal "x",map ["i", SLit SInt])], SFree (EEval (EVal "f", EVal "x")), false))
 
 [<Fact>]
 let ``Test free f free object input 2``() =
@@ -348,7 +348,7 @@ let ``Test free f free object input 2``() =
     [EVal "f", SFree(EVal "f")
      EVal "x", SFree(EVal "x")],
     "{ let z = { x with i: 3 }; let y = f x; f }",
-    SFreeFn(EVal "f", set [SFreeObj (EVal "x",map ["i", SLit SInt])], SFree (EEval (EVal "f", EVal "x"))))
+    SFreeFn(EVal "f", set [SFreeObj (EVal "x",map ["i", SLit SInt])], SFree (EEval (EVal "f", EVal "x")), false))
 
 [<Fact>]
 let ``Test free f free object input 3``() =
@@ -356,14 +356,14 @@ let ``Test free f free object input 3``() =
     [EVal "f", SFree(EVal "f")
      EVal "x", SFree(EVal "x")],
     "{ let z = { x with i: 3 }; let y = f z; f }",
-    SFreeFn(EVal "f", set [SFreeObj (EVal "x",map ["i", SLit SInt])], SFree (EEval (EVal "f", EVal "z"))))
+    SFreeFn(EVal "f", set [SFreeObj (EVal "x",map ["i", SLit SInt])], SFree (EEval (EVal "f", EVal "z")), false))
 
 [<Fact>]
 let ``Test free f object mixed input``() =
   assertSpec''(
     [EVal "f", SFree(EVal "f")],
     "{ let y = f {i: 3}; let z = f {j: 3}; f }",
-    SFreeFn(EVal "f", set [SObj (map ["i", SLit SInt]); SObj (map ["j", SLit SInt])], SFree (EEval (EVal "f",EObj (map["i", ELit (EInt 3)])))))
+    SFreeFn(EVal "f", set [SObj (map ["i", SLit SInt]); SObj (map ["j", SLit SInt])], SFree (EEval (EVal "f",EObj (map["i", ELit (EInt 3)]))), false))
 
 [<Fact>]
 let ``Test with with dot``() =
@@ -383,7 +383,7 @@ let ``Test with with dot 2``() =
 [<Fact>]
 let ``Test with with dot 2f``() =
   assertError'(
-    [EVal "inc", SFn(SLit SInt, SLit SInt)
+    [EVal "inc", SFn(SLit SInt, SLit SInt, false)
      EVal "x", SFree(EVal "x")],
     "{ let y = x.i; let j = inc y; { x with i: \"test\" } }",
     UnifyErrors.cannotUnify(SLit SInt, SLit SStr))
@@ -394,7 +394,7 @@ let ``Test obj with fn big``() =
     "fn x -> { let a = { x with i: 5 }; let z = { x with j: 3 }; a }",
     SFn
       (SFreeObj (EVal "x", map ["i", SLit SInt;"j", SLit SInt]),
-       SFreeObj (EVal "x", map ["i", SLit SInt;"j", SLit SInt])))
+       SFreeObj (EVal "x", map ["i", SLit SInt;"j", SLit SInt]), false))
 
 [<Fact>]
 let ``Test obj with fn nested``() =
@@ -406,27 +406,27 @@ let ``Test obj with fn nested``() =
         SFreeObj (EVal "y", map ["j", SFreeObj (EVal "z", map ["k", SLit SInt])]),
         SFn (
           SFreeObj (EVal "z", map ["k", SLit SInt]),
-          SFreeObj (EVal "x", map ["i", SFreeObj (EVal "y", map ["j", SFreeObj (EVal "z", map ["k", SLit SInt])])])))))
+          SFreeObj (EVal "x", map ["i", SFreeObj (EVal "y", map ["j", SFreeObj (EVal "z", map ["k", SLit SInt])])]), false), false), false))
 
 [<Fact>]
 let ``Test obj nested with wrong field type``() =
   let strings = tokenize "{ let o = { x: 4; y: { a: 3 } }; { o with y: { a: \"s\" } } }"
   let parsed = get ^% parseExpression strings
-  let spec = getType parsed Map.empty
+  let spec = getType parsed Map.empty Normal
   Assert.Equal(Choice2Of2 ^% UnifyErrors.cannotUnify(SLit SInt, SLit SStr), spec)
 
 [<Fact>]
 let ``Test obj nested with wrong field name``() =
   let strings = tokenize "{ let o = { x: 4; y: { a: 3 } }; { o with y: {z: \"s\" } } }"
   let parsed = get ^% parseExpression strings
-  let spec = getType parsed Map.empty
+  let spec = getType parsed Map.empty Normal
   Assert.Equal(Choice2Of2 ^% UnifyErrors.objectFieldsDiffer(set["a"], set["z"]), spec)
 
 [<Fact>]
 let ``Test dot``() =
   let strings = tokenize "{ x: 4 }.x"
   let parsed = get ^% parseExpression strings
-  let spec = get ^% getType parsed Map.empty
+  let spec = get ^% getType parsed Map.empty Normal
   match spec with
   | SLit SInt -> ()
   | x -> Assert.True(false, sprintf "%A" x)
@@ -435,7 +435,7 @@ let ``Test dot``() =
 let ``Test dot with in let``() =
   let strings = tokenize "{ let o = { x: 4; y: \"test\" }; { o with x: 3 } }.x"
   let parsed = get ^% parseExpression strings
-  let spec = get ^% getType parsed Map.empty
+  let spec = get ^% getType parsed Map.empty Normal
   match spec with
   | SLit SInt -> ()
   | x -> Assert.True(false, sprintf "%A" x)
@@ -444,7 +444,7 @@ let ``Test dot with in let``() =
 let ``Test dot nested``() =
   let strings = tokenize "{ let o = { x: 4; y: { a: 3 } }; { o with y: { a: 4 } } }.y.a"
   let parsed = get ^% parseExpression strings
-  let spec = get ^% getType parsed Map.empty
+  let spec = get ^% getType parsed Map.empty Normal
   match spec with
   | SLit SInt -> ()
   | x -> Assert.True(false, sprintf "%A" x)
@@ -453,7 +453,7 @@ let ``Test dot nested``() =
 let ``Test dot nested 2``() =
   let strings = tokenize "{ let o = { x: 4; y: { a: 3 } }; { o with y: { a: 4 } }.y }.a"
   let parsed = get ^% parseExpression strings
-  let spec = get ^% getType parsed Map.empty
+  let spec = get ^% getType parsed Map.empty Normal
   match spec with
   | SLit SInt -> ()
   | x -> Assert.True(false, sprintf "%A" x)
@@ -462,5 +462,5 @@ let ``Test dot nested 2``() =
 let ``Test dot non object``() =
   let strings = tokenize "{ x: 4 }.x.y"
   let parsed = get ^% parseExpression strings
-  let spec = getType parsed Map.empty
+  let spec = getType parsed Map.empty Normal
   Assert.Equal(Choice2Of2 ^% Errors.notObject (SLit SInt), spec)
