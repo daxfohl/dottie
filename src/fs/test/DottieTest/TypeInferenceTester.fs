@@ -156,6 +156,12 @@ let ``Test proc``() =
   assertSpec'''(
     "{ let eff1 = proc x -> 4; let eff = proc y -> { let z = do eff1 y; z }; eff }",
     SFn (SFree (EVal "x"),SLit SInt,true))
+
+[<Fact>]
+let ``Test proc inline``() =
+  assertSpec'''(
+    "{ let eff1 = proc x -> 4; let eff = proc y -> do eff1 y; eff }",
+    SFn (SFree (EVal "x"),SLit SInt,true))
   
 [<Fact>]
 let ``Test higher order``() =
