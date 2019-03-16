@@ -157,7 +157,7 @@ let rec getType (expr: E) (specs: Specs): Choice<S*Specs, string> =
       let! spec, specs = getType expr specs
       let! specs = constrain valExpr spec specs
       return! getType rest specs
-    | EFn(input, expr) ->
+    | EFn(input, expr, isProc) ->
       let input = EVal input
       let! spec, specs = fresh input specs
       let! spec, specs = getType expr specs

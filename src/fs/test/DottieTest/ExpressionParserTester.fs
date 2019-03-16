@@ -221,43 +221,43 @@ let ``Test let dot``() =
 let ``Test fn``() =
   let strings = tokenize "fn x -> x"
   let parsed = parseExpression strings
-  let expected = Choice1Of2 (EFn("x", EVal "x"), [])
+  let expected = Choice1Of2 (EFn("x", EVal "x", false), [])
   Assert.Equal(expected, parsed)
   
 [<Fact>]
 let ``Test fn dot``() =
   let strings = tokenize "fn x -> x.y"
   let parsed = parseExpression strings
-  let expected = Choice1Of2 (EFn("x", EDot(EVal "x", "y")), [])
+  let expected = Choice1Of2 (EFn("x", EDot(EVal "x", "y"), false), [])
   Assert.Equal(expected, parsed)
   
 [<Fact>]
 let ``Test function of fn``() =
   let strings = tokenize "f fn x -> x.y"
   let parsed = parseExpression strings
-  let expected = Choice1Of2 (EEval(EVal "f", (EFn("x", EDot(EVal "x", "y")))), [])
+  let expected = Choice1Of2 (EEval(EVal "f", (EFn("x", EDot(EVal "x", "y"), false))), [])
   Assert.Equal(expected, parsed)
 
 [<Fact>]
 let ``Test fn block``() =
   let strings = tokenize "fn x -> { let y = 3; x }"
   let parsed = parseExpression strings
-  let expected = Choice1Of2 (EFn("x", ELet("y", ELit(EInt 3), EVal "x")), [])
+  let expected = Choice1Of2 (EFn("x", ELet("y", ELit(EInt 3), EVal "x"), false), [])
   Assert.Equal(expected, parsed)
   
 [<Fact>]
 let ``Test fn block in object``() =
   let strings = tokenize "{ x: fn x -> { let y = 3; x }; y: fn x -> { let y = 3; x } }"
   let parsed = parseExpression strings
-  let expected = Choice1Of2 (EObj (map ["x", EFn("x", ELet("y", ELit(EInt 3), EVal "x"))
-                                        "y", EFn("x", ELet("y", ELit(EInt 3), EVal "x"))]), [])
+  let expected = Choice1Of2 (EObj (map ["x", EFn("x", ELet("y", ELit(EInt 3), EVal "x"), false)
+                                        "y", EFn("x", ELet("y", ELit(EInt 3), EVal "x"), false)]), [])
   Assert.Equal(expected, parsed)
 
 [<Fact>]
 let ``Parse concat``() =
   let strings = tokenize "fn ss -> { s1 with raw: ffi.concat { s1: ss.s1.raw, s2: ss.s2.raw } }"
   let parsed = parseExpression strings
-  let expected = Choice1Of2 (EFn("ss", EWith(EVal "s1", map["raw", EEval(EDot(EVal "ffi","concat"), EObj(map["s1", EDot(EDot(EVal "ss","s1"),"raw"); "s2", EDot(EDot(EVal "ss","s2"),"raw")]))])), [])
+  let expected = Choice1Of2 (EFn("ss", EWith(EVal "s1", map["raw", EEval(EDot(EVal "ffi","concat"), EObj(map["s1", EDot(EDot(EVal "ss","s1"),"raw"); "s2", EDot(EDot(EVal "ss","s2"),"raw")]))]), false), [])
   Assert.Equal(expected, parsed)
   
 
@@ -292,6 +292,6 @@ let ``Parse concat2``() =
                                                              EEval(EVal "concat",EVal "concatinput"),
                                                              ELet("out",
                                                                  EWith(EVal "s1", map ["raw", EVal "sout"]),
-                                                                 EVal "out"))))))))),
+                                                                 EVal "out")))))))), false),
                              [])
   Assert.Equal(expected, parsed)

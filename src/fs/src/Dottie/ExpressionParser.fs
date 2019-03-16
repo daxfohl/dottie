@@ -7,7 +7,9 @@ open FSharpx.Choice
 let keywords =
   [ "import"
     "let"
-    "fn" ]
+    "fn"
+    "proc"
+    "with" ]
 
 let validIdentifier (s: string) =
   s <> null
@@ -78,9 +80,9 @@ let rec parseExpression (tokens: string list) : Choice<E * string list, string> 
           return! parseContinuation t (EWith(name, expr))
         | h::_ -> return! Choice2Of2 <| sprintf "Expected `with` but got %s" h
         | _ -> return! Choice2Of2 "Expected `with` but got EOF" }
-  | "fn"::name::"->"::t ->
+  | x::name::"->"::t when x = "fn" || x = "proc" ->
     choose {
       let! expr, t = parseExpression t
-      return EFn(name, expr), t }
+      return EFn(name, expr, x = "proc"), t }
   | h::_ -> Choice2Of2 <| sprintf "parseExpression got %s" h
   | [] -> Choice2Of2 "parseExpression got empty list"

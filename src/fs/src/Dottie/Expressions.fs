@@ -9,9 +9,8 @@ type E =
   | EVal of string
   | ELet of string * E * E
   | EEval of E * E
-  | EFn of string * E
+  | EFn of string * E * bool
   | EObj of Map<string, E>
   | EWith of E * Map<string, E>
   | EDot of E * string
-  | EProc of string * E
   | EDo of E
