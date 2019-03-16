@@ -9,7 +9,8 @@ let keywords =
     "let"
     "fn"
     "proc"
-    "with" ]
+    "with"
+    "do"]
 
 let validIdentifier (s: string) =
   s <> null
@@ -58,12 +59,12 @@ let rec parseExpression (tokens: string list) : Choice<E * string list, string> 
         let! e, t = parseExpression tokens
         return EEval(expr, e), t
       | h::_ -> return! Choice2Of2 <| sprintf "parseContinuation got %s" h }
-  match tokens with
-  | s::t when validIdentifier s -> parseContinuation t (EVal s)
-  | "\""::s::"\""::t -> parseContinuation t (ELit(EStr s))
-  | s::t when let b, _ = Int32.TryParse s in b -> parseContinuation t (ELit(EInt(Int32.Parse s)))
-  | "{"::t ->
-    choose {
+  choose {
+    match tokens with
+    | s::t when validIdentifier s -> return! parseContinuation t (EVal s)
+    | "\""::s::"\""::t -> return! parseContinuation t (ELit(EStr s))
+    | s::t when let b, _ = Int32.TryParse s in b -> return! parseContinuation t (ELit(EInt(Int32.Parse s)))
+    | "{"::t ->
       match t with
       | "let"::_::"="::_ ->
         let! expr, t = parseLetBlock t
@@ -79,10 +80,12 @@ let rec parseExpression (tokens: string list) : Choice<E * string list, string> 
           let! expr, t = parseObjectFields t Map.empty
           return! parseContinuation t (EWith(name, expr))
         | h::_ -> return! Choice2Of2 <| sprintf "Expected `with` but got %s" h
-        | _ -> return! Choice2Of2 "Expected `with` but got EOF" }
-  | x::name::"->"::t when x = "fn" || x = "proc" ->
-    choose {
+        | _ -> return! Choice2Of2 "Expected `with` but got EOF"
+    | "do"::t ->
       let! expr, t = parseExpression t
-      return EFn(name, expr, x = "proc"), t }
-  | h::_ -> Choice2Of2 <| sprintf "parseExpression got %s" h
-  | [] -> Choice2Of2 "parseExpression got empty list"
+      return EDo expr, t
+    | x::name::"->"::t when x = "fn" || x = "proc" ->
+      let! expr, t = parseExpression t
+      return EFn(name, expr, x = "proc"), t
+    | h::_ -> return! Choice2Of2 <| sprintf "parseExpression got %s" h
+    | [] -> return! Choice2Of2 "parseExpression got empty list" }

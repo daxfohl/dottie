@@ -123,7 +123,7 @@ module Errors =
   let noField (fieldname: string) (object: E) = sprintf "No field %s in object %A" fieldname object
   let notObject (notObject: S) = sprintf "Not an object: %A" notObject
   let alreadyExists (expr: E, spec: S) = sprintf "Already exists: %A as %A" expr spec
-  let notInDoContext (spec: S) = sprintf "Not in do context: %A" spec
+  let notInDoContext (expr: E) = sprintf "Not in do context: %A" expr
   let notInProcContext (expr: E) = sprintf "Not in proc context: %A" expr
 
 let fresh expr specs =
@@ -247,7 +247,7 @@ let rec getType (expr: E) (specs: Specs) (context: Context): Choice<S*Specs, str
       match fnspec with
       | SFn(input, output, eff) ->
         if eff && not(context = Do) then
-          return! Choice2Of2(Errors.notInDoContext fnspec)
+          return! Choice2Of2(Errors.notInDoContext fn)
         else
           let! argspec, specs = getType arg specs context
           let spec, specs = freshOrFind arg specs
@@ -262,7 +262,7 @@ let rec getType (expr: E) (specs: Specs) (context: Context): Choice<S*Specs, str
         return SFree expr, specs
       | SFreeFn(x, inputs, output, eff) ->
         if eff && not(context = Do) then
-          return! Choice2Of2(Errors.notInDoContext fnspec)
+          return! Choice2Of2(Errors.notInDoContext fn)
         else
           let! argspec, specs = getType arg specs context
           let fnspec = match argspec with SObj _ | SFreeObj _ | SFree _ -> SFreeFn(x, Set.add argspec inputs, SFree expr, eff) | _ -> SFn(argspec, SFree expr, eff)

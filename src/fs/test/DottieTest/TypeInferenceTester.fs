@@ -138,6 +138,24 @@ let ``Test inc inc eval wrong type``() =
     [EVal "inc", SFn(SLit SInt, SLit SInt, false)],
     "{ let inc2 = fn x -> inc inc x; inc2 inc }",
     UnifyErrors.cannotUnify (SFn(SLit SInt, SLit SInt, false), SLit SInt))
+
+[<Fact>]
+let ``Test proc not in do``() =
+  assertError(
+    "{ let eff = proc x -> 3; eff 5 }",
+    Errors.notInDoContext (EVal "eff"))
+
+[<Fact>]
+let ``Test do not in proc``() =
+  assertError(
+    "{ let eff = proc x -> 3; do eff 5 }",
+    Errors.notInProcContext (EEval (EVal "eff", ELit(EInt 5))))
+
+[<Fact>]
+let ``Test proc``() =
+  assertSpec'''(
+    "{ let eff1 = proc x -> 4; let eff = proc y -> { let z = do eff1 y; z }; eff }",
+    SFn (SFree (EVal "x"),SLit SInt,true))
   
 [<Fact>]
 let ``Test higher order``() =
