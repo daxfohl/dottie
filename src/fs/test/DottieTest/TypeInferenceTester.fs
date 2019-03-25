@@ -150,17 +150,52 @@ let ``Test do not in proc``() =
   assertError(
     "{ let eff = proc x -> 3; do eff 5 }",
     Errors.notInProcContext (EEval (EVal "eff", ELit(EInt 5))))
-
+    
 [<Fact>]
 let ``Test proc``() =
   assertSpec'''(
-    "{ let eff1 = proc x -> 4; let eff = proc y -> { let z = do eff1 y; z }; eff }",
+    "{ let log = proc x -> 4
+       let log1 = proc y -> {
+         let z = do log y
+         z
+       }
+       log1
+     }",
     SFn (SFree (EVal "x"),SLit SInt,true))
 
 [<Fact>]
 let ``Test proc inline``() =
   assertSpec'''(
-    "{ let eff1 = proc x -> 4; let eff = proc y -> do eff1 y; eff }",
+    "{ let log = proc x -> 4
+       let log1 = proc y -> do log y
+       log1 }",
+    SFn (SFree (EVal "x"),SLit SInt,true))
+
+[<Fact>]
+let ``Test proc in let block``() =
+  assertSpec'''(
+    "{ let log = proc x -> 4
+       let log1 = proc y -> {
+         let z = do {
+           let q = do log y
+           q
+         }
+         z
+       }
+       log1
+     }",
+    SFn (SFree (EVal "x"),SLit SInt,true))
+
+[<Fact>]
+let ``Test proc in let block 2``() =
+  assertSpec'''(
+    "{ let log = proc x -> 4
+       let log1 = proc y -> {
+         let z = do { do log y }
+         z
+       }
+       log1
+     }",
     SFn (SFree (EVal "x"),SLit SInt,true))
   
 [<Fact>]
