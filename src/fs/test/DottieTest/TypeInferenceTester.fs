@@ -133,6 +133,12 @@ let ``Test inc inc eval``() =
     "literal int")
 
 [<Fact>]
+let ``Test id id``() =
+  assertSpec'''(
+    "{ let id = fn x -> x; id id }",
+    SFn (SFree (EVal "x"), SFree (EVal "x"), false))
+
+[<Fact>]
 let ``Test inc inc eval wrong type``() =
   assertError' (
     [EVal "inc", SFn(SLit SInt, SLit SInt, false)],
@@ -197,6 +203,21 @@ let ``Test proc in let block 2``() =
        log1
      }",
     SFn (SFree (EVal "x"),SLit SInt,true))
+
+[<Fact>]
+let ``Test proc in let block 3``() =
+  assertError(
+    "{ let log = proc x -> 4
+       let log1 = proc y -> {
+         let z = do {
+           let q = log y
+           q
+         }
+         z
+       }
+       log1
+     }",
+    Errors.notInDoContext (EVal "log"))
   
 [<Fact>]
 let ``Test higher order``() =

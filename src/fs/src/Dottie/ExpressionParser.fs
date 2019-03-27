@@ -66,7 +66,8 @@ let rec parseExpression (tokens: string list) : Choice<E * string list, string> 
     | s::t when let b, _ = Int32.TryParse s in b -> return! parseContinuation t (ELit(EInt(Int32.Parse s)))
     | "{"::t ->
       match t with
-      | "let"::_::"="::_ ->
+      | "let"::_::"="::_
+      | "do"::_ ->
         let! expr, t = parseLetBlock t
         return! parseContinuation t expr
       | "}"::_

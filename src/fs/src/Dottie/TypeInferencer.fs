@@ -156,6 +156,7 @@ let rec getType (expr: E) (specs: Specs) (context: Context): Choice<S*Specs, str
       | Some spec -> return spec, specs
       | None -> return! Choice2Of2(Errors.undefined s)
     | ELet(s, expr, rest) ->
+      let context = if context = Do then Proc else context
       let valExpr = EVal s
       let! spec, specs = fresh valExpr specs
       let! spec, specs = getType expr specs context
@@ -270,7 +271,7 @@ let rec getType (expr: E) (specs: Specs) (context: Context): Choice<S*Specs, str
           return output, specs
       | _ -> return! Choice2Of2 (Errors.notAFunction fn fnspec)
     | EDo expr ->
-      if context = Proc then
+      if context <> Normal then
         return! getType expr specs Do
       else
         return! Choice2Of2 (Errors.notInProcContext expr) }
