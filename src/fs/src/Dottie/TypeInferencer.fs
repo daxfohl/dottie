@@ -96,8 +96,7 @@ let rec replace (expr: E) (replacement: S) (existing: S) =
   | _ -> existing
 
 let replaceInMap (expr: E, replacement: S) =
-  Map.map (fun dummyKey spec ->
-    replace expr replacement spec)
+  Map.map (fun dummyKey spec -> replace expr replacement spec)
 
 let rec replaceDeltasInRest (completed: list<E*S>, tail: list<E*S>) =
   match tail with
@@ -247,14 +246,16 @@ let rec getType (expr: E) (specs: Specs) (context: Context): Choice<S*Specs, str
       let! fnspec, specs = getType fn specs context
       match fnspec with
       | SFn(input, output, eff) ->
-        if eff && not(context = Do) then
+        if eff && context <> Do then
           return! Choice2Of2(Errors.notInDoContext fn)
         else
           let! argspec, specs = getType arg specs context
           let spec, specs = freshOrFind arg specs
           let! specs = constrain arg argspec specs
-          let input = match input, argspec with | SObj _, SObj _ -> input | SObj fields, _ -> SFreeObj(arg, fields) | _ -> input
+          let input = match input, argspec with | SObj _, SObj _ -> input | SObj fields, _ -> SFreeObj(arg, fields) | SFreeObj(_, fields), SObj _ -> SObj fields | _ -> input
           let! specs = constrain arg input specs
+          let! subs = unify argspec input
+          let output = subs |> List.fold (fun state (expr, spec) -> replace expr spec state) output
           return output, specs
       | SFree(x) ->
         let! argspec, specs = getType arg specs context

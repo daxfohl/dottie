@@ -117,7 +117,7 @@ let ``Test inc def``() =
     [EVal "inc", SFn(SLit SInt, SLit SInt, false)],
     "fn x -> inc x",
     "fn literal int -> literal int")
-  
+
 [<Fact>]
 let ``Test inc inc def``() =
   assertSpec' (
@@ -131,6 +131,24 @@ let ``Test inc inc eval``() =
     [EVal "inc", SFn(SLit SInt, SLit SInt, false)],
     "{ let inc2 = fn x -> inc inc x; inc2 4 }",
     "literal int")
+    
+[<Fact>]
+let ``Test id``() =
+  assertSpec'''(
+    "{ let id = fn x -> x; id 3 }",
+    SLit SInt)
+
+[<Fact>]
+let ``Test id with``() =
+  assertSpec'''(
+    "{ let id = fn x -> { y: x }; id 3 }",
+     SObj (map [("y", SLit SInt)]))
+
+[<Fact>]
+let ``Test id dot``() =
+  assertSpec'''(
+    "{ let id = fn x -> x.y; id { y: 3 } }",
+    SLit SInt)
 
 [<Fact>]
 let ``Test id id``() =
