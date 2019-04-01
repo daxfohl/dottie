@@ -3,7 +3,6 @@
 open Expressions
 open Types
 open FSharpx.Choice
-open System.Threading
 
 let tryMap (f: 'a -> Choice<'b, 'c>) list =
   let folder (state: Choice<'b list, 'c>) (x: 'a) =

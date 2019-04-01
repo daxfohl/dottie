@@ -58,6 +58,7 @@
     <Compile Include="AssemblyInfo.fs" />
     <Compile Include="Functions.fs" />
     <Compile Include="Expressions.fs" />
+    <Compile Include="Compiler.fs" />
     <Compile Include="Types.fs" />
     <Compile Include="TypeInferencer.fs" />
     <Compile Include="ExpressionParser.fs" />
