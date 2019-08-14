@@ -3,7 +3,6 @@
 open Expressions
 
 type SLit = SStr | SInt
-type Relation = Contains | ContainedBy
 
 type S =
 | SLit of SLit
@@ -12,9 +11,5 @@ type S =
 | SObj of Map<string, S>
 | SFreeObj of E * Map<string, S>
 | SFreeFn of E * Set<S> * S * bool
-and Constraint =
-  { expr: E
-    relation: Relation
-    spec: S }
 
 type Specs = Map<E, S>

@@ -15,7 +15,7 @@ let get choice =
 let assertSpec(sExpr, s) =
   let strings = tokenize sExpr
   let expr = get ^% parseExpression strings
-  let compiled = compile expr
+  let compiled = compileExpr expr
   let s1 = Regex.Replace(compiled, @"\s+", "")
   let s2 = Regex.Replace(s, @"\s+", "")
   Assert.Equal(s2, s1)

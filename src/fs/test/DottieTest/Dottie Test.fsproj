@@ -53,13 +53,14 @@
   <Import Project="..\..\packages\xunit.runner.visualstudio\build\$(__paket__xunit_runner_visualstudio_props).props" Condition="Exists('..\..\packages\xunit.runner.visualstudio\build\$(__paket__xunit_runner_visualstudio_props).props')" Label="Paket" />
   <ItemGroup>
     <Compile Include="AssemblyInfo.fs" />
-    <Compile Include="TokenizerTester.fs" />
     <Content Include="paket.references" />
     <Content Include="Samples.txt" />
+    <Compile Include="TokenizerTester.fs" />
     <Compile Include="ExpressionParserTester.fs" />
     <Compile Include="TypeInferenceTester.fs" />
     <Compile Include="SpecParserTester.fs" />
     <Compile Include="CompilerTester.fs" />
+    <Compile Include="LinkerTester.fs" />
   </ItemGroup>
   <ItemGroup>
     <Reference Include="mscorlib" />

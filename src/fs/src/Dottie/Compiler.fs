@@ -1,18 +1,19 @@
 ﻿module Compiler
 
 open Expressions
+open ExpressionParser
+open Tokenizer
+open FSharpx.Choice
 
-let rec compileRest rest =
-  match rest with
-  | ELet _ -> compile rest
-  | _ -> sprintf "return %s;\n" (compile rest)
-
-and wrap expr =
-  match expr with
-  | ELet _ -> sprintf "(() => { %s })()" (compileRest expr)
-  | _ -> compile expr
-
-and compile (expr: E) : string =
+let rec compileExpr (expr: E) : string =
+  let compileRest rest =
+    match rest with
+    | ELet _ -> compileExpr rest
+    | _ -> sprintf "return %s;\n" (compileExpr rest)
+  let wrap expr =
+    match expr with
+    | ELet _ -> sprintf "(() => { %s })()" (compileRest expr)
+    | _ -> compileExpr expr
   match expr with
   | ELit x ->
     match x with 
@@ -36,4 +37,11 @@ and compile (expr: E) : string =
   | EEval(fn, arg) ->
     sprintf "%s(%s)" (wrap fn) (wrap arg)
   | EDo expr ->
-    sprintf "await %s" (compile expr)
+    sprintf "await %s" (compileExpr expr)
+
+let compile str =
+  let strings = tokenize str
+  choose {
+    let! expr, _ = parseExpression strings
+    return compileExpr expr
+  }
