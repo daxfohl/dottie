@@ -1,0 +1,73 @@
+﻿foreign module StringFFI {
+  spec concat = fun { s1: rawstring, s2: rawstring } => rawstring;
+}
+
+module Strings {
+  let ffi = import StringFFI; // 'ffi = { concat: { s1: rawstring, s2: rawstring } -> rawstring }
+  
+  // alias String = { raw: rawstring }
+
+  let concat = fun ss => {
+    let s1 = ss.s1; // 'ss = { s1: 's1 }
+    let s2 = ss.s2; // 'ss = { ss with s2: 's2 } = { s1: 's1, s2: 's2 }
+    let s1raw = s1.raw; // 's1 = { raw: 's1raw }
+    let s2raw = s2.raw; // 's2 = { raw: 's2raw }
+    let concatinput = { s1: s1raw, s2: s2raw }; // 'ci: { s1: 's1raw, s2: 's2raw }
+    let concat = ffi.concat; // 'concat: { s1: rawstring, s2: rawstring } -> rawstring
+    let sout = concat concatinput; // 'sout: rawstring, 'ci: { s1: rawstring, s2: rawstring }
+                                   // 's1raw: rawstring, 's2raw: rawstring
+    let out = { s1 with raw = sout };
+    return out;
+  }
+    { s1 with raw = ffi.concat { s1.raw, s2.raw } }
+  // spec concat =
+  //   'a: { raw: rawstring }
+  //   'b: { raw: rawstring }
+  //   { s1: 'a, s2: 'b } -> 'a
+  
+  let fromraw = fun s => { raw: s }
+  // spec fromraw =
+  //   'a: *
+  //   'b: { raw: 'a }
+  //   'a -> 'b
+  
+  let str = fun s => { s with concat = concat { s1: s } }
+  // spec str =
+  //   'a: { raw: rawstring }
+  //   'b: { raw: rawstring }
+  //   'a -> 'a with { concat: {s2: 'b} -> 'a }
+}
+
+foreign module ConsoleFFI {
+  spec log = rawstring -> delayed unit;
+}
+
+module Console {
+  let ffi = import ConsoleFFI;
+  
+  let log = fun str => {
+    let b = do ffi.log str.raw;
+    return b;
+  }
+  // spec log =
+  //   'a: { raw: rawstring }
+  //   'b: unit
+  //   'a -> delayed 'b
+  
+  let log' str = ffi.log str.raw
+  // spec log =
+  //   'a: { raw: rawstring }
+  //   'b: delayed unit
+  //   'a -> 'b
+}
+
+module Main {
+  let console = import Console;
+  let strings = import Strings;
+  let main =
+    let str = strings.str "hello";
+	let str2 = " world";
+	let str3 = str.concat { s2: str2 };
+    do console.log str3;
+  }
+}

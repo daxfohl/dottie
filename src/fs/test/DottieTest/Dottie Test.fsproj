@@ -51,28 +51,6 @@
     </When>
   </Choose>
   <Import Project="..\..\packages\xunit.runner.visualstudio\build\$(__paket__xunit_runner_visualstudio_props).props" Condition="Exists('..\..\packages\xunit.runner.visualstudio\build\$(__paket__xunit_runner_visualstudio_props).props')" Label="Paket" />
-  <ItemGroup>
-    <Compile Include="AssemblyInfo.fs" />
-    <Content Include="paket.references" />
-    <Content Include="Samples.txt" />
-    <Compile Include="TokenizerTester.fs" />
-    <Compile Include="ExpressionParserTester.fs" />
-    <Compile Include="TypeInferenceTester.fs" />
-    <Compile Include="SpecParserTester.fs" />
-    <Compile Include="CompilerTester.fs" />
-    <Compile Include="LinkerTester.fs" />
-  </ItemGroup>
-  <ItemGroup>
-    <Reference Include="mscorlib" />
-    <Reference Include="System" />
-    <Reference Include="System.Core" />
-    <Reference Include="System.Numerics" />
-    <ProjectReference Include="..\..\src\Dottie\Dottie.fsproj">
-      <Name>Dottie</Name>
-      <Project>{7ab52078-793a-4dcf-b23b-9ee26f1e7940}</Project>
-      <Private>True</Private>
-    </ProjectReference>
-  </ItemGroup>
   <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 
        Other similar extension points exist, see Microsoft.Common.targets.
   <Target Name="BeforeBuild">
@@ -191,4 +169,29 @@
     </When>
   </Choose>
   <Import Project="..\..\packages\xunit.core\build\xunit.core.targets" Condition="Exists('..\..\packages\xunit.core\build\xunit.core.targets')" Label="Paket" />
+  <ItemGroup>
+    <Compile Include="AssemblyInfo.fs" />
+    <Content Include="paket.references" />
+    <Content Include="Samples.txt" />
+    <Compile Include="TokenizerTester.fs" />
+    <Compile Include="ExpressionParserTester.fs" />
+    <Compile Include="TypeInferenceTester.fs" />
+    <Compile Include="SpecParserTester.fs" />
+    <Compile Include="CompilerTester.fs" />
+    <Compile Include="LinkerTester.fs" />
+    <Content Include="concat.dott">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+  </ItemGroup>
+  <ItemGroup>
+    <Reference Include="mscorlib" />
+    <Reference Include="System" />
+    <Reference Include="System.Core" />
+    <Reference Include="System.Numerics" />
+    <ProjectReference Include="..\..\src\Dottie\Dottie.fsproj">
+      <Name>Dottie</Name>
+      <Project>{7ab52078-793a-4dcf-b23b-9ee26f1e7940}</Project>
+      <Private>True</Private>
+    </ProjectReference>
+  </ItemGroup>
 </Project>

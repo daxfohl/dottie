@@ -5,6 +5,7 @@ open Tokenizer
 open Expressions
 open ExpressionParser
 open Compiler
+open System.IO
 open System.Text.RegularExpressions
 
 let get choice =
@@ -60,3 +61,10 @@ let ``Test obj with``() =
     "{ let o = { x: 4; y: \"test\" }; { o with x: 5 } }",
     "let o = { x: 4, y: \"test\" };
       return (() => { let target = {}; Object.assign(target, o); Object.assign(target, { x: 5 }); return target; })();")
+
+[<Fact>]
+let ``Test concat``() =
+  let s = File.ReadAllText("concat.dott")
+  let strings = tokenize s
+  let exprOpt = parseExpression strings
+  exprOpt
