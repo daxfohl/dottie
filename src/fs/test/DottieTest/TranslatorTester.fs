@@ -1,10 +1,10 @@
-﻿module ``Compiler tester``
+﻿module ``Translator tester``
 
 open Xunit
 open Tokenizer
 open Expressions
 open ExpressionParser
-open Compiler
+open Translator
 open System.IO
 open System.Text.RegularExpressions
 
@@ -16,8 +16,8 @@ let get choice =
 let assertSpec(sExpr, s) =
   let strings = tokenize sExpr
   let expr = get ^% parseExpression strings
-  let compiled = compileExpr expr
-  let s1 = Regex.Replace(compiled, @"\s+", "")
+  let translated = translateExpr expr
+  let s1 = Regex.Replace(translated, @"\s+", "")
   let s2 = Regex.Replace(s, @"\s+", "")
   Assert.Equal(s2, s1)
 

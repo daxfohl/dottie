@@ -177,8 +177,7 @@
     <Compile Include="ExpressionParserTester.fs" />
     <Compile Include="TypeInferenceTester.fs" />
     <Compile Include="SpecParserTester.fs" />
-    <Compile Include="CompilerTester.fs" />
-    <Compile Include="LinkerTester.fs" />
+    <Compile Include="TranslatorTester.fs" />
     <Content Include="concat.dott">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>

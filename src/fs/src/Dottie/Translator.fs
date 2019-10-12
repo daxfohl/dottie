@@ -1,19 +1,19 @@
-﻿module Compiler
+﻿module Translator
 
 open Expressions
 open ExpressionParser
 open Tokenizer
 open FSharpx.Choice
 
-let rec compileExpr (expr: E) : string =
-  let compileRest rest =
+let rec translateExpr (expr: E) : string =
+  let translateRest rest =
     match rest with
-    | ELet _ -> compileExpr rest
-    | _ -> sprintf "return %s;\n" (compileExpr rest)
+    | ELet _ -> translateExpr rest
+    | _ -> sprintf "return %s;\n" (translateExpr rest)
   let wrap expr =
     match expr with
-    | ELet _ -> sprintf "(() => { %s })()" (compileRest expr)
-    | _ -> compileExpr expr
+    | ELet _ -> sprintf "(() => { %s })()" (translateRest expr)
+    | _ -> translateExpr expr
   match expr with
   | ELit x ->
     match x with 
@@ -21,11 +21,11 @@ let rec compileExpr (expr: E) : string =
     | EInt i -> i.ToString()
   | EVal s -> s
   | ELet(s, expr, rest) ->
-    sprintf "let %s = %s;\n%s" s (wrap expr) (compileRest rest)
+    sprintf "let %s = %s;\n%s" s (wrap expr) (translateRest rest)
   | EFn(input, expr, async) ->
     if async
-      then sprintf "async %s => { %s }" input (compileRest expr)
-      else sprintf "%s => { %s }" input (compileRest expr)
+      then sprintf "async %s => { %s }" input (translateRest expr)
+      else sprintf "%s => { %s }" input (translateRest expr)
   | EObj fields ->
     sprintf "{ %s }" (String.concat ",\n" (fields |> Map.toList |> List.map (fun (k, v) -> sprintf "%s: %s" k (wrap v))))
   | EWith(orig, fields) ->
@@ -37,11 +37,11 @@ let rec compileExpr (expr: E) : string =
   | EEval(fn, arg) ->
     sprintf "%s(%s)" (wrap fn) (wrap arg)
   | EDo expr ->
-    sprintf "await %s" (compileExpr expr)
+    sprintf "await %s" (translateExpr expr)
 
-let compile str =
+let translate str =
   let strings = tokenize str
   choose {
     let! expr, _ = parseExpression strings
-    return compileExpr expr
+    return translateExpr expr
   }
