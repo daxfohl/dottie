@@ -7,28 +7,49 @@ open TypeInferencer
 open SpecParser
 open FSharpx.Choice
 
-let compileModule (tokens: string list) (moduleMap: ModuleMap): Choice<M * string list, string> =
+let parseModule (tokens: string list): Choice<M * string list, string> =
   choose {
     match tokens with
     | "module"::name::tokens ->
       let! e, tokens = parseExpression tokens
-      let! s, _ = getType e Map.empty moduleMap Normal
-      return (name, Module(e, s)), tokens
+      return (name, Module e), tokens
     | "foreign"::"module"::name::tokens ->
       let! s, tokens = parseRawSpec tokens
-      return (name, ForeignModule(s)), tokens
+      return (name, ForeignModule s), tokens
     | [] -> return! Choice2Of2 "EOF"
     | h::t -> return! Choice2Of2 (sprintf "Expected module, got %s" h)
   }
 
-let rec compileModules (tokens: string list) (moduleMap: ModuleMap): Choice<ModuleMap, string> =
+let parseFile tokens =
+  let rec parseModules (tokens: string list) (modules: M list): Choice<M list, string> =
+    choose {
+      match tokens with
+      | [] -> return modules
+      | _ ->
+        let! m, tokens = parseModule tokens
+        let modules = m::modules
+        return! parseModules tokens modules }
   choose {
-    match tokens with
-    | [] -> return moduleMap
-    | _ ->
-      let! (name, mType), tokens = compileModule tokens moduleMap
-      let moduleMap = moduleMap.Add(name, mType)
-      return! compileModules tokens moduleMap
+    let! modules = parseModules tokens []
+    return List.rev modules }
+
+let compileModule (m: MType) (moduleMap: Map<string, S>): Choice<S, string> =
+  choose {
+    match m with
+    | Module e ->
+        let! s, _ = getType e Map.empty moduleMap Normal
+        return s
+    | ForeignModule s -> return s
   }
 
-let compileFile tokens = compileModules tokens Map.empty
+let rec compileModules (modules: M list) (moduleTypeMap: Map<string, S>): Choice<Map<string, S>, string> =
+  choose {
+    match modules with
+    | [] -> return moduleTypeMap
+    | (name, m)::rest ->
+      let! s = compileModule m moduleTypeMap
+      let moduleTypeMap = moduleTypeMap.Add(name, s)
+      return! compileModules rest moduleTypeMap
+  }
+
+let compileFile modules = compileModules modules Map.empty

@@ -15,9 +15,7 @@ type S =
 type Specs = Map<E, S>
 
 type MType =
-| Module of E * S
+| Module of E
 | ForeignModule of S
 
 type M = string * MType
-
-type ModuleMap = Map<string, MType>

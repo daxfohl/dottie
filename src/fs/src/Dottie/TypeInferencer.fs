@@ -141,7 +141,7 @@ let freshOrFind expr specs =
 
 type Context = | Normal | Proc | Do
 
-let getType (expr: E) (specs: Specs) (moduleMap: ModuleMap) (context: Context): Choice<S*Specs, string> =
+let getType (expr: E) (specs: Specs) (moduleTypeMap: Map<string, S>) (context: Context): Choice<S*Specs, string> =
   let rec getType (expr: E) (specs: Specs) (context: Context): Choice<S*Specs, string> =
     choose {
       match expr with
@@ -278,12 +278,7 @@ let getType (expr: E) (specs: Specs) (moduleMap: ModuleMap) (context: Context): 
         else
           return! Choice2Of2 (Errors.notInProcContext expr)
       | EImport name ->
-        match Map.tryFind name moduleMap with
-        | Some m ->
-          let s =
-            match m with
-            | Module(e, s) -> s
-            | ForeignModule s -> s
-          return s, specs
+        match Map.tryFind name moduleTypeMap with
+        | Some s -> return s, specs
         | None -> return! Choice2Of2 "blah" }
   getType expr specs context
