@@ -47,9 +47,12 @@ let rec compileModules (modules: M list) (moduleTypeMap: Map<string, S>): Choice
     match modules with
     | [] -> return moduleTypeMap
     | (name, m)::rest ->
-      let! s = compileModule m moduleTypeMap
-      let moduleTypeMap = moduleTypeMap.Add(name, s)
-      return! compileModules rest moduleTypeMap
+      if moduleTypeMap.ContainsKey name then
+        return! Choice2Of2 ^% sprintf "Duplicate modules: %s" name
+      else
+        let! s = compileModule m moduleTypeMap
+        let moduleTypeMap = moduleTypeMap.Add(name, s)
+        return! compileModules rest moduleTypeMap
   }
 
 let compileFile modules = compileModules modules Map.empty
