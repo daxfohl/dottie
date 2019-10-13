@@ -282,3 +282,26 @@ let getType (expr: E) (specs: Specs) (moduleTypeMap: Map<string, S>) (context: C
         | Some s -> return s, specs
         | None -> return! Choice2Of2 "blah" }
   getType expr specs context
+
+let getModuleType (m: MType) (moduleTypeMap: Map<string, S>): Choice<S, string> =
+  choose {
+    match m with
+    | Module e ->
+        let! s, _ = getType e Map.empty moduleTypeMap Normal
+        return s
+    | ForeignModule s -> return s
+  }
+
+let getModulesTypes (modules: M list): Choice<Map<string, S>, string> =
+  let rec compileModules (modules: M list) (moduleTypeMap: Map<string, S>): Choice<Map<string, S>, string> =
+    choose {
+      match modules with
+      | [] -> return moduleTypeMap
+      | (name, m)::rest ->
+        if moduleTypeMap.ContainsKey name then
+          return! Choice2Of2 ^% sprintf "Duplicate modules: %s" name
+        else
+          let! s = getModuleType m moduleTypeMap
+          let moduleTypeMap = moduleTypeMap.Add(name, s)
+          return! compileModules rest moduleTypeMap }
+  compileModules modules Map.empty

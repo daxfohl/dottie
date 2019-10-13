@@ -52,10 +52,11 @@
     <Compile Include="Functions.fs" />
     <Compile Include="Tokenizer.fs" />
     <Compile Include="Expressions.fs" />
-    <Compile Include="ExpressionParser.fs" />
     <Compile Include="Types.fs" />
-    <Compile Include="TypeInferencer.fs" />
+    <Compile Include="ExpressionParser.fs" />
     <Compile Include="SpecParser.fs" />
+    <Compile Include="ModuleParser.fs" />
+    <Compile Include="TypeInferencer.fs" />
     <Compile Include="Compiler.fs" />
     <Compile Include="Translator.fs" />
     <Compile Include="Program.fs" />
