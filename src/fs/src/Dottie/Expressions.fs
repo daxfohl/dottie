@@ -14,3 +14,4 @@ type E =
   | EWith of E * Map<string, E>
   | EDot of E * string
   | EDo of E
+  | EImport of string

@@ -123,6 +123,7 @@ module Errors =
   let alreadyExists (expr: E, spec: S) = sprintf "Already exists: %A as %A" expr spec
   let notInDoContext (expr: E) = sprintf "Not in do context: %A" expr
   let notInProcContext (expr: E) = sprintf "Not in proc context: %A" expr
+  let moduleDoesNotExist = sprintf "Module does not exist: %s"
 
 let fresh expr specs =
   match Map.tryFind expr specs with
@@ -140,138 +141,149 @@ let freshOrFind expr specs =
 
 type Context = | Normal | Proc | Do
 
-let rec getType (expr: E) (specs: Specs) (context: Context): Choice<S*Specs, string> =
-  choose {
-    match expr with
-    | ELit x ->
-      let spec =
-        match x with 
-        | EStr _ -> SStr
-        | EInt _ -> SInt
-      return SLit spec, specs
-    | EVal s ->
-      match Map.tryFind expr specs with
-      | Some spec -> return spec, specs
-      | None -> return! Choice2Of2(Errors.undefined s)
-    | ELet(s, expr, rest) ->
-      let context = if context = Do then Proc else context
-      let valExpr = EVal s
-      let! spec, specs = fresh valExpr specs
-      let! spec, specs = getType expr specs context
-      let! specs = constrain valExpr spec specs
-      return! getType rest specs context
-    | EFn(input, expr, eff) ->
-      let input = EVal input
-      let! spec, specs = fresh input specs
-      let! spec, specs = getType expr specs ^% if eff then Proc else Normal
-      let inputSpec = Map.find input specs
-      return SFn(inputSpec, spec, eff), specs
-    | EObj fields ->
-      let fields = Map.toList fields
-      let rec getNamedType fields specs solved =
-        choose {
-          match fields with
-          | [] -> return solved, specs
-          | (name,expr)::t ->
-            let! spec, specs = getType expr specs context
-            return! getNamedType t specs ((name, spec)::solved) }
-      let! specFields, specs = getNamedType fields specs []
-      return SObj (Map.ofList specFields), specs
-    | EWith(orig, fields) ->
-      let! objType, specs = getType orig specs context
-      match objType with
-        | SObj objFields ->
-          let checkField (state: Choice<S*Specs, string>) (fieldName: string) (newExpr: E) : Choice<S*Specs, string> =
-            choose {
-              let! spec, specs = state
-              if not(objFields.ContainsKey fieldName) then return! Choice2Of2(Errors.noField fieldName orig)
-              else
+let getType (expr: E) (specs: Specs) (moduleMap: ModuleMap) (context: Context): Choice<S*Specs, string> =
+  let rec getType (expr: E) (specs: Specs) (context: Context): Choice<S*Specs, string> =
+    choose {
+      match expr with
+      | ELit x ->
+        let spec =
+          match x with 
+          | EStr _ -> SStr
+          | EInt _ -> SInt
+        return SLit spec, specs
+      | EVal s ->
+        match Map.tryFind expr specs with
+        | Some spec -> return spec, specs
+        | None -> return! Choice2Of2(Errors.undefined s)
+      | ELet(s, expr, rest) ->
+        let context = if context = Do then Proc else context
+        let valExpr = EVal s
+        let! spec, specs = fresh valExpr specs
+        let! spec, specs = getType expr specs context
+        let! specs = constrain valExpr spec specs
+        return! getType rest specs context
+      | EFn(input, expr, eff) ->
+        let input = EVal input
+        let! spec, specs = fresh input specs
+        let! spec, specs = getType expr specs ^% if eff then Proc else Normal
+        let inputSpec = Map.find input specs
+        return SFn(inputSpec, spec, eff), specs
+      | EObj fields ->
+        let fields = Map.toList fields
+        let rec getNamedType fields specs solved =
+          choose {
+            match fields with
+            | [] -> return solved, specs
+            | (name,expr)::t ->
+              let! spec, specs = getType expr specs context
+              return! getNamedType t specs ((name, spec)::solved) }
+        let! specFields, specs = getNamedType fields specs []
+        return SObj (Map.ofList specFields), specs
+      | EWith(orig, fields) ->
+        let! objType, specs = getType orig specs context
+        match objType with
+          | SObj objFields ->
+            let checkField (state: Choice<S*Specs, string>) (fieldName: string) (newExpr: E) : Choice<S*Specs, string> =
+              choose {
+                let! spec, specs = state
+                if not(objFields.ContainsKey fieldName) then return! Choice2Of2(Errors.noField fieldName orig)
+                else
+                  match spec with
+                  | SObj objFields ->
+                    let! newSpec, specs = getType newExpr specs context
+                    return SObj(Map.add fieldName newSpec objFields), specs
+                  | _ -> return! Choice2Of2 "Expected an object" }
+            let! newSpec, specs = Map.fold checkField (Choice1Of2(objType, specs)) fields
+            let! specs = constrain orig newSpec specs
+            return! getType orig specs context
+          | SFree expr ->
+            let fields = Map.toList fields
+            let rec getNamedType fields specs solved =
+              choose {
+                match fields with
+                | [] -> return solved, specs
+                | (name,expr)::t ->
+                  let! spec, specs = getType expr specs context
+                  return! getNamedType t specs ((name, spec)::solved) }
+            let! specFields, specs = getNamedType fields specs []
+            let freeObj = SFreeObj(expr, Map.ofList specFields)
+            let! specs = constrain orig freeObj specs
+            let! specs = constrain expr freeObj specs
+            return Map.find expr specs, specs
+          | SFreeObj(expr, _) ->
+            let checkField (state: Choice<S*Specs, string>) (fieldName: string) (newExpr: E) : Choice<S*Specs, string> =
+              choose {
+                let! spec, specs = state
                 match spec with
-                | SObj objFields ->
+                | SFreeObj(expr, objFields) ->
                   let! newSpec, specs = getType newExpr specs context
-                  return SObj(Map.add fieldName newSpec objFields), specs
-                | _ -> return! Choice2Of2 "Expected an object" }
-          let! newSpec, specs = Map.fold checkField (Choice1Of2(objType, specs)) fields
-          let! specs = constrain orig newSpec specs
-          return! getType orig specs context
-        | SFree expr ->
-          let fields = Map.toList fields
-          let rec getNamedType fields specs solved =
-            choose {
-              match fields with
-              | [] -> return solved, specs
-              | (name,expr)::t ->
-                let! spec, specs = getType expr specs context
-                return! getNamedType t specs ((name, spec)::solved) }
-          let! specFields, specs = getNamedType fields specs []
-          let freeObj = SFreeObj(expr, Map.ofList specFields)
-          let! specs = constrain orig freeObj specs
-          let! specs = constrain expr freeObj specs
-          return Map.find expr specs, specs
-        | SFreeObj(expr, _) ->
-          let checkField (state: Choice<S*Specs, string>) (fieldName: string) (newExpr: E) : Choice<S*Specs, string> =
-            choose {
-              let! spec, specs = state
-              match spec with
-              | SFreeObj(expr, objFields) ->
-                let! newSpec, specs = getType newExpr specs context
-                return SFreeObj(expr, Map.add fieldName newSpec objFields), specs
-              | _ -> return! Choice2Of2 "Expected a free object" }
-          let! newSpec, specs = Map.fold checkField (Choice1Of2(objType, specs)) fields
-          let! specs = constrain orig newSpec specs
-          let! specs = constrain expr newSpec specs
-          return! getType orig specs context
-        | spec -> return! Choice2Of2(Errors.notObject spec)
-    | EDot(objExpr, field) ->
-      let! objType, specs = getType objExpr specs context
-      match objType with
-      | SObj fields ->
-        match Map.tryFind field fields with
-        | Some spec -> return spec, specs
-        | None -> return! Choice2Of2(Errors.noField field objExpr)
-      | SFree _ ->
-        let! fieldSpec, specs = fresh expr specs
-        let! specs = constrain objExpr (SFreeObj(objExpr, Map.ofList[field, fieldSpec])) specs
-        return fieldSpec, specs
-      | SFreeObj(objExpr, fields) ->
-        match Map.tryFind field fields with
-        | Some spec -> return spec, specs
-        | None -> 
+                  return SFreeObj(expr, Map.add fieldName newSpec objFields), specs
+                | _ -> return! Choice2Of2 "Expected a free object" }
+            let! newSpec, specs = Map.fold checkField (Choice1Of2(objType, specs)) fields
+            let! specs = constrain orig newSpec specs
+            let! specs = constrain expr newSpec specs
+            return! getType orig specs context
+          | spec -> return! Choice2Of2(Errors.notObject spec)
+      | EDot(objExpr, field) ->
+        let! objType, specs = getType objExpr specs context
+        match objType with
+        | SObj fields ->
+          match Map.tryFind field fields with
+          | Some spec -> return spec, specs
+          | None -> return! Choice2Of2(Errors.noField field objExpr)
+        | SFree _ ->
           let! fieldSpec, specs = fresh expr specs
-          let! specs = constrain objExpr (SFreeObj(objExpr, Map.add field fieldSpec fields)) specs
+          let! specs = constrain objExpr (SFreeObj(objExpr, Map.ofList[field, fieldSpec])) specs
           return fieldSpec, specs
-      | spec -> return! Choice2Of2(Errors.notObject spec)
-    | EEval(fn, arg) ->
-      let! fnspec, specs = getType fn specs context
-      match fnspec with
-      | SFn(input, output, eff) ->
-        if eff && context <> Do then
-          return! Choice2Of2(Errors.notInDoContext fn)
-        else
+        | SFreeObj(objExpr, fields) ->
+          match Map.tryFind field fields with
+          | Some spec -> return spec, specs
+          | None -> 
+            let! fieldSpec, specs = fresh expr specs
+            let! specs = constrain objExpr (SFreeObj(objExpr, Map.add field fieldSpec fields)) specs
+            return fieldSpec, specs
+        | spec -> return! Choice2Of2(Errors.notObject spec)
+      | EEval(fn, arg) ->
+        let! fnspec, specs = getType fn specs context
+        match fnspec with
+        | SFn(input, output, eff) ->
+          if eff && context <> Do then
+            return! Choice2Of2(Errors.notInDoContext fn)
+          else
+            let! argspec, specs = getType arg specs context
+            let spec, specs = freshOrFind arg specs
+            let! specs = constrain arg argspec specs
+            let input = match input, argspec with | SObj _, SObj _ -> input | SObj fields, _ -> SFreeObj(arg, fields) | SFreeObj(_, fields), SObj _ -> SObj fields | _ -> input
+            let! specs = constrain arg input specs
+            let! subs = unify argspec input
+            let output = subs |> List.fold (fun state (expr, spec) -> replace expr spec state) output
+            return output, specs
+        | SFree(x) ->
           let! argspec, specs = getType arg specs context
-          let spec, specs = freshOrFind arg specs
-          let! specs = constrain arg argspec specs
-          let input = match input, argspec with | SObj _, SObj _ -> input | SObj fields, _ -> SFreeObj(arg, fields) | SFreeObj(_, fields), SObj _ -> SObj fields | _ -> input
-          let! specs = constrain arg input specs
-          let! subs = unify argspec input
-          let output = subs |> List.fold (fun state (expr, spec) -> replace expr spec state) output
-          return output, specs
-      | SFree(x) ->
-        let! argspec, specs = getType arg specs context
-        let fnspec = match argspec with SObj _ | SFreeObj _ | SFree _ -> SFreeFn(x, Set.singleton argspec, SFree expr, context = Do) | _ -> SFn(argspec, SFree expr, context = Do)
-        let! specs = constrain x fnspec specs
-        return SFree expr, specs
-      | SFreeFn(x, inputs, output, eff) ->
-        if eff && not(context = Do) then
-          return! Choice2Of2(Errors.notInDoContext fn)
-        else
-          let! argspec, specs = getType arg specs context
-          let fnspec = match argspec with SObj _ | SFreeObj _ | SFree _ -> SFreeFn(x, Set.add argspec inputs, SFree expr, eff) | _ -> SFn(argspec, SFree expr, eff)
+          let fnspec = match argspec with SObj _ | SFreeObj _ | SFree _ -> SFreeFn(x, Set.singleton argspec, SFree expr, context = Do) | _ -> SFn(argspec, SFree expr, context = Do)
           let! specs = constrain x fnspec specs
-          return output, specs
-      | _ -> return! Choice2Of2 (Errors.notAFunction fn fnspec)
-    | EDo expr ->
-      if context <> Normal then
-        return! getType expr specs Do
-      else
-        return! Choice2Of2 (Errors.notInProcContext expr) }
+          return SFree expr, specs
+        | SFreeFn(x, inputs, output, eff) ->
+          if eff && not(context = Do) then
+            return! Choice2Of2(Errors.notInDoContext fn)
+          else
+            let! argspec, specs = getType arg specs context
+            let fnspec = match argspec with SObj _ | SFreeObj _ | SFree _ -> SFreeFn(x, Set.add argspec inputs, SFree expr, eff) | _ -> SFn(argspec, SFree expr, eff)
+            let! specs = constrain x fnspec specs
+            return output, specs
+        | _ -> return! Choice2Of2 (Errors.notAFunction fn fnspec)
+      | EDo expr ->
+        if context <> Normal then
+          return! getType expr specs Do
+        else
+          return! Choice2Of2 (Errors.notInProcContext expr)
+      | EImport name ->
+        match Map.tryFind name moduleMap with
+        | Some m ->
+          let s =
+            match m with
+            | Module(e, s) -> s
+            | ForeignModule s -> s
+          return s, specs
+        | None -> return! Choice2Of2 "blah" }
+  getType expr specs context

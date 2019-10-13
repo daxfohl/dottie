@@ -7,20 +7,12 @@ open TypeInferencer
 open SpecParser
 open FSharpx.Choice
 
-type MType =
-| Module of E * S
-| ForeignModule of S
-
-type M = string * MType
-
-type ModuleMap = Map<string, MType>
-
 let compileModule (tokens: string list) (moduleMap: ModuleMap): Choice<M * string list, string> =
   choose {
     match tokens with
     | "module"::name::tokens ->
       let! e, tokens = parseExpression tokens
-      let! s, _ = getType e Map.empty Normal
+      let! s, _ = getType e Map.empty moduleMap Normal
       return (name, Module(e, s)), tokens
     | "foreign"::"module"::name::tokens ->
       let! s, tokens = parseRawSpec tokens

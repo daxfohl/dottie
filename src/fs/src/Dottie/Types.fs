@@ -13,3 +13,11 @@ type S =
 | SFreeFn of E * Set<S> * S * bool
 
 type Specs = Map<E, S>
+
+type MType =
+| Module of E * S
+| ForeignModule of S
+
+type M = string * MType
+
+type ModuleMap = Map<string, MType>

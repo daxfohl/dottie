@@ -18,7 +18,7 @@ let assertSpec''(existing, expression, otherSpec) =
   let spec = choose {
     let strings = tokenize expression
     let! parsed, _ = parseExpression strings
-    let! spec, _ = getType parsed (Map.ofList existing) Normal
+    let! spec, _ = getType parsed (Map.ofList existing) Map.empty Normal
     return spec
   }
   let s = sprintf "%A" spec
@@ -42,7 +42,7 @@ let assertError'(existing, expression, expectedError) =
   let spec = choose {
     let strings = tokenize expression
     let! parsed, _ = parseExpression strings
-    let! spec, _ = getType parsed (Map.ofList existing) Normal
+    let! spec, _ = getType parsed (Map.ofList existing) Map.empty Normal
     return spec
   }
   Assert.Equal(Choice2Of2 expectedError, spec)
@@ -241,7 +241,7 @@ let ``Test proc in let block 3``() =
 let ``Test higher order``() =
   let strings = tokenize "{ let x = 3; let doToX = fn f -> f x; doToX }"
   let parsed = get ^% parseExpression strings
-  let spec = get ^% getType parsed Map.empty Normal
+  let spec = get ^% getType parsed Map.empty Map.empty Normal
   match spec with
   | SFn(SFn(SLit SInt, SFree a, false), SFree b, false) when a = b -> ()
   | x -> Assert.True(false, sprintf "%A" x)
@@ -250,7 +250,7 @@ let ``Test higher order``() =
 let ``Test higher order 2``() =
   let strings = tokenize "fn x -> { let doToX = fn f -> f x; doToX }"
   let parsed = get ^% parseExpression strings
-  let spec = get ^% getType parsed Map.empty Normal
+  let spec = get ^% getType parsed Map.empty Map.empty Normal
   match spec with
   | SFn(SFree a, SFn(SFreeFn(_, b, SFree c, false), SFree d, false), false) when c = d && a <> c && b = set[SFree a] -> () // allow a >= b
   | x -> Assert.True(false, sprintf "%A" x)
@@ -259,7 +259,7 @@ let ``Test higher order 2``() =
 let ``Test higher order 2a``() =
   let strings = tokenize "fn x -> fn f -> f x"
   let parsed = get ^% parseExpression strings
-  let spec = get ^% getType parsed Map.empty Normal
+  let spec = get ^% getType parsed Map.empty Map.empty Normal
   match spec with
   | SFn(SFree a, SFn(SFreeFn(_, b, SFree c, false), SFree d, false), false) when c = d && a <> c && b = set[SFree a] -> () // allow a >= b
   | x -> Assert.True(false, sprintf "%A" x)
@@ -268,7 +268,7 @@ let ``Test higher order 2a``() =
 let ``Test y combinator``() =
   let strings = tokenize "{ let y = fn f -> f y f; y }"
   let parsed = get ^% parseExpression strings
-  let spec = get^% getType parsed Map.empty Normal
+  let spec = get^% getType parsed Map.empty Map.empty Normal
   match spec with
   | SFn(SFreeFn(_, a, SFree b, false), SFree c, false) when b = c && a = set[SFree c] -> () // allow a >=b
   | x -> Assert.True(false, sprintf "%A" x)
@@ -510,21 +510,21 @@ let ``Test obj with fn nested``() =
 let ``Test obj nested with wrong field type``() =
   let strings = tokenize "{ let o = { x: 4; y: { a: 3 } }; { o with y: { a: \"s\" } } }"
   let parsed = get ^% parseExpression strings
-  let spec = getType parsed Map.empty Normal
+  let spec = getType parsed Map.empty Map.empty Normal
   Assert.Equal(Choice2Of2 ^% UnifyErrors.cannotUnify(SLit SInt, SLit SStr), spec)
 
 [<Fact>]
 let ``Test obj nested with wrong field name``() =
   let strings = tokenize "{ let o = { x: 4; y: { a: 3 } }; { o with y: {z: \"s\" } } }"
   let parsed = get ^% parseExpression strings
-  let spec = getType parsed Map.empty Normal
+  let spec = getType parsed Map.empty Map.empty Normal
   Assert.Equal(Choice2Of2 ^% UnifyErrors.objectFieldsDiffer(set["a"], set["z"]), spec)
 
 [<Fact>]
 let ``Test dot``() =
   let strings = tokenize "{ x: 4 }.x"
   let parsed = get ^% parseExpression strings
-  let spec = get ^% getType parsed Map.empty Normal
+  let spec = get ^% getType parsed Map.empty Map.empty Normal
   match spec with
   | SLit SInt -> ()
   | x -> Assert.True(false, sprintf "%A" x)
@@ -533,7 +533,7 @@ let ``Test dot``() =
 let ``Test dot with in let``() =
   let strings = tokenize "{ let o = { x: 4; y: \"test\" }; { o with x: 3 } }.x"
   let parsed = get ^% parseExpression strings
-  let spec = get ^% getType parsed Map.empty Normal
+  let spec = get ^% getType parsed Map.empty Map.empty Normal
   match spec with
   | SLit SInt -> ()
   | x -> Assert.True(false, sprintf "%A" x)
@@ -542,7 +542,7 @@ let ``Test dot with in let``() =
 let ``Test dot nested``() =
   let strings = tokenize "{ let o = { x: 4; y: { a: 3 } }; { o with y: { a: 4 } } }.y.a"
   let parsed = get ^% parseExpression strings
-  let spec = get ^% getType parsed Map.empty Normal
+  let spec = get ^% getType parsed Map.empty Map.empty Normal
   match spec with
   | SLit SInt -> ()
   | x -> Assert.True(false, sprintf "%A" x)
@@ -551,7 +551,7 @@ let ``Test dot nested``() =
 let ``Test dot nested 2``() =
   let strings = tokenize "{ let o = { x: 4; y: { a: 3 } }; { o with y: { a: 4 } }.y }.a"
   let parsed = get ^% parseExpression strings
-  let spec = get ^% getType parsed Map.empty Normal
+  let spec = get ^% getType parsed Map.empty Map.empty Normal
   match spec with
   | SLit SInt -> ()
   | x -> Assert.True(false, sprintf "%A" x)
@@ -560,5 +560,5 @@ let ``Test dot nested 2``() =
 let ``Test dot non object``() =
   let strings = tokenize "{ x: 4 }.x.y"
   let parsed = get ^% parseExpression strings
-  let spec = getType parsed Map.empty Normal
+  let spec = getType parsed Map.empty Map.empty Normal
   Assert.Equal(Choice2Of2 ^% Errors.notObject (SLit SInt), spec)
