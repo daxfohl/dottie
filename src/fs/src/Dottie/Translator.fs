@@ -1,5 +1,6 @@
 ﻿module Translator
 
+open System
 open Expressions
 open Types
 
@@ -61,8 +62,18 @@ let translateModuleExpression (e: E): string =
     getImports e
     |> Seq.map ^% fun name -> sprintf "import * as %s from '%s';\n" (moduleVarName name) name
     |> String.concat ""
-  let export = sprintf "export default = %s" (translateExpr e)
-  imports + export
+  let export = 
+    match e with
+    | ELet _ ->
+      let s = translateExpr e
+      let lines = s.Split([|'\n'|], StringSplitOptions.RemoveEmptyEntries)
+      let last = lines.[lines.Length - 1]
+      let last = "export default " + (last.Substring(6, (last.Length - 7)))
+      lines.[lines.Length - 1] <- last
+      String.concat "\n" lines
+    | _ -> sprintf "export default " + (translateExpr e)
+  let file = imports + "\n" + export
+  file
 
 let translateModule (m: MType): string option =
   match m with
