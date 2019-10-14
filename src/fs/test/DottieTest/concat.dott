@@ -4,5 +4,7 @@
 
 
 module Strings {
-  x: 0
+  let x = import StringFFI;
+  let y = 3;
+  x
 }

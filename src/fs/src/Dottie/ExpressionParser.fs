@@ -61,11 +61,10 @@ let rec parseExpression (tokens: string list) : Choice<E * string list, string> 
       | h::_ -> return! Choice2Of2 <| sprintf "parseContinuation got %s" h }
   choose {
     match tokens with
-    | "import"::name::t ->
-      return EImport(name), t
     | s::t when validIdentifier s -> return! parseContinuation t (EVal s)
     | "\""::s::"\""::t -> return! parseContinuation t (ELit(EStr s))
     | s::t when let b, _ = Int32.TryParse s in b -> return! parseContinuation t (ELit(EInt(Int32.Parse s)))
+    | "import"::name::t -> return! parseContinuation t (EImport name)
     | "{"::t ->
       match t with
       | "let"::_::"="::_
