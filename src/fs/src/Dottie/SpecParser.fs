@@ -8,12 +8,12 @@ let rec parseRawSpec (tokens: string list) : Choice<S * string list, string> =
     match tokens with
     | "literal"::"string"::t -> return SLit SStr, t
     | "literal"::"int"::t -> return SLit SInt, t
-    | "fn"::t ->
+    | x::t when x = "fn" || x = "proc" ->
       let! inputSpec, t = parseRawSpec t
       match t with
       | "->"::t ->
         let! outputSpec, t = parseRawSpec t
-        return SFn(inputSpec, outputSpec, false), t
+        return SFn(inputSpec, outputSpec, x = "proc"), t
       | _ -> return! Choice2Of2 "Expected -> in function declaration"
     | "{"::t ->
       let! properties, t = parseObjectFields t

@@ -27,7 +27,7 @@ module Strings {
 }
 
 foreign module ConsoleFFI {
-  log: fn literal string -> delayed unit
+  log: proc literal string -> literal int
 }
 
 module Console {
@@ -47,7 +47,7 @@ module Console {
 module Main {
   let console = import Console
   let strings = import Strings
-  let main = fn x -> {
+  let main = proc x -> {
     let str = strings.str "hello"
     let str2 = " world"
     let str3 = str.concat { s2: str2 }
