@@ -4,7 +4,24 @@
 
 
 module Strings {
-  let x = import StringFFI
-  let y = 3;
-  x
+  let ffi = import StringFFI
+
+  let concat = fn ss -> {
+    let s1 = ss.s1
+    let s2 = ss.s2
+    let s1raw = s1.raw
+    let s2raw = s2.raw
+    let concatinput = { s1: s1raw, s2: s2raw }
+    let concat = ffi.concat
+    let sout = concat concatinput
+    { s1 with raw: sout }
+  }
+
+  let fromraw = fn s -> { raw: s }
+  
+  let str = fn s -> { s with concat: concat { s1: s } }
+
+  { concat: concat
+    fromraw: fromraw
+    str: str }
 }
