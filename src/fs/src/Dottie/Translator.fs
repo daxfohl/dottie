@@ -1,9 +1,6 @@
 ﻿module Translator
 
 open Expressions
-open ExpressionParser
-open Tokenizer
-open FSharpx.Choice
 
 let rec translateExpr (expr: E) : string =
   let translateRest rest =
@@ -38,10 +35,28 @@ let rec translateExpr (expr: E) : string =
     sprintf "%s(%s)" (wrap fn) (wrap arg)
   | EDo expr ->
     sprintf "await %s" (translateExpr expr)
+  | EImport _ -> ""
 
-let translate str =
-  let strings = tokenize str
-  choose {
-    let! expr, _ = parseExpression strings
-    return translateExpr expr
-  }
+let rec getImports (expr: E): string Set =
+  match expr with
+  | ELit _
+  | EVal _ -> Set.empty
+  | ELet(_, expr, rest) -> Set.union (getImports expr) (getImports rest)
+  | EFn(_, expr, _) -> getImports expr
+  | EObj fields -> Map.fold (fun s _ expr -> Set.union s (getImports expr)) Set.empty fields
+  | EWith(orig, fields) ->
+    let orig = getImports orig
+    let fields = Map.fold (fun s _ expr -> Set.union s (getImports expr)) Set.empty fields
+    Set.union fields orig
+  | EDot(objExpr, _) -> getImports objExpr
+  | EEval(fn, arg) -> Set.union (getImports fn) (getImports arg)
+  | EDo expr -> getImports expr
+  | EImport name -> Set.singleton name
+
+let translateModule (e: E): string =
+  let imports =
+    getImports e
+    |> Seq.map ^% sprintf "import '%s';\n"
+    |> String.concat ""
+  let export = sprintf "export default = %s" (translateExpr e)
+  String.concat "" [imports; export]
