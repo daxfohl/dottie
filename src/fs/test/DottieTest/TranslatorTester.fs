@@ -74,9 +74,9 @@ let ``Test concat``() =
   let outputs = modules |> List.map ^% fun (name, m) -> name, translateModule m
   for name, s in outputs do
     match s with
-    | Some s ->
+    | Some s1 ->
       printfn "%s" name
-      printfn "%s" s
+      printfn "%s" s1
     | None ->
       printfn "%s: foreign" name
     printfn ""
