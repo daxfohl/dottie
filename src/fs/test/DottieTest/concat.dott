@@ -18,10 +18,39 @@ module Strings {
   }
 
   let fromraw = fn s -> { raw: s }
-  
+
   let str = fn s -> { s with concat: concat { s1: s } }
 
   { concat: concat
     fromraw: fromraw
     str: str }
+}
+
+foreign module ConsoleFFI {
+  log: fn literal string -> delayed unit
+}
+
+module Console {
+  let ffi = import ConsoleFFI
+  
+  let log = fn str -> {
+    let b = do ffi.log str.raw
+    return b
+  }
+
+  let log1 str = ffi.log str.raw
+
+  { log: log
+    log1: log1 }
+}
+
+module Main {
+  let console = import Console
+  let strings = import Strings
+  let main = fn x -> {
+    let str = strings.str "hello"
+    let str2 = " world"
+    let str3 = str.concat { s2: str2 }
+    do console.log str3
+  }
 }
