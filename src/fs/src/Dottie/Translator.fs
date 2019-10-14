@@ -1,6 +1,7 @@
 ﻿module Translator
 
 open Expressions
+open Types
 
 let moduleVarName (moduleName: string): string = sprintf "__import_%s" ^% moduleName.Replace('.', '_')
 
@@ -55,10 +56,15 @@ let rec getImports (expr: E): string Set =
   | EDo expr -> getImports expr
   | EImport name -> Set.singleton name
 
-let translateModule (e: E): string =
+let translateModuleExpression (e: E): string =
   let imports =
     getImports e
     |> Seq.map ^% fun name -> sprintf "import * as %s from '%s';\n" (moduleVarName name) name
     |> String.concat ""
   let export = sprintf "export default = %s" (translateExpr e)
-  String.concat "" [imports; export]
+  imports + export
+
+let translateModule (m: MType): string option =
+  match m with
+  | Module e -> Some ^% translateModuleExpression e
+  | _ -> None

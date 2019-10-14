@@ -10,12 +10,16 @@ open System.Text.RegularExpressions
 
 let get choice =
   match choice with
-  | Choice1Of2 (x, _) -> x
+  | Choice1Of2 x -> x
   | Choice2Of2 x -> failwith x
+
+let get' choice =
+  let (x, _) = get choice
+  x
   
 let assertSpec(sExpr, s) =
   let strings = tokenize sExpr
-  let expr = get ^% parseExpression strings
+  let expr = get' ^% parseExpression strings
   let translated = translateExpr expr
   let s1 = Regex.Replace(translated, @"\s+", "")
   let s2 = Regex.Replace(s, @"\s+", "")
@@ -66,5 +70,13 @@ let ``Test obj with``() =
 let ``Test concat``() =
   let s = File.ReadAllText("concat.dott")
   let strings = tokenize s
-  let exprOpt = parseExpression strings
-  exprOpt
+  let modules = get ^% ModuleParser.parseFile strings
+  let outputs = modules |> List.map ^% fun (name, m) -> name, translateModule m
+  for name, s in outputs do
+    match s with
+    | Some s ->
+      printfn "%s" name
+      printfn "%s" s
+    | None ->
+      printfn "%s: foreign" name
+    printfn ""

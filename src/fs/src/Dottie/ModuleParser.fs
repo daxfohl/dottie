@@ -5,7 +5,7 @@ open Types
 open SpecParser
 open FSharpx.Choice
 
-let parseModule (tokens: string list): Choice<M * string list, string> =
+let rec parseModule (tokens: string list): Choice<M * string list, string> =
   choose {
     match tokens with
     | "module"::name::tokens ->
@@ -23,6 +23,7 @@ let parseFile tokens =
     choose {
       match tokens with
       | [] -> return modules
+      | ";"::t -> return! parseModules t modules
       | _ ->
         let! m, tokens = parseModule tokens
         let modules = m::modules
