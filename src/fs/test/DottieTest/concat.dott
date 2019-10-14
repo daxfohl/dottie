@@ -19,7 +19,8 @@ module Strings {
 
   let fromraw = fn s -> { raw: s }
 
-  let str = fn s3 -> { s3 with concat: 0 }
+  let str = fn s3 -> { raw: s3.raw
+                       concat: fn s4 -> concat { s1: s3, s2: s4 } }
 
   { concat: concat
     fromraw: fromraw
@@ -45,7 +46,7 @@ module Main {
     let atr = strings.fromraw "hello"
     let str = strings.str atr
     let str2 = strings.fromraw " world"
-    let str3 = { raw: "x" }
+    let str3 = str.concat str2
     do console.log str3
   }
   { main: main }
