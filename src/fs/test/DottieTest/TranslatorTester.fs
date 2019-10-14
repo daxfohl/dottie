@@ -80,3 +80,5 @@ let ``Test concat``() =
     | None ->
       printfn "%s: foreign" name
     printfn ""
+  let x = get ^% TypeInferencer.getModulesTypes modules
+  printfn "%A" x

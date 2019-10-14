@@ -12,14 +12,14 @@ module Strings {
     let s1raw = s1.raw
     let s2raw = s2.raw
     let concatinput = { s1: s1raw, s2: s2raw }
-    let concat = ffi.concat
-    let sout = concat concatinput
+    let concat1 = ffi.concat
+    let sout = concat1 concatinput
     { s1 with raw: sout }
   }
 
   let fromraw = fn s -> { raw: s }
 
-  let str = fn s -> { s with concat: concat { s1: s } }
+  let str = fn s3 -> { s3 with concat: 0 }
 
   { concat: concat
     fromraw: fromraw
@@ -32,25 +32,20 @@ foreign module ConsoleFFI {
 
 module Console {
   let ffi = import ConsoleFFI
-  
-  let log = fn str -> {
-    let b = do ffi.log str.raw
-    b
-  }
 
-  let log1 = fn str -> ffi.log str.raw
+  let log = proc str1 -> do ffi.log str1.raw
 
-  { log: log
-    log1: log1 }
+  { log: log }
 }
 
 module Main {
   let console = import Console
   let strings = import Strings
   let main = proc x -> {
-    let str = strings.str "hello"
-    let str2 = " world"
-    let str3 = str.concat { s2: str2 }
+    let atr = strings.fromraw "hello"
+    let str = strings.str atr
+    let str2 = strings.fromraw " world"
+    let str3 = { raw: "x" }
     do console.log str3
   }
   { main: main }
