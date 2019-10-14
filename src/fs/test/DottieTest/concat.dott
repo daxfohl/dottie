@@ -35,10 +35,10 @@ module Console {
   
   let log = fn str -> {
     let b = do ffi.log str.raw
-    return b
+    b
   }
 
-  let log1 str = ffi.log str.raw
+  let log1 = fn str -> ffi.log str.raw
 
   { log: log
     log1: log1 }
@@ -53,4 +53,5 @@ module Main {
     let str3 = str.concat { s2: str2 }
     do console.log str3
   }
+  { main: main }
 }
