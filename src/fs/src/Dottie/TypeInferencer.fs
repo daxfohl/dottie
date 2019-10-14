@@ -280,7 +280,7 @@ let getType (expr: E) (specs: Specs) (moduleTypeMap: Map<string, S>) (context: C
       | EImport name ->
         match Map.tryFind name moduleTypeMap with
         | Some s -> return s, specs
-        | None -> return! Choice2Of2 "blah" }
+        | None -> return! Choice2Of2 ^% Errors.moduleDoesNotExist name }
   getType expr specs context
 
 let getModuleType (m: MType) (moduleTypeMap: Map<string, S>): Choice<S, string> =

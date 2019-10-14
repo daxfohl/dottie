@@ -2,6 +2,8 @@
 
 open Expressions
 
+let moduleVarName (moduleName: string): string = sprintf "__import_%s" ^% moduleName.Replace('.', '_')
+
 let rec translateExpr (expr: E) : string =
   let translateRest rest =
     match rest with
@@ -35,7 +37,7 @@ let rec translateExpr (expr: E) : string =
     sprintf "%s(%s)" (wrap fn) (wrap arg)
   | EDo expr ->
     sprintf "await %s" (translateExpr expr)
-  | EImport _ -> ""
+  | EImport name -> moduleVarName name
 
 let rec getImports (expr: E): string Set =
   match expr with
@@ -56,7 +58,7 @@ let rec getImports (expr: E): string Set =
 let translateModule (e: E): string =
   let imports =
     getImports e
-    |> Seq.map ^% sprintf "import '%s';\n"
+    |> Seq.map ^% fun name -> sprintf "import * as %s from '%s';\n" (moduleVarName name) name
     |> String.concat ""
   let export = sprintf "export default = %s" (translateExpr e)
   String.concat "" [imports; export]
