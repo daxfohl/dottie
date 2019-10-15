@@ -6,15 +6,15 @@ open Types
 
 let moduleVarName (moduleName: string): string = sprintf "__import_%s" ^% moduleName.Replace('.', '_')
 
-let rec translateExpr (expr: E) : string =
-  let translateRest rest =
-    match rest with
-    | ELet _ -> translateExpr rest
-    | _ -> sprintf "return %s;\n" (translateExpr rest)
-  let wrap expr =
-    match expr with
-    | ELet _ -> sprintf "(() => { %s })()" (translateRest expr)
-    | _ -> translateExpr expr
+let rec translateRest rest =
+  match rest with
+  | ELet _ -> translateExpr rest
+  | _ -> sprintf "return %s;\n" (translateExpr rest)
+and wrap expr =
+  match expr with
+  | ELet _ -> sprintf "(() => { %s })()" (translateRest expr)
+  | _ -> translateExpr expr
+and translateExpr (expr: E) : string =
   match expr with
   | ELit x ->
     match x with 
@@ -57,21 +57,17 @@ let rec getImports (expr: E): string Set =
   | EDo expr -> getImports expr
   | EImport name -> Set.singleton name
 
-let translateModuleExpression (e: E): string =
+let rec translateModuleExpression (e: E): string =
   let imports =
     getImports e
     |> Seq.map ^% fun name -> sprintf "import * as %s from './%s.mjs';\n" (moduleVarName name) name
     |> String.concat ""
-  let export = 
+  let rec getExport(e: E) = 
     match e with
-    | ELet _ ->
-      let s = translateExpr e
-      let lines = s.Split([|'\n'|], StringSplitOptions.RemoveEmptyEntries)
-      let last = lines.[lines.Length - 1]
-      let last = "export default " + (last.Substring(6, (last.Length - 7)))
-      lines.[lines.Length - 1] <- last
-      String.concat "\n" lines
+    | ELet(name, expr, rest) ->
+      sprintf "let %s = %s;\n%s" name (wrap expr) (getExport rest)
     | _ -> sprintf "export default " + (translateExpr e)
+  let export = getExport e
   let file = imports + "\n" + export
   file
 

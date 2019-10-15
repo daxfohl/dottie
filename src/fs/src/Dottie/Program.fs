@@ -21,4 +21,5 @@ let main argv =
         printfn "%s: foreign" name
         File.Copy(sprintf @"..\..\..\..\test\DottieTest\%s.js" name, sprintf @"..\..\..\..\testdata\%s.mjs" name, true)
       printfn ""
+    File.Copy(@"..\..\..\..\test\DottieTest\index.js", @"..\..\..\..\testdata\index.mjs", true)
   0
