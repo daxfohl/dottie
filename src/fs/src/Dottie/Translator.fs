@@ -39,7 +39,7 @@ let rec translateExpr (expr: E) : string =
     sprintf "%s(%s)" (wrap fn) (wrap arg)
   | EDo expr ->
     sprintf "await %s" (translateExpr expr)
-  | EImport name -> moduleVarName name
+  | EImport name -> (moduleVarName name) + ".default"
 
 let rec getImports (expr: E): string Set =
   match expr with
@@ -60,7 +60,7 @@ let rec getImports (expr: E): string Set =
 let translateModuleExpression (e: E): string =
   let imports =
     getImports e
-    |> Seq.map ^% fun name -> sprintf "import * as %s from '%s';\n" (moduleVarName name) name
+    |> Seq.map ^% fun name -> sprintf "import * as %s from './%s.mjs';\n" (moduleVarName name) name
     |> String.concat ""
   let export = 
     match e with
