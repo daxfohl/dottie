@@ -4,6 +4,7 @@ open System
 open System.Collections.Generic
 open System.Text.RegularExpressions
 
+
 let addSemicolons(file: string) =
   let lines = Regex.Split(file, "\r\n|\r|\n")
   let notEndings = ['['; '{'; '=']
@@ -20,7 +21,33 @@ let joinSymbols (tokens: string list) =
     | x::t -> joinSymbols (x::newTokens) t
   joinSymbols [] tokens
 
-let commaToSemi = List.map (fun t -> if t = "," then ";" else t)
+type Token =
+| KLet
+| KEquals
+| KOpenCurly
+| KClosedCurly
+| KSemicolon of string
+| KDot
+| KString of string
+| KImport
+| KDo
+| KWith
+| KProc
+| KFn
+| KNumber of float32
+| KLiteral
+| KColon
+| KModule
+| KForeign
+| KComment of string
+| KError of string
+
+type PageToken = {
+  row: int
+  startCol: int
+  len: int
+  value: Token
+}
 
 let insertSemicolon (tokens: string list) =
   let rec insertSemicolon (newTokens: string list) =
@@ -40,20 +67,54 @@ let removeDuplicateSemicolons (tokens: string list) =
     | x::t -> removeDuplicateSemicolons (x::newTokens) t
   removeDuplicateSemicolons [] tokens
 
-let tokenize (file: string) =
-  let file = addSemicolons file
+// strings with special chars, whitespace, quote escape
+// negative number
+// decimals
+// comments
+// operators (binary, unary -) // well, are we doing this or having ".plus"?
+type State =
+| Normal // empty, in name, in symbol
+| InNumber
+| InString
+| InComment
+
+let tokenizeLine (line: string, lineNumber: int): PageToken list =
+  let x = KLet
   let currentToken = List<char>()
-  let tokens = List<string>()
+  let mutable state = Normal
   let complete() =
     if currentToken.Count <> 0 then
       let token = String(currentToken.ToArray())
       tokens.Add(token)
       currentToken.Clear()
-  for c in file do
-    if Char.IsWhiteSpace(c) then complete()
-    else if Char.IsLetterOrDigit(c) then currentToken.Add(c)
-    else
-      complete()
-      tokens.Add(String(c, 1))
+  for charId = 0 to line.Length - 1 do
+    let c = line.[charId]
+    if state = Normal then
+      if Char.IsWhiteSpace(c) then
+        complete()
+      elif c = '"' then
+        complete()
+        currentToken.Add(c)
+        state <- InString
+      elif c = '/' && charId + 1 < line.Length && line.[charId] = '/' then
+        complete()
+        currentToken.Add(c)
+        state <- InComment
+      elif Char.IsDigit(c) || c = '-' && charId + 1 < line.Length && Char.IsDigit(line.[charId]) then
+        complete()
+        currentToken.Add(c)
+        state <- InNumber
+      elif Char.IsLetterOrDigit(c) then currentToken.Add(c)
+      else
+        if c <> '-' || currentToken.Count <> 0 || charId + 1 >= line.Length || line.[charId] <> '>' then complete()
+        currentToken.Add(c)
   complete()
-  tokens |> List.ofSeq |> joinSymbols |> commaToSemi |> insertSemicolon |> removeDuplicateSemicolons
+  
+
+let tokenize (file: string): PageToken list =
+  let lines = Regex.Split(file, "\r\n|\r|\n")
+  let tokens = List<PageToken>()
+  for lineId = 0 to lines.Length - 1 do
+    let line = lines.[lineId]
+  List.ofSeq tokens
+  // tokens |> List.ofSeq |> joinSymbols |> commaToSemi |> insertSemicolon |> removeDuplicateSemicolons
