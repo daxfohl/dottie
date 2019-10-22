@@ -28,7 +28,6 @@ type Token =
 | KClosedCurly
 | KSemicolon of string
 | KDot
-| KString of string
 | KImport
 | KDo
 | KWith
@@ -39,6 +38,7 @@ type Token =
 | KColon
 | KModule
 | KForeign
+| KString of string
 | KComment of string
 | KError of string
 
@@ -84,8 +84,19 @@ let tokenizeLine (line: string, lineNumber: int): PageToken list =
   let mutable state = Normal
   let complete() =
     if currentToken.Count <> 0 then
-      let token = String(currentToken.ToArray())
-      tokens.Add(token)
+      let tokenStr = String(currentToken.ToArray())
+      let token = match tokenStr with
+      | "let" -> KLet
+      | "=" -> KEquals
+      | "{" -> KOpenCurly
+      | "}" -> KClosedCurly
+      | ";"
+      | "," -> KSemicolon tokenStr
+      | "." -> KDot
+      | "import" -> KImport
+      | "foreign" -> KForeign
+      | "do" -> KDo
+      | 
       currentToken.Clear()
   for charId = 0 to line.Length - 1 do
     let c = line.[charId]
