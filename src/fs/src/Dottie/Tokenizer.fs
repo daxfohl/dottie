@@ -75,24 +75,21 @@ let removeDuplicateSemicolons (tokens: string list) =
 // comments
 // operators (binary, unary -) // well, are we doing this or having ".plus"?
 type State =
-| Normal // empty, in name, in symbol
+| Empty // empty, in name, in symbol
 | InNumber
 | InString
 | InComment
+| InWhitespace
+| InWord
+| InSymbol
 
-let createToken(currentToken: char IList, state: State, lineNumber: int, charNumber: int) =
+let createToken(currentToken: char seq, state: State, lineNumber: int, charNumber: int) =
   let tokenStr = String(currentToken.ToArray())
   let token =
     match state with 
-    | Normal ->
+    | InWord ->
       match tokenStr with
       | "let" -> KLet
-      | "=" -> KEquals
-      | "{" -> KOpenCurly
-      | "}" -> KClosedCurly
-      | ";"
-      | "," -> KSemicolon tokenStr
-      | "." -> KDot
       | "import" -> KImport
       | "foreign" -> KForeign
       | "do" -> KDo
@@ -100,6 +97,15 @@ let createToken(currentToken: char IList, state: State, lineNumber: int, charNum
       | "proc" -> KProc
       | "fn" -> KFn
       | "literal" -> KLiteral
+      | _ -> KError tokenStr
+    | InSymbol ->
+      match tokenStr with
+      | "=" -> KEquals
+      | "{" -> KOpenCurly
+      | "}" -> KClosedCurly
+      | ";"
+      | "," -> KSemicolon tokenStr
+      | "." -> KDot
       | ":" -> KColon
       | "->" -> KArrow
       | _ -> KError tokenStr
@@ -112,36 +118,46 @@ let createToken(currentToken: char IList, state: State, lineNumber: int, charNum
       if rest.Length = 0 || rest.[rest.Length - 1] <> '\"' then KError tokenStr
       else KString ^% Regex.Unescape(rest.Substring(0, rest.Length - 1))
     | InComment -> KComment tokenStr
+    | InWhitespace
+    | Empty -> failwith "Cannot create token here"
   { row = lineNumber
     startCol = charNumber - tokenStr.Length
     len = tokenStr.Length
     value = token }
 
+let getNextState = function
+| None, _ -> Empty
+| Some c, _ when Char.IsWhiteSpace(c) -> InWhitespace
+| Some c, _ when c = '"' -> InString
+| Some c, Some c1 when c = '/' && c1 = '/' -> InComment
+| Some c, _ when Char.IsDigit(c) -> InNumber
+| Some c, Some c1 when c = '-' && Char.IsDigit c1 -> InNumber
+| Some c, _ when Char.IsLetter(c) -> InWord
+| Some _, _ -> InSymbol
+  
+let complete(currentToken: char IList, tokens: PageToken IList, charNumber: int, lineNumber: int, cNext: char option, cAfter: char option, state: State ref) =
+  if !state <> Empty && !state <> InWhitespace then
+    tokens.Add(createToken(currentToken, !state, lineNumber, charNumber))
+  currentToken.Clear()
+  match cNext with
+  | Some c -> currentToken.Add(c)
+  | _ -> ()
+
 let tokenizeLine (line: string, lineNumber: int): PageToken list =
   let tokens = List<PageToken>()
   let currentToken = List<char>()
-  let mutable state = Normal
-  let complete() =
-    if currentToken.Count <> 0 then
-      currentToken.Clear()
+  let state = ref Empty
   for charId = 0 to line.Length - 1 do
     let c = line.[charId]
-    match state with
+    let cAfter = if line.Length < charId + 1 then Some line.[charId + 1] else None
+    match !state with
     | Normal ->
-      if Char.IsWhiteSpace(c) then
-        complete()
-      elif c = '"' then
-        complete()
-        currentToken.Add(c)
-        state <- InString
-      elif c = '/' && charId + 1 < line.Length && line.[charId] = '/' then
-        complete()
-        currentToken.Add(c)
-        state <- InComment
-      elif Char.IsDigit(c) || c = '-' && charId + 1 < line.Length && Char.IsDigit(line.[charId]) then
-        complete()
-        currentToken.Add(c)
-        state <- InNumber
+      if Char.IsWhiteSpace(c) 
+        || c = '"'
+        || c = '/' && charId + 1 < line.Length && line.[charId] = '/'
+        || Char.IsDigit(c)
+        || c = '-' && charId + 1 < line.Length && Char.IsDigit(line.[charId]) then
+        complete(currentToken, tokens, charId, lineNumber, Some c, cAfter, state)
       elif Char.IsLetterOrDigit(c) then currentToken.Add(c)
       else
         if c <> '-' || currentToken.Count <> 0 || charId + 1 >= line.Length || line.[charId] <> '>' then complete()
