@@ -24,17 +24,18 @@ let joinSymbols (tokens: string list) =
 
 type Token =
 | KLet
-| KEquals
-| KOpenCurly
-| KClosedCurly
-| KSemicolon of string
-| KDot
 | KImport
 | KDo
 | KWith
 | KProc
 | KFn
 | KLiteral
+| KName of string
+| KEquals
+| KOpenCurly
+| KClosedCurly
+| KSemicolon
+| KDot
 | KColon
 | KModule
 | KForeign
@@ -56,7 +57,7 @@ let insertSemicolon (tokens: PageToken list): PageToken list =
     function
     | [] -> List.rev newTokens
     | x::t ->
-      let fakeSemi = { row = x.row; len = 0; startCol = x.startCol + x.len; value = KSemicolon "" }
+      let fakeSemi = { row = x.row; len = 0; startCol = x.startCol + x.len; value = KSemicolon }
       match x.value with
       | KClosedCurly -> insertSemicolon (x::fakeSemi::newTokens) t // For consistency finding end of expr in { a: 1; b: 2 }, it is  { a: 1; b: 2; }
       | KWith -> insertSemicolon (x::fakeSemi::newTokens) t // To find end of expr in { <expr> with ... }, it's { <expr>; with ... }
@@ -64,12 +65,11 @@ let insertSemicolon (tokens: PageToken list): PageToken list =
   insertSemicolon [] tokens
 
 let removeDuplicateSemicolons (tokens: PageToken list) =
-  let isSemi = function | KSemicolon _ -> true | _ -> false
   let rec removeDuplicateSemicolons (newTokens: PageToken list) =
     function
     | [] -> List.rev newTokens
-    | x::y::t when isSemi x.value && isSemi y.value -> removeDuplicateSemicolons (x::newTokens) t
-    | x::y::z::t when x.value = KOpenCurly && isSemi y.value && z.value = KClosedCurly -> removeDuplicateSemicolons (z::x::newTokens) t
+    | x::y::t when x.value = KSemicolon && y.value = KSemicolon -> removeDuplicateSemicolons (x::newTokens) t
+    | x::y::z::t when x.value = KOpenCurly && y.value = KSemicolon && z.value = KClosedCurly -> removeDuplicateSemicolons (z::x::newTokens) t
     | x::t -> removeDuplicateSemicolons (x::newTokens) t
   removeDuplicateSemicolons [] tokens
 
@@ -101,14 +101,14 @@ let createToken(currentToken: char seq, state: State, lineNumber: int, charNumbe
       | "proc" -> KProc
       | "fn" -> KFn
       | "literal" -> KLiteral
-      | _ -> KError tokenStr
+      | _ -> KName tokenStr
     | InSymbol ->
       match tokenStr with
       | "=" -> KEquals
       | "{" -> KOpenCurly
       | "}" -> KClosedCurly
       | ";"
-      | "," -> KSemicolon tokenStr
+      | "," -> KSemicolon
       | "." -> KDot
       | ":" -> KColon
       | "->" -> KArrow
@@ -177,6 +177,24 @@ let tokenizeLine (line: string, lineNumber: int): PageToken list =
       if currentToken.[0] = '-' && c = '>' then currentToken.Add(c)
       else completeAndLoad()
   complete(currentToken, tokens, line.Length - 1, lineNumber, None, None, state)
+  let lastToken =
+    if tokens.Count = 0 then None
+    else
+      let lastToken = tokens.[tokens.Count - 1]
+      match lastToken.value with
+      | KComment _ ->
+        if tokens.Count = 1 then None
+        else Some tokens.[tokens.Count - 2]
+      | _ -> Some lastToken
+  match lastToken with
+  | None -> ()
+  | Some x ->
+    match x.value with
+    | KName _
+    | KClosedCurly
+    | KNumber _
+    | KString _ -> tokens.Add({ row = x.row; len = 0; startCol = x.startCol + x.len; value = KSemicolon })
+    | _ -> ()
   List.ofSeq tokens
   
 

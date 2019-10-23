@@ -2,17 +2,21 @@
 open Xunit
 open Tokenizer
 
+let assertEqual(expected: Token list, input: string) =
+  let output = tokenize input
+  Assert.Equal<Token list>(expected, List.map (fun t -> t.value) output)
+
 [<Fact>]
 let ``Single token``() =
-  Assert.Equal<string list>(["a"; ";"], tokenize "a ")
-  Assert.Equal<string list>(["a"; ";"], tokenize " a ")
-  Assert.Equal<string list>(["a"; ";"], tokenize "a")
-  Assert.Equal<string list>(["a"; ";"], tokenize " a")
-  Assert.Equal<string list>(["$"; ";"], tokenize "$ ")
-  Assert.Equal<string list>(["$"; ";"], tokenize " $ ")
-  Assert.Equal<string list>(["$"; ";"], tokenize "$")
-  Assert.Equal<string list>(["$"; ";"], tokenize " $")
+  assertEqual([KName "a"; KSemicolon], "a ")
+  assertEqual([KName "a"; KSemicolon], " a ")
+  assertEqual([KName "a"; KSemicolon], "a")
+  assertEqual([KName "a"; KSemicolon], " a")
+  assertEqual([KDot], ". ")
+  assertEqual([KDot], " . ")
+  assertEqual([KDot], ".")
+  assertEqual([KDot], " .")
 
 [<Fact>]
 let ``Braces``() =
-  Assert.Equal<string list>(["{"; "}"; ";"], tokenize "{ }")
+  assertEqual([KOpenCurly; KClosedCurly; KSemicolon], "{ }")
