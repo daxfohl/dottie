@@ -1,5 +1,6 @@
 ﻿module ``Tokenizer tester``
 open Xunit
+open Tokens
 open Tokenizer
 
 let assertEqual(expected: Token list, input: string) =

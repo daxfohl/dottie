@@ -4,53 +4,7 @@ open System
 open System.Collections.Generic
 open System.Linq
 open System.Text.RegularExpressions
-
-
-let addSemicolons(file: string) =
-  let lines = Regex.Split(file, "\r\n|\r|\n")
-  let notEndings = ['['; '{'; '=']
-  let addSemi (line: string) = line.Length > 0 && not(List.contains line.[line.Length - 1] notEndings)
-  String.Join("\n", Array.map (fun line -> if addSemi line then line + " ;" else line) lines)
-
-let twoCharSymbols = [["-";">"]]
-
-let joinSymbols (tokens: string list) =
-  let rec joinSymbols (newTokens: string list) =
-    function
-    | [] -> List.rev newTokens
-    | "-"::">"::t -> joinSymbols ("->"::newTokens) t
-    | x::t -> joinSymbols (x::newTokens) t
-  joinSymbols [] tokens
-
-type Token =
-| KLet
-| KImport
-| KDo
-| KWith
-| KProc
-| KFn
-| KLiteral
-| KModule
-| KForeign
-| KName of string
-| KEquals
-| KOpenCurly
-| KClosedCurly
-| KSemicolon
-| KDot
-| KColon
-| KArrow
-| KNumber of float
-| KString of string
-| KComment of string
-| KError of string
-
-type PageToken = {
-  row: int
-  col: int
-  len: int
-  value: Token
-}
+open Tokens
 
 let insertSemicolon (tokens: PageToken list): PageToken list =
   let rec insertSemicolon (newTokens: PageToken list) =

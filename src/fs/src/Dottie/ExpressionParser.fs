@@ -1,8 +1,9 @@
 ﻿module ExpressionParser
 
 open System
-open Expressions
 open FSharpx.Choice
+open Expressions
+open Tokens
 
 let keywords =
   [ "import"
@@ -21,8 +22,8 @@ let validIdentifier (s: string) =
 
 let canStartExpression (s: string) = s <> ";"
 
-let rec parseExpression (tokens: string list) : Choice<E * string list, string> =
-  let rec parseLetBlock (tokens: string list) : Choice<E * string list, string> =
+let rec parseExpression (tokens: PageToken list) : Choice<E * string list, string> =
+  let rec parseLetBlock (tokens: PageToken list) : Choice<E * string list, string> =
     choose {
       match tokens with
       | "let"::name::"="::t ->
@@ -35,7 +36,7 @@ let rec parseExpression (tokens: string list) : Choice<E * string list, string> 
         | "}"::t -> return expr, t
         | s::_ -> return! Choice2Of2(sprintf "parseLetBlock expected '}' but got '%s'" s)
         | [] -> return! Choice2Of2 "parseLetBlock expected '}' but got EOF" }
-  let rec parseObjectFields (tokens: string list) (object: Map<string, E>) : Choice<Map<string, E> * string list, string> =
+  let rec parseObjectFields (tokens: PageToken list) (object: Map<string, E>) : Choice<Map<string, E> * string list, string> =
     choose {
       match tokens with
       | "}"::t -> return object, t
@@ -45,7 +46,7 @@ let rec parseExpression (tokens: string list) : Choice<E * string list, string> 
       | s::m::_ -> return! Choice2Of2 <| sprintf "parseObjectFields expected name:, but got %s %s" s m
       | [s] -> return! Choice2Of2 <| sprintf "parseObjectFields expected name:, but got %s EOF" s
       | [] -> return! Choice2Of2 <| sprintf "parseObjectFields expected name:, but got EOF" }
-  let rec parseContinuation (tokens: string list) (expr: E) : Choice<E * string list, string> =
+  let rec parseContinuation (tokens: PageToken list) (expr: E) : Choice<E * string list, string> =
     choose {
       match tokens with
       | [] -> return expr, tokens
