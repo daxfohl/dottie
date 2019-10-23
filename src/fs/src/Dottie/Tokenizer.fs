@@ -2,6 +2,7 @@
 
 open System
 open System.Collections.Generic
+open System.Linq
 open System.Text.RegularExpressions
 
 
@@ -33,11 +34,12 @@ type Token =
 | KWith
 | KProc
 | KFn
-| KNumber of float32
 | KLiteral
 | KColon
 | KModule
 | KForeign
+| KArrow
+| KNumber of float
 | KString of string
 | KComment of string
 | KError of string
@@ -78,14 +80,12 @@ type State =
 | InString
 | InComment
 
-let tokenizeLine (line: string, lineNumber: int): PageToken list =
-  let x = KLet
-  let currentToken = List<char>()
-  let mutable state = Normal
-  let complete() =
-    if currentToken.Count <> 0 then
-      let tokenStr = String(currentToken.ToArray())
-      let token = match tokenStr with
+let createToken(currentToken: char IList, state: State, lineNumber: int, charNumber: int) =
+  let tokenStr = String(currentToken.ToArray())
+  let token =
+    match state with 
+    | Normal ->
+      match tokenStr with
       | "let" -> KLet
       | "=" -> KEquals
       | "{" -> KOpenCurly
@@ -96,11 +96,38 @@ let tokenizeLine (line: string, lineNumber: int): PageToken list =
       | "import" -> KImport
       | "foreign" -> KForeign
       | "do" -> KDo
-      | 
+      | "with" -> KWith
+      | "proc" -> KProc
+      | "fn" -> KFn
+      | "literal" -> KLiteral
+      | ":" -> KColon
+      | "->" -> KArrow
+      | _ -> KError tokenStr
+    | InNumber ->
+      match Double.TryParse(tokenStr) with
+      | true, f -> KNumber f
+      | _ -> KError tokenStr
+    | InString ->
+      let rest = tokenStr.Substring(1)
+      if rest.Length = 0 || rest.[rest.Length - 1] <> '\"' then KError tokenStr
+      else KString ^% Regex.Unescape(rest.Substring(0, rest.Length - 1))
+    | InComment -> KComment tokenStr
+  { row = lineNumber
+    startCol = charNumber - tokenStr.Length
+    len = tokenStr.Length
+    value = token }
+
+let tokenizeLine (line: string, lineNumber: int): PageToken list =
+  let tokens = List<PageToken>()
+  let currentToken = List<char>()
+  let mutable state = Normal
+  let complete() =
+    if currentToken.Count <> 0 then
       currentToken.Clear()
   for charId = 0 to line.Length - 1 do
     let c = line.[charId]
-    if state = Normal then
+    match state with
+    | Normal ->
       if Char.IsWhiteSpace(c) then
         complete()
       elif c = '"' then
@@ -119,6 +146,9 @@ let tokenizeLine (line: string, lineNumber: int): PageToken list =
       else
         if c <> '-' || currentToken.Count <> 0 || charId + 1 >= line.Length || line.[charId] <> '>' then complete()
         currentToken.Add(c)
+    | InNumber ->
+      if Char.IsDigit(c) || c = '.' then currentToken.Add(c)
+      else complete()
   complete()
   
 
