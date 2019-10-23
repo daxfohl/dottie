@@ -22,21 +22,21 @@ let validIdentifier (s: string) =
 
 let canStartExpression (s: string) = s <> ";"
 
-let rec parseExpression (tokens: PageToken list) : Choice<E * string list, string> =
-  let rec parseLetBlock (tokens: PageToken list) : Choice<E * string list, string> =
+let rec parseExpression (tokens: PageToken list) : Choice<E * PageToken list, string> =
+  let rec parseLetBlock (tokens: PageToken list) : Choice<E * PageToken list, string> =
     choose {
       match tokens with
-      | "let"::name::"="::t ->
+      | K KLet::(K(KName name) as nameT)::K KEquals::t ->
         let! expr, t = parseExpression t
         let! rest, t = parseLetBlock t
         return ELet(name, expr, rest), t
       | _ ->
         let! expr, t = parseExpression tokens
         match t with
-        | "}"::t -> return expr, t
+        | K KClosedCurly::t -> return expr, t
         | s::_ -> return! Choice2Of2(sprintf "parseLetBlock expected '}' but got '%s'" s)
         | [] -> return! Choice2Of2 "parseLetBlock expected '}' but got EOF" }
-  let rec parseObjectFields (tokens: PageToken list) (object: Map<string, E>) : Choice<Map<string, E> * string list, string> =
+  let rec parseObjectFields (tokens: PageToken list) (object: Map<string, E>) : Choice<Map<string, E> * PageToken list, string> =
     choose {
       match tokens with
       | "}"::t -> return object, t
@@ -46,7 +46,7 @@ let rec parseExpression (tokens: PageToken list) : Choice<E * string list, strin
       | s::m::_ -> return! Choice2Of2 <| sprintf "parseObjectFields expected name:, but got %s %s" s m
       | [s] -> return! Choice2Of2 <| sprintf "parseObjectFields expected name:, but got %s EOF" s
       | [] -> return! Choice2Of2 <| sprintf "parseObjectFields expected name:, but got EOF" }
-  let rec parseContinuation (tokens: PageToken list) (expr: E) : Choice<E * string list, string> =
+  let rec parseContinuation (tokens: PageToken list) (expr: E) : Choice<E * PageToken list, string> =
     choose {
       match tokens with
       | [] -> return expr, tokens

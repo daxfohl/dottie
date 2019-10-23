@@ -29,3 +29,6 @@ type PageToken = {
   len: int
   value: Token
 }
+
+let (|K|) (pageToken : PageToken) =
+     pageToken.value
