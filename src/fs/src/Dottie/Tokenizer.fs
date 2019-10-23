@@ -51,21 +51,25 @@ type PageToken = {
   value: Token
 }
 
-let insertSemicolon (tokens: string list) =
-  let rec insertSemicolon (newTokens: string list) =
+let insertSemicolon (tokens: PageToken list): PageToken list =
+  let rec insertSemicolon (newTokens: PageToken list) =
     function
     | [] -> List.rev newTokens
-    | "}"::t -> insertSemicolon ("}"::";"::newTokens) t
-    | "with"::t -> insertSemicolon ("with"::";"::newTokens) t
-    | x::t -> insertSemicolon (x::newTokens) t
+    | x::t ->
+      let fakeSemi = { row = x.row; len = 0; startCol = x.startCol + x.len; value = KSemicolon "" }
+      match x.value with
+      | KClosedCurly -> insertSemicolon (x::fakeSemi::newTokens) t // For consistency finding end of expr in { a: 1; b: 2 }, it is  { a: 1; b: 2; }
+      | KWith -> insertSemicolon (x::fakeSemi::newTokens) t // To find end of expr in { <expr> with ... }, it's { <expr>; with ... }
+      | _ -> insertSemicolon (x::newTokens) t
   insertSemicolon [] tokens
 
-let removeDuplicateSemicolons (tokens: string list) =
-  let rec removeDuplicateSemicolons (newTokens: string list) =
+let removeDuplicateSemicolons (tokens: PageToken list) =
+  let isSemi = function | KSemicolon _ -> true | _ -> false
+  let rec removeDuplicateSemicolons (newTokens: PageToken list) =
     function
     | [] -> List.rev newTokens
-    | ";"::";"::t -> removeDuplicateSemicolons (";"::newTokens) t
-    | "{"::";"::"}"::t -> removeDuplicateSemicolons ("}"::"{"::newTokens) t
+    | x::y::t when isSemi x.value && isSemi y.value -> removeDuplicateSemicolons (x::newTokens) t
+    | x::y::z::t when x.value = KOpenCurly && isSemi y.value && z.value = KClosedCurly -> removeDuplicateSemicolons (z::x::newTokens) t
     | x::t -> removeDuplicateSemicolons (x::newTokens) t
   removeDuplicateSemicolons [] tokens
 
@@ -77,7 +81,7 @@ let removeDuplicateSemicolons (tokens: string list) =
 type State =
 | Empty // empty, in name, in symbol
 | InNumber
-| InString
+| InString of bool
 | InComment
 | InWhitespace
 | InWord
@@ -113,7 +117,8 @@ let createToken(currentToken: char seq, state: State, lineNumber: int, charNumbe
       match Double.TryParse(tokenStr) with
       | true, f -> KNumber f
       | _ -> KError tokenStr
-    | InString ->
+    | InString true -> KError tokenStr
+    | InString false ->
       let rest = tokenStr.Substring(1)
       if rest.Length = 0 || rest.[rest.Length - 1] <> '\"' then KError tokenStr
       else KString ^% Regex.Unescape(rest.Substring(0, rest.Length - 1))
@@ -128,7 +133,7 @@ let createToken(currentToken: char seq, state: State, lineNumber: int, charNumbe
 let getNextState = function
 | None, _ -> Empty
 | Some c, _ when Char.IsWhiteSpace(c) -> InWhitespace
-| Some c, _ when c = '"' -> InString
+| Some c, _ when c = '"' -> InString false
 | Some c, Some c1 when c = '/' && c1 = '/' -> InComment
 | Some c, _ when Char.IsDigit(c) -> InNumber
 | Some c, Some c1 when c = '-' && Char.IsDigit c1 -> InNumber
@@ -142,6 +147,7 @@ let complete(currentToken: char IList, tokens: PageToken IList, charNumber: int,
   match cNext with
   | Some c -> currentToken.Add(c)
   | _ -> ()
+  state := getNextState(cNext, cAfter)
 
 let tokenizeLine (line: string, lineNumber: int): PageToken list =
   let tokens = List<PageToken>()
@@ -150,22 +156,28 @@ let tokenizeLine (line: string, lineNumber: int): PageToken list =
   for charId = 0 to line.Length - 1 do
     let c = line.[charId]
     let cAfter = if line.Length < charId + 1 then Some line.[charId + 1] else None
+    let completeAndLoad = fun () -> complete(currentToken, tokens, charId, lineNumber, Some c, cAfter, state)
+    let completeOnly = fun () -> complete(currentToken, tokens, charId, lineNumber, None, None, state)
     match !state with
-    | Normal ->
-      if Char.IsWhiteSpace(c) 
-        || c = '"'
-        || c = '/' && charId + 1 < line.Length && line.[charId] = '/'
-        || Char.IsDigit(c)
-        || c = '-' && charId + 1 < line.Length && Char.IsDigit(line.[charId]) then
-        complete(currentToken, tokens, charId, lineNumber, Some c, cAfter, state)
-      elif Char.IsLetterOrDigit(c) then currentToken.Add(c)
-      else
-        if c <> '-' || currentToken.Count <> 0 || charId + 1 >= line.Length || line.[charId] <> '>' then complete()
-        currentToken.Add(c)
-    | InNumber ->
-      if Char.IsDigit(c) || c = '.' then currentToken.Add(c)
-      else complete()
-  complete()
+    | Empty -> completeAndLoad()
+    | InWhitespace -> completeAndLoad()
+    | InString false ->
+      currentToken.Add(c)
+      if c = '\\' then
+        state := InString true
+      elif c = '\"' then
+        completeOnly()
+    | InString true ->
+      currentToken.Add(c)
+      state := InString false
+    | InComment -> currentToken.Add(c)
+    | InNumber -> if Char.IsNumber(c) || c = '.' then currentToken.Add(c) else completeAndLoad()
+    | InWord -> if Char.IsLetterOrDigit(c) then currentToken.Add(c) else completeAndLoad()
+    | InSymbol ->
+      if currentToken.[0] = '-' && c = '>' then currentToken.Add(c)
+      else completeAndLoad()
+  complete(currentToken, tokens, line.Length - 1, lineNumber, None, None, state)
+  List.ofSeq tokens
   
 
 let tokenize (file: string): PageToken list =
@@ -173,5 +185,7 @@ let tokenize (file: string): PageToken list =
   let tokens = List<PageToken>()
   for lineId = 0 to lines.Length - 1 do
     let line = lines.[lineId]
-  List.ofSeq tokens
-  // tokens |> List.ofSeq |> joinSymbols |> commaToSemi |> insertSemicolon |> removeDuplicateSemicolons
+    let lineTokens = tokenizeLine(line, lineId)
+    tokens.AddRange(lineTokens)
+  let tokenList = List.ofSeq tokens
+  tokenList |> insertSemicolon |> removeDuplicateSemicolons
