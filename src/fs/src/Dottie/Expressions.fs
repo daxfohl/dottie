@@ -1,7 +1,5 @@
 ﻿module Expressions
 
-open Tokens
-
 [<ReferenceEquality>]
 type ELit =
   | EStr of string
@@ -19,3 +17,4 @@ type E =
   | EDot of E * string
   | EDo of E
   | EImport of string
+  | EError of string
