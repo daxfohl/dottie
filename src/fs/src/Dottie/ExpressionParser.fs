@@ -55,11 +55,18 @@ type Exp =
   | EError of string
 
 and [<ReferenceEquality>] ExpLet =
-  { letToken: PageToken 
+  { openToken: PageToken option
+    letToken: PageToken 
     name: string
     nameToken: PageToken
     equalsToken: PageToken
     expr: Exp
+    rest: Exp
+    closeToken: PageToken option }
+
+and [<ReferenceEquality>] ExpObjEntry =
+  { key: string
+    keyToken: PageToken
     colonToken: PageToken
     value: Exp }
     
