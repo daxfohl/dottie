@@ -22,16 +22,11 @@ let removeDuplicateSemicolons (tokens: PageToken list) =
   let rec removeDuplicateSemicolons (newTokens: PageToken list) =
     function
     | [] -> List.rev newTokens
-    | x::y::t when x.value = KSemicolon && y.value = KSemicolon -> removeDuplicateSemicolons (x::newTokens) t
-    | x::y::z::t when x.value = KOpenCurly && y.value = KSemicolon && z.value = KClosedCurly -> removeDuplicateSemicolons (z::x::newTokens) t
+    | (K KSemicolon as x)::K KSemicolon::t -> removeDuplicateSemicolons (x::newTokens) t
+    | (K KOpenCurly as x)::K KSemicolon::(K KClosedCurly as z)::t -> removeDuplicateSemicolons (z::x::newTokens) t
     | x::t -> removeDuplicateSemicolons (x::newTokens) t
   removeDuplicateSemicolons [] tokens
 
-// strings with special chars, whitespace, quote escape
-// negative number
-// decimals
-// comments
-// operators // well, are we doing this or having ".plus"?
 type State =
 | Empty // empty, in name, in symbol
 | InNumber of bool

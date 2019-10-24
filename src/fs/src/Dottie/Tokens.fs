@@ -23,6 +23,7 @@ type Token =
 | KComment of string
 | KError of string
 
+[<ReferenceEquality>]
 type PageToken = {
   row: int
   col: int
@@ -30,5 +31,4 @@ type PageToken = {
   value: Token
 }
 
-let (|K|) (pageToken : PageToken) =
-     pageToken.value
+let (|K|) pageToken = pageToken.value

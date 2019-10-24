@@ -1,9 +1,13 @@
 ﻿module Expressions
 
+open Tokens
+
+[<ReferenceEquality>]
 type ELit =
   | EStr of string
   | EInt of int
 
+[<ReferenceEquality>]
 type E =
   | ELit of ELit
   | EVal of string
