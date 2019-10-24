@@ -44,6 +44,7 @@ type ExpVal =
 type Exp =
   | ExpLit of ExpLit
   | ExpVal of ExpVal
+  | ExpBlock of ExpBlock
   | ExpLet of ExpLet
   | EEval of E * E
   | EFn of string * E * bool
@@ -54,15 +55,18 @@ type Exp =
   | EImport of string
   | EError of string
 
-and [<ReferenceEquality>] ExpLet =
+and [<ReferenceEquality>] ExpBlock =
   { openToken: PageToken option
-    letToken: PageToken 
+    expr: Exp
+    closeToken: PageToken option }
+
+and [<ReferenceEquality>] ExpLet =
+  { letToken: PageToken 
     name: string
     nameToken: PageToken
     equalsToken: PageToken
     expr: Exp
-    rest: Exp
-    closeToken: PageToken option }
+    rest: Exp }
 
 and [<ReferenceEquality>] ExpObjEntry =
   { key: string
