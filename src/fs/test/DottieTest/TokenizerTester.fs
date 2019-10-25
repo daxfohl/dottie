@@ -9,10 +9,10 @@ let assertEqual(expected: Token list, input: string) =
 
 [<Fact>]
 let ``Name``() =
-  assertEqual([KName "a"; KSemicolon], "a ")
-  assertEqual([KName "a"; KSemicolon], " a ")
-  assertEqual([KName "a"; KSemicolon], "a")
-  assertEqual([KName "a"; KSemicolon], " a")
+  assertEqual([KIdentifier "a"; KSemicolon], "a ")
+  assertEqual([KIdentifier "a"; KSemicolon], " a ")
+  assertEqual([KIdentifier "a"; KSemicolon], "a")
+  assertEqual([KIdentifier "a"; KSemicolon], " a")
   
 [<Fact>]
 let ``Symbol``() =
@@ -39,12 +39,12 @@ let ``NumberDot``() =
   
 [<Fact>]
 let ``Equation``() =
-  assertEqual([KName "a"; KNumber -3.13; KSemicolon], "a-3.13")
+  assertEqual([KIdentifier "a"; KNumber -3.13; KSemicolon], "a-3.13")
   
 [<Fact>]
 let ``Comment``() =
   assertEqual([KComment "//"], "//")
-  assertEqual([KName "a"; KSemicolon; KComment "//"], "a//")
+  assertEqual([KIdentifier "a"; KSemicolon; KComment "//"], "a//")
   
 [<Fact>]
 let ``Arrow``() =

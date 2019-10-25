@@ -1,29 +1,29 @@
 ﻿module Tokens
 
 type Token =
-| KLet
-| KImport
-| KDo
-| KWith
-| KProc
-| KFn
+| KNumber of float // x-
+| KString of string // x-
+| KIdentifier of string // x-
+| KImport // x-
+| KFn // x-
+| KProc // x-
+| KLet // x-
+| KDo // x-
+| KWith // x
+| KEquals // x
 | KLiteral
 | KModule
 | KForeign
-| KName of string
-| KEquals
-| KOpenParen
-| KCloseParen
-| KOpenBrace
-| KCloseBrace
-| KSemicolon
-| KDot
-| KColon
-| KArrow
-| KNumber of float
-| KString of string
-| KComment of string
-| KError of string
+| KOpenParen // x-
+| KCloseParen // x
+| KOpenBrace // x-
+| KCloseBrace // x
+| KDot // x +
+| KColon // x
+| KArrow // x
+| KSemicolon // x-
+| KComment of string // x-
+| KError of string // x-
 
 [<ReferenceEquality>]
 type PageToken = {
@@ -34,3 +34,10 @@ type PageToken = {
 }
 
 let (|K|) pageToken = pageToken.value
+
+let (|Ignorable|Active|) =
+  function
+  | K KSemicolon
+  | K (KComment _)
+  | K (KError _) -> Ignorable
+  | _ -> Active

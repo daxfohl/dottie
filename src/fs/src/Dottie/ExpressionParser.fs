@@ -45,8 +45,9 @@ type EImport =
 
 [<ReferenceEquality>]
 type EError =
-  { tail: PageToken option list
-    message: string }
+  { expected: Token list
+    found: PageToken list
+    location: string }
 
 [<ReferenceEquality>]
 type E =
@@ -77,23 +78,22 @@ and [<ReferenceEquality>] ELet =
     expr: E
     rest: E }
 
-and [<ReferenceEquality>] ExpObjEntry =
+and [<ReferenceEquality>] EObjField =
   { key: string
     keyToken: PageToken
     colonToken: PageToken
-    value: E
-    separator: PageToken option }
+    value: E }
     
 and [<ReferenceEquality>] EObj =
   { openToken: PageToken
-    values: PersistentHashMap<string, ExpObjEntry>
+    fields: EObjField list
     closeToken: PageToken }
     
 and [<ReferenceEquality>] EWith =
   { openToken: PageToken
     expr: E
     withToken: PageToken
-    values: PersistentHashMap<string, ExpObjEntry>
+    fields: EObjField list
     closeToken: PageToken }
 
 and [<ReferenceEquality>] EDo =
@@ -119,74 +119,67 @@ and [<ReferenceEquality>] EFn =
     isProc: bool }
 
 let rec parseExpression (tokens: PageToken list) : E * PageToken list =
-  let rec parseLetBlock (tokens: PageToken list) : E * PageToken list =
-    match tokens with
-    | (K KLet as klet)::(K(KName name) as kname)::(K KEquals as keq)::t ->
-      let expr, t = parseExpression t
-      let rest, t = parseLetBlock t
-      ELet { letToken = klet; name = name; nameToken = kname; equalsToken = keq; expr = expr; rest = rest }, t
-    | _ -> // the final expression of the block
-      let expr, t = parseExpression tokens
-      match t with
-      | K KCloseBrace::t -> wrap expr.exp expr.map t
-      | s::_ -> wrap (EError ^% sprintf "parseLetBlock expected '}' but got '%A'" s) PersistentHashMap.empty t
-      | [] -> wrap (EError "parseLetBlock expected '}' but got EOF") PersistentHashMap.empty t
-  let rec parseObjectFields (tokens: PageToken list) : PersistentHashMap<string, Exp> * PageToken list =
-    let wrap = wrap tokens
-    match tokens with
-    | K KCloseBrace::t -> PersistentHashMap.empty, t
-    | K(KName s)::K KColon::t ->
-      let expr, t = parseExpression t
-      let rest, t = parseObjectFields t
-      let eobj = rest.Add(s, expr)
-      wrap eobj 
-    | s::m::_ -> EError ^% sprintf "parseObjectFields expected name:, but got %s %s" s m
-    | [s] -> EError ^% sprintf "parseObjectFields expected name:, but got %s EOF" s
-    | [] -> EError ^% sprintf "parseObjectFields expected name:, but got EOF"
-  let rec parseContinuation (tokens: PageToken list) (expr: Exp) : Exp * PageToken list =
+  let parseObjectFields (tokens: PageToken list) : EObjField list * PageToken list =
+    let rec parseObjectFields (tokens: PageToken list) : EObjField list * PageToken list =
       match tokens with
-      | []
-      | K KSemicolon::t -> expr, t
-      | K KDot::t ->
-        match t with
-        | s::t when validIdentifier s -> parseContinuation t (EDot (expr, s))
-        | s::_ -> EError ^% sprintf "expected identifier after dot but got %s" s
-        | [] -> Choice2Of2 "got nothing after dot"
+        | Ignorable::t -> parseObjectFields t
+        | (K (KIdentifier k) as kt)::(K KColon as kc)::t ->
+            let expr, t = parseExpression t
+            let rest, t = parseObjectFields t
+            { key = k; keyToken = kt; colonToken = kc; value = expr }::rest, t
+        | _ -> List.empty, tokens
+    let fields, t = parseObjectFields tokens
+    List.rev fields, t
+  let rec parseContinuation (expr: E) (tokens: PageToken list) : E * PageToken list =
+    match tokens with
+      | [] -> expr, tokens
+      | K KSemicolon::t -> expr, tokens
+      | (K KDot as kd)::t ->
+          match t with
+            | (K (KIdentifier name) as kn)::t -> parseContinuation (EDot { expr = expr; dotToken = kd; name = name; nameToken = kn }) t
+            | _ -> 
       | s::_ when canStartExpression s ->
         let! e, t = parseExpression tokens
         return EEval(expr, e), t
       | h::_ -> EError ^% sprintf "parseContinuation got %s" h
   match tokens with
-  | s::t when validIdentifier s -> parseContinuation t (EVal s)
-  | "\""::s::"\""::t -> parseContinuation t (ELit(EStr s))
-  | s::t when let b, _ = Int32.TryParse s in b -> parseContinuation t (ELit(EInt(Int32.Parse s)))
-  | "import"::name::t -> parseContinuation t (EImport name)
-  | (K KOpenParen as kopen)::t ->
-    let subexpr, t = parseExpression t
-    match t with
-    | (K KCloseParen as kclose)::t -> EBlock { openToken = kopen; expr = subexpr; closeToken = kclose }, t
-    | x::t -> EError
-      match t with
-      | "}"::_
-      | _::":"::_ ->
-        let! expr, t = parseObjectFields t
-        parseContinuation t (EObj expr)
-      | _ ->
-        let! name, t = parseExpression t
+    | Ignorable::t -> parseExpression t
+    | (K (KString s) as ks)::t -> parseContinuation (EStr { str = s; token = ks }) t
+    | (K (KNumber n) as kn)::t -> parseContinuation (ENum { num = n; token = kn }) t
+    | (K (KIdentifier i) as ki)::t -> parseContinuation (EVal { name = i; token = ki }) t
+    | (K KImport as ki)::(K (KIdentifier id) as kid)::t -> parseContinuation (EImport { importToken = ki; moduleName = id; nameToken = kid }) t
+    | (K KFn as kf)::(K (KIdentifier name) as kn)::(K KArrow as ka)::t ->
+        let argExpr, t = parseExpression t
+        parseContinuation (EFn { fnToken = kf; name = name; nameToken = kn; arrowToken = ka; argExpr = argExpr; isProc = false }) t
+    | (K KProc as kp)::(K (KIdentifier name) as kn)::(K KArrow as ka)::t ->
+        let argExpr, t = parseExpression t
+        parseContinuation (EFn { fnToken = kp; name = name; nameToken = kn; arrowToken = ka; argExpr = argExpr; isProc = true }) t
+    | (K KLet as klet)::(K(KIdentifier name) as kname)::(K KEquals as keq)::t ->
+        let expr, t = parseExpression t
+        let rest, t = parseExpression t
+        parseContinuation (ELet { letToken = klet; name = name; nameToken = kname; equalsToken = keq; expr = expr; rest = rest }) t
+    | (K KDo as kdo)::t ->
+        let expr, t = parseExpression t
+        parseContinuation (EDo { doToken = kdo; expr = expr }) t
+    | (K KOpenParen as kopen)::t ->
+        let subexpr, t = parseExpression t
         match t with
-        | "with"::t ->
-          let! expr, t = parseObjectFields t
-          parseContinuation t (EWith(name, expr))
-        | h::_ -> EError ^% sprintf "Expected `with` but got %s" h
-        | _ -> Choice2Of2 "Expected `with` but got EOF"
-  | "do"::t ->
-    let expr, t = parseExpression t
-    return EDo expr, t
-  | "let"::_::"="::_ ->
-    let expr, t = parseLetBlock t
-    parseContinuation t expr
-  | x::name::"->"::t when x = "fn" || x = "proc" ->
-    let! expr, t = parseExpression t
-    return EFn(name, expr, x = "proc"), t
-  | h::_ -> EError ^% sprintf "parseExpression got %s" h
-  | [] -> Choice2Of2 "parseExpression got empty list"
+          | (K KCloseParen as kclose)::t -> parseContinuation (EBlock { openToken = kopen; expr = subexpr; closeToken = kclose }) t
+          | _ -> EError { location = "after expression in paren block"; expected = [KCloseParen]; found = t |> List.takeMax 1 }, t
+    | (K KOpenBrace as kopen)::t ->
+        match t with
+          | K KCloseBrace::_
+          | K (KIdentifier _)::K KColon::_ ->
+              let fields, t = parseObjectFields t
+              match t with
+                | (K KCloseBrace as kclose)::t -> parseContinuation (EObj { openToken = kopen; fields = fields; closeToken = kclose }) t
+                | _ -> EError { location = "after last field in object block"; expected = [KCloseBrace]; found = t |> List.takeMax 1 }, t
+          | _ ->
+              let expr, t = parseExpression t
+              match t with
+                | (K KWith as kw)::t ->
+                    let fields, t = parseObjectFields t
+                    match t with
+                      | (K KCloseBrace as kclose)::t -> parseContinuation (EWith { openToken = kopen; expr = expr; withToken = kw; fields = fields; closeToken = kclose }) t
+                      | _ -> EError { location = "after last field in objWith block"; expected = [KCloseBrace]; found = t |> List.takeMax 1 }, t
+    | _ -> EError { location = "top level expression"; expected = []; found = tokens |> List.takeMax 1 }, tokens

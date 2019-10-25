@@ -50,7 +50,7 @@ let createToken(currentToken: char seq, state: State, lineNumber: int, charNumbe
       | "proc" -> KProc
       | "fn" -> KFn
       | "literal" -> KLiteral
-      | _ -> KName tokenStr
+      | _ -> KIdentifier tokenStr
     | InSymbol ->
       match tokenStr with
       | "=" -> KEquals
@@ -90,7 +90,7 @@ let addFinalSemicolon (tokens: Stack<PageToken>) =
   if tokens.Count <> 0 then
     let lastToken = tokens.Peek()
     match lastToken.value with
-    | KName _
+    | KIdentifier _
     | KCloseBrace
     | KNumber _
     | KString _ -> tokens.Push({ row = lastToken.row; len = 0; col = lastToken.col + lastToken.len; value = KSemicolon })
