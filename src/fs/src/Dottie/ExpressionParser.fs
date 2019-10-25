@@ -45,7 +45,7 @@ type EImport =
 
 [<ReferenceEquality>]
 type EError =
-  { tail: PageToken list
+  { tail: PageToken option list
     message: string }
 
 [<ReferenceEquality>]

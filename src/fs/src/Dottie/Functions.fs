@@ -5,13 +5,13 @@ let inline (^%) f = f
 
 module List =
   let takeOpt n xs =
-    let zip = seq{1..n} |> Seq.toList |> List.fold(fun (output, xs) _ -> let nextoutput, nextxs = match xs with | [] -> None, xs | h::t -> Some h, t in nextoutput::output, nextxs) ([], xs) |> List.map(fun (output, _) -> output) |> List.rev
-    let mutable xs = xs
-    seq {
-      for i = 1 to n do
-        match xs with
-        | h::t ->
-          yield Some h
-          xs <- t
-        | [] -> yield None } |> List.ofSeq
-    zip
+    let rec takeOpt output n xs =
+      match n with
+      | 0 -> output
+      | _ ->
+        let xs, output =
+          match xs with
+          | [] -> xs, None::output
+          | h::t -> t, (Some h)::output
+        takeOpt output (n-1) xs
+    takeOpt [] n xs |> List.rev
