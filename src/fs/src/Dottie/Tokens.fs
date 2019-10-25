@@ -12,8 +12,10 @@ type Token =
 | KForeign
 | KName of string
 | KEquals
-| KOpenCurly
-| KClosedCurly
+| KOpenParen
+| KCloseParen
+| KOpenBrace
+| KCloseBrace
 | KSemicolon
 | KDot
 | KColon

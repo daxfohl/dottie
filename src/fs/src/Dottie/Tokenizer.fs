@@ -13,7 +13,7 @@ let insertSemicolon (tokens: PageToken list): PageToken list =
     | x::t ->
       let fakeSemi = { row = x.row; len = 0; col = x.col + x.len; value = KSemicolon }
       match x.value with
-      | KClosedCurly -> insertSemicolon (x::fakeSemi::newTokens) t // For consistency finding end of expr in { a: 1; b: 2 }, it is  { a: 1; b: 2; }
+      | KCloseBrace -> insertSemicolon (x::fakeSemi::newTokens) t // For consistency finding end of expr in { a: 1; b: 2 }, it is  { a: 1; b: 2; }
       | KWith -> insertSemicolon (x::fakeSemi::newTokens) t // To find end of expr in { <expr> with ... }, it's { <expr>; with ... }
       | _ -> insertSemicolon (x::newTokens) t
   insertSemicolon [] tokens
@@ -23,7 +23,7 @@ let removeDuplicateSemicolons (tokens: PageToken list) =
     function
     | [] -> List.rev newTokens
     | (K KSemicolon as x)::K KSemicolon::t -> removeDuplicateSemicolons (x::newTokens) t
-    | (K KOpenCurly as x)::K KSemicolon::(K KClosedCurly as z)::t -> removeDuplicateSemicolons (z::x::newTokens) t
+    | (K KOpenBrace as x)::K KSemicolon::(K KCloseBrace as z)::t -> removeDuplicateSemicolons (z::x::newTokens) t
     | x::t -> removeDuplicateSemicolons (x::newTokens) t
   removeDuplicateSemicolons [] tokens
 
@@ -54,8 +54,8 @@ let createToken(currentToken: char seq, state: State, lineNumber: int, charNumbe
     | InSymbol ->
       match tokenStr with
       | "=" -> KEquals
-      | "{" -> KOpenCurly
-      | "}" -> KClosedCurly
+      | "{" -> KOpenBrace
+      | "}" -> KCloseBrace
       | ";"
       | "," -> KSemicolon
       | "." -> KDot
@@ -91,7 +91,7 @@ let addFinalSemicolon (tokens: Stack<PageToken>) =
     let lastToken = tokens.Peek()
     match lastToken.value with
     | KName _
-    | KClosedCurly
+    | KCloseBrace
     | KNumber _
     | KString _ -> tokens.Push({ row = lastToken.row; len = 0; col = lastToken.col + lastToken.len; value = KSemicolon })
     | _ -> ()

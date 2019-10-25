@@ -49,16 +49,16 @@ let ``Comment``() =
 [<Fact>]
 let ``Arrow``() =
   assertEqual([KArrow], "->")
-  assertEqual([KOpenCurly; KArrow; KOpenCurly], "{->{")
+  assertEqual([KOpenBrace; KArrow; KOpenBrace], "{->{")
 
 [<Fact>]
 let ``Braces``() =
-  assertEqual([KOpenCurly; KClosedCurly; KSemicolon], "{}")
+  assertEqual([KOpenBrace; KCloseBrace; KSemicolon], "{}")
   
   
 [<Fact>]
 let ``Multiline``() =
-  assertEqual([KOpenCurly; KClosedCurly; KSemicolon], """
+  assertEqual([KOpenBrace; KCloseBrace; KSemicolon], """
 {
 
 }""")
