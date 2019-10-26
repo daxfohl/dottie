@@ -19,16 +19,21 @@ let rec parseExpression (tokens: PageToken list) : E * PageToken list =
     match tokens with
       | [] -> expr, tokens
       | K KSemicolon::t -> expr, tokens
+      | K (KComment _)::t -> parseContinuation expr t
       | (K KDot as kd)::t ->
           let t = skipIgnorable t
           match t with
             | (K (KIdentifier name) as kn)::t -> parseContinuation (EDot { expr = expr; dotToken = kd; name = name; nameToken = kn }) t
             | _ -> EError { message = "expected identifier after dot"; found = List.takeMax 1 tokens }, t
       | _ ->
-          let argExpr, t = parseExpression tokens
-          match argExpr with
-          | EError _ -> expr, tokens
-          | _ -> parseContinuation (EEval { fnExpr = expr; argExpr = argExpr })  t
+          match expr with
+          | EStr _
+          | ENum _ -> expr, tokens
+          | _ ->
+              let argExpr, t = parseExpression tokens
+              match argExpr with
+              | EError _ -> expr, tokens
+              | _ -> parseContinuation (EEval { fnExpr = expr; argExpr = argExpr })  t
   match tokens with
     | Ignorable::t -> parseExpression t
     | (K (KString s) as ks)::t -> parseContinuation (EStr { str = s; token = ks }) t
