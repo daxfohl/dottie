@@ -35,9 +35,11 @@ type PageToken = {
 
 let (|K|) pageToken = pageToken.value
 
-let (|Ignorable|Active|) =
+let isIgnorable =
   function
   | K KSemicolon
   | K (KComment _)
-  | K (KError _) -> Ignorable
-  | _ -> Active
+  | K (KError _) -> true
+  | _ -> false
+
+let (|Ignorable|Active|) token = if isIgnorable token then Ignorable else Active

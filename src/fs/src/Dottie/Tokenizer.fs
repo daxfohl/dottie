@@ -54,6 +54,8 @@ let createToken(currentToken: char seq, state: State, lineNumber: int, charNumbe
     | InSymbol ->
       match tokenStr with
       | "=" -> KEquals
+      | "(" -> KOpenParen
+      | ")" -> KCloseParen
       | "{" -> KOpenBrace
       | "}" -> KCloseBrace
       | ";"
