@@ -3,15 +3,35 @@
 open Expressions
 open FSharpx.Collections
 
-type SLit = SStr | SInt
+type SFree =
+  { expr: E }
 
 type S =
-| SLit of SLit
-| SFree of E
-| SFn of S * S * bool
-| SObj of Map<string, S>
-| SFreeObj of E * Map<string, S>
-| SFreeFn of E * PersistentHashMap<S, unit> * S * bool
+| SStr
+| SNum
+| SFree of SFree
+| SFn of SFn
+| SObj of SObj
+| SFreeObj of SFreeObj
+| SFreeFn of SFreeFn
+
+and SFn =
+  { argsType: S
+    resultType: S 
+    isProc: bool }
+
+and SObj =
+  { fields: Map<string, S> }
+
+and SFreeObj =
+  { expr: E
+    fields: Map<string, S> }
+    
+and SFreeFn =
+  { expr: E
+    args: Map<string, S>
+    resultType: S
+    isProc: bool }
 
 type Specs = PersistentHashMap<E, S>
 
