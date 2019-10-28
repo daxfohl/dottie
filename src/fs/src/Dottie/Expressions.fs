@@ -1,6 +1,7 @@
 ﻿module Expressions
 
 open System
+open PExpressions
 
 type EStr =
   { str: string }
@@ -66,3 +67,7 @@ and EFn =
   { identifier: EVal
     expr: E
     isProc: bool }
+    
+type Expression =
+  { paged: PE
+    expr: E }

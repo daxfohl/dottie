@@ -1,10 +1,6 @@
 ﻿module Types
 
 open Expressions
-open FSharpx.Collections
-
-type SFree =
-  { expr: E }
 
 type EError =
   { message: string }
@@ -12,20 +8,22 @@ type EError =
 type S =
 | SStr
 | SNum
-| SFree of SFree
+| SFree
 | SFn of SFn
 | SObj of SObj
 | EError of EError
 
 and SFn =
-  { input: S
-    output: S 
-    isProc: bool
-    binding: E }
+  { input: Spec
+    output: Spec
+    isProc: bool }
 
 and SObj =
-  { fields: Map<string, S>
-    binding: E  }
+  { fields: Map<string, Spec> }
+
+and Spec =
+  { spec: S
+    expr: E }
 
 type Specs = Map<E, S>
 

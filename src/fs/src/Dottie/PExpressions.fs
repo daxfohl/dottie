@@ -1,7 +1,6 @@
 ﻿module PExpressions
 
 open Tokens
-open Expressions
 
 type PEStr =
   { str: string
@@ -91,7 +90,3 @@ and PEFn =
     arrowToken: PageToken
     expr: PE
     isProc: bool }
-
-type Expression =
-  { paged: PE
-    expr: E }

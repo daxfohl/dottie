@@ -23,44 +23,47 @@ module UnifyErrors =
   let objectFieldsDiffer(spec1: Set<string>, spec2: Set<string>) = sprintf "Object fields differ {spec1=%A; spec2=%A}" spec1 spec2
 
 
-let rec unify (spec1: S) (spec2: S): Choice<(E * S) list, string> =
-  let err = Choice2Of2(UnifyErrors.cannotUnify(spec1, spec2))
+let rec unify (spec1: Spec) (spec2: Spec): Choice<Spec list, string> =
+  let err = Choice2Of2(UnifyErrors.cannotUnify(spec1.spec, spec2.spec))
   choose {
-    match spec1, spec2 with
-      | x, y when x = y -> return []
-      | SFree s1, _ -> return [s1.expr, spec2]
-      | _, SFree s2 -> return [s2.expr, spec1]
-      | SNum, _ -> return! err
-      | SStr, _ -> return! err
-      | SFn s1, SFn s2 when s1.isProc = s2.isProc ->
-          let! inputDeltas = unify s2.input s1.input
-          let! outputDeltas = unify s1.output s2.output
-          return (s1.binding, spec2)::(s2.binding, spec1)::(List.append inputDeltas outputDeltas)
-      | SFn _, _ -> return! err
-      | SObj s1, SObj s2 ->
-          if not ^% Set.isSubset (keys s1.fields) (keys s2.fields) then return! Choice2Of2(UnifyErrors.objectFieldsDiffer(keys s1.fields, keys s2.fields))
-          else
-            let unifyFields name =
-              let spec1 = Map.find name s1.fields
-              let spec2 = Map.find name s2.fields
-              unify spec1 spec2
-            let! x = s1.fields |> Map.toList |> List.map fst |> tryMap unifyFields
-            return (s1.binding, spec2)::(s2.binding, spec1)::(List.concat x)
-        | _ -> return! err }
+    let! deltas =
+      choose {
+        match spec1.spec, spec2.spec with
+          | x, y when x = y -> return []
+          | SFree, _ -> return []
+          | _, SFree -> return []
+          | SNum, _ -> return! err
+          | SStr, _ -> return! err
+          | SFn s1, SFn s2 when s1.isProc = s2.isProc ->
+              let! inputDeltas = unify s2.input s1.input
+              let! outputDeltas = unify s1.output s2.output
+              return List.append inputDeltas outputDeltas
+          | SFn _, _ -> return! err
+          | SObj s1, SObj s2 ->
+              if not ^% Set.isSubset (keys s1.fields) (keys s2.fields) then return! Choice2Of2(UnifyErrors.objectFieldsDiffer(keys s1.fields, keys s2.fields))
+              else
+                let unifyFields name =
+                  let spec1 = Map.find name s1.fields
+                  let spec2 = Map.find name s2.fields
+                  unify spec1 spec2
+                let! x = s1.fields |> Map.toList |> List.map fst |> tryMap unifyFields
+                return List.concat x
+            | _ -> return! err }
+    return { expr = spec1.expr; spec = spec2.spec }::{ expr = spec2.expr; spec = spec1.spec }::deltas }
 
-let rec replace (expr: E) (replacement: S) (existing: S) =
+let rec replace (expr: E) (replacement: S) (existing: S): S =
   match existing with
-  | SFree expr1 when expr = expr1 -> replacement
-  | SFreeObj(expr1, _) when expr = expr1 -> replacement
-  | SFreeFn(expr1, _, _, _) when expr = expr1 -> replacement
-  | SObj fields -> SObj(Map.map (fun _ -> replace expr replacement) fields)
-  | SFreeObj(expr1, fields) -> SFreeObj(expr1, Map.map (fun _ -> replace expr replacement) fields)
-  | SFreeFn(expr1, inputs, result1, eff) ->
-    let newInputs = Set.map (replace expr replacement) inputs
-    let x = SFreeFn(expr1, newInputs, replace expr replacement result1, eff)
-    x
-  | SFn(input, output, eff) -> SFn(replace expr replacement input, replace expr replacement output, eff)
-  | _ -> existing
+    | SFree when expr = s.expr -> replacement
+    | SFreeObj(expr1, _) when expr = expr1 -> replacement
+    | SFreeFn(expr1, _, _, _) when expr = expr1 -> replacement
+    | SObj fields -> SObj(Map.map (fun _ -> replace expr replacement) fields)
+    | SFreeObj(expr1, fields) -> SFreeObj(expr1, Map.map (fun _ -> replace expr replacement) fields)
+    | SFreeFn(expr1, inputs, result1, eff) ->
+      let newInputs = Set.map (replace expr replacement) inputs
+      let x = SFreeFn(expr1, newInputs, replace expr replacement result1, eff)
+      x
+    | SFn(input, output, eff) -> SFn(replace expr replacement input, replace expr replacement output, eff)
+    | _ -> existing
 
 let replaceInMap (expr: E, replacement: S) =
   Map.map (fun dummyKey spec -> replace expr replacement spec)
@@ -113,11 +116,8 @@ let getType (expr: E) (specs: Specs) (moduleTypeMap: Map<string, S>) (context: C
   let rec getType (expr: E) (specs: Specs) (context: Context): Choice<S*Specs, string> =
     choose {
       match expr with
-      | ELit x ->
-        let spec =
-          match x with 
-          | EStr _ -> SStr
-          | EInt _ -> SInt
+      | EStr _ -> SStr
+      | EInt _ -> SInt
         return SLit spec, specs
       | EVal s ->
         match Map.tryFind expr specs with
