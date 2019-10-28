@@ -15,27 +15,17 @@ type S =
 | SFree of SFree
 | SFn of SFn
 | SObj of SObj
-| SFreeObj of SFreeObj
-| SFreeFn of SFreeFn
 | EError of EError
 
 and SFn =
   { input: S
     output: S 
-    isProc: bool }
+    isProc: bool
+    binding: E }
 
 and SObj =
-  { fields: Map<string, S> }
-
-and SFreeObj =
-  { expr: E
-    fields: Map<string, S> }
-    
-and SFreeFn =
-  { expr: E
-    input: S //args: Map<string, S>
-    output: S
-    isProc: bool }
+  { fields: Map<string, S>
+    binding: E  }
 
 type Specs = Map<E, S>
 

@@ -35,44 +35,17 @@ let rec unify (spec1: S) (spec2: S): Choice<(E * S) list, string> =
       | SFn s1, SFn s2 when s1.isProc = s2.isProc ->
           let! inputDeltas = unify s2.input s1.input
           let! outputDeltas = unify s1.output s2.output
-          return List.append inputDeltas outputDeltas
-      | SFn s1, SFreeFn s2 when s1.isProc = s2.isProc ->
-          let! inputDeltas = unify s2.input s1.input
-          let! outputDeltas = unify s1.output s2.output
-          return (s2.expr, spec1)::(List.append inputDeltas outputDeltas)
+          return (s1.binding, spec2)::(s2.binding, spec1)::(List.append inputDeltas outputDeltas)
       | SFn _, _ -> return! err
-      | SObj s1, SObj s2 -> 
-          if keys s1.fields <> keys s2.fields then return! Choice2Of2(UnifyErrors.objectFieldsDiffer(keys s1.fields, keys s2.fields))
+      | SObj s1, SObj s2 ->
+          if not ^% Set.isSubset (keys s1.fields) (keys s2.fields) then return! Choice2Of2(UnifyErrors.objectFieldsDiffer(keys s1.fields, keys s2.fields))
           else
             let unifyFields name =
               let spec1 = Map.find name s1.fields
               let spec2 = Map.find name s2.fields
               unify spec1 spec2
-            let! x = tryMap unifyFields (s1.fields |> Map.toList |> List.map fst)
-            return List.concat x
-        | _ -> return! err
-      | SFreeObj(expr2, fieldsMap2) ->
-        match spec1 with
-        | SFreeObj(expr1, fieldsMap1) ->
-          let unifyFields name =
-            let spec1 = Map.find name fieldsMap1
-            let spec2 = Map.find name fieldsMap2
-            unify spec1 spec2
-          let! x = tryMap unifyFields (Set.intersect (keys fieldsMap1) (keys fieldsMap2) |> Set.toList)
-          let changes = List.concat x
-          let merged = Map.fold (fun state k v -> Map.add k v state) fieldsMap1 fieldsMap2
-          return (expr2, SFreeObj(expr2, merged))::(expr1, SFreeObj(expr1, merged))::changes
-        | _ -> return! err
-      | SFreeFn(expr2, inputs2, output2, eff2) ->
-        match spec1 with
-        | SFreeFn(expr1, inputs1, output1, eff1) when eff1 = eff2 ->
-          let inputs = Set.union inputs1 inputs2
-          let! outputDeltas = unify output2 output1
-          return (expr2, SFreeFn(expr2, inputs, output2, eff2))::(expr1, SFreeFn(expr1, inputs, output1, eff1))::outputDeltas
-        | SFn(input, output1, eff1) when eff1 = eff2 ->
-          //todo error if input > inputs.  ooh, depends. error if Objects can't fulfill, but for FreeObjectshave to propagate update :(
-          let! outputDeltas = unify output1 output2
-          return (expr2, spec1)::outputDeltas
+            let! x = s1.fields |> Map.toList |> List.map fst |> tryMap unifyFields
+            return (s1.binding, spec2)::(s2.binding, spec1)::(List.concat x)
         | _ -> return! err }
 
 let rec replace (expr: E) (replacement: S) (existing: S) =
