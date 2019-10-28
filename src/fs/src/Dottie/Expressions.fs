@@ -1,34 +1,22 @@
 ﻿module Expressions
 
-open Tokens
+open System
 
-[<ReferenceEquality>]
 type EStr =
-  { str: string
-    token: PageToken }
+  { str: string }
 
-[<ReferenceEquality>]
 type ENum =
-  { num: float
-    token: PageToken }
+  { num: float }
 
-[<ReferenceEquality>]
 type EVal =
-  { name: string
-    token: PageToken }
+  { id: Guid }
 
-[<ReferenceEquality>]
 type EImport =
-  { importToken: PageToken
-    moduleName: string
-    nameToken: PageToken }
+  { moduleName: string }
 
-[<ReferenceEquality>]
 type EError =
-  { message: string
-    found: PageToken list }
+  { message: string }
 
-[<ReferenceEquality>]
 type E =
   | EStr of EStr
   | ENum of ENum
@@ -44,55 +32,37 @@ type E =
   | EImport of EImport
   | EError of EError
 
-and [<ReferenceEquality>] EBlock =
-  { openToken: PageToken
-    expr: E
-    closeToken: PageToken }
+and EBlock =
+  { expr: E }
 
-and [<ReferenceEquality>] ELet =
-  { letToken: PageToken 
-    name: string
-    nameToken: PageToken
-    equalsToken: PageToken
+and ELet =
+  { identifier: EVal
     expr: E
     rest: E }
 
-and [<ReferenceEquality>] EObjField =
+and EObjField =
   { key: string
-    keyToken: PageToken
-    colonToken: PageToken
     value: E }
     
-and [<ReferenceEquality>] EObj =
-  { openToken: PageToken
-    fields: EObjField list
-    closeToken: PageToken }
+and EObj =
+  { fields: EObjField list }
     
-and [<ReferenceEquality>] EWith =
-  { openToken: PageToken
-    expr: E
-    withToken: PageToken
-    fields: EObjField list
-    closeToken: PageToken }
-
-and [<ReferenceEquality>] EDo =
-  { doToken: PageToken
-    expr: E }
-
-and [<ReferenceEquality>] EDot =
+and EWith =
   { expr: E
-    dotToken: PageToken
-    name: string
-    nameToken: PageToken }
+    fields: EObjField list }
 
-and [<ReferenceEquality>] EEval =
+and EDo =
+  { expr: E }
+
+and EDot =
+  { expr: E
+    name: string }
+
+and EEval =
   { fnExpr: E
     argExpr: E }
 
-and [<ReferenceEquality>] EFn =
-  { fnToken: PageToken
-    name: string
-    nameToken: PageToken
-    arrowToken: PageToken
-    argExpr: E
+and EFn =
+  { identifier: EVal
+    epxr: E
     isProc: bool }

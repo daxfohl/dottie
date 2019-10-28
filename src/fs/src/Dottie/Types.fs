@@ -6,6 +6,9 @@ open FSharpx.Collections
 type SFree =
   { expr: E }
 
+type EError =
+  { message: string }
+
 type S =
 | SStr
 | SNum
@@ -14,10 +17,11 @@ type S =
 | SObj of SObj
 | SFreeObj of SFreeObj
 | SFreeFn of SFreeFn
+| EError of EError
 
 and SFn =
-  { argsType: S
-    resultType: S 
+  { input: S
+    output: S 
     isProc: bool }
 
 and SObj =
@@ -30,7 +34,7 @@ and SFreeObj =
 and SFreeFn =
   { expr: E
     args: Map<string, S>
-    resultType: S
+    output: S
     isProc: bool }
 
 type Specs = PersistentHashMap<E, S>
