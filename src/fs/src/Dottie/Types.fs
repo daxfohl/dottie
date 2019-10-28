@@ -33,11 +33,11 @@ and SFreeObj =
     
 and SFreeFn =
   { expr: E
-    args: Map<string, S>
+    input: S //args: Map<string, S>
     output: S
     isProc: bool }
 
-type Specs = PersistentHashMap<E, S>
+type Specs = Map<E, S>
 
 type MType =
 | Module of E
