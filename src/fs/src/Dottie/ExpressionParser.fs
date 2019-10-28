@@ -94,7 +94,10 @@ let uniquify (e: PE): Expression =
           match Map.tryFind e.name map with
             | Some id -> EVal { id = id }
             | None -> EError { message =  sprintf "identifier %s does not exist." e.name}
-      | PELet e -> sprintf "(let [%s %s] %s)" e.name (lsp e.expr) (lsp e.rest)
+      | PELet e ->
+          let id = Guid.NewGuid()
+          let map = Map.add e.name id map
+          ELet { identifier = { id = id }; expr = (uniquify map e.expr).expr; rest = (uniquify map e.rest).expr }
       | PEFn e -> sprintf "(%s [%s] %s)" (if e.isProc then "proc" else "fn") e.name ^% lsp e.argExpr
       | PEObj e -> sprintf "{ %s }" (String.concat ", " (e.fields |> List.map (fun field -> sprintf ":%s %s" field.key ^% lsp field.value)))
       | PEWith e ->  sprintf "(with %s %s)" (lsp e.expr) (String.concat ", " (e.fields |> List.map (fun field -> sprintf ":%s %s" field.key ^% lsp field.value)))
