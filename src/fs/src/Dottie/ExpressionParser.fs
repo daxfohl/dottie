@@ -6,9 +6,8 @@ open PExpressions
 open Expressions
 open Tokens
 
-let skipIgnorable = List.skipWhile isIgnorable
-
 let rec parseExpression (tokens: PageToken list) : PE * PageToken list =
+  let skipIgnorable = List.skipWhile isIgnorable
   let rec parseObjectFields (tokens: PageToken list) : PEObjField list * PageToken list =
     match tokens with
       | Ignorable::t -> parseObjectFields t
@@ -44,10 +43,10 @@ let rec parseExpression (tokens: PageToken list) : PE * PageToken list =
     | (K KImport as ki)::(K (KIdentifier id) as kid)::t -> parseContinuation (PEImport { importToken = ki; moduleName = id; nameToken = kid }) t
     | (K KFn as kf)::(K (KIdentifier name) as kn)::(K KArrow as ka)::t ->
         let argExpr, t = parseExpression t
-        parseContinuation (PEFn { fnToken = kf; name = name; nameToken = kn; arrowToken = ka; argExpr = argExpr; isProc = false }) t
+        parseContinuation (PEFn { fnToken = kf; name = name; nameToken = kn; arrowToken = ka; expr = argExpr; isProc = false }) t
     | (K KProc as kp)::(K (KIdentifier name) as kn)::(K KArrow as ka)::t ->
         let argExpr, t = parseExpression t
-        parseContinuation (PEFn { fnToken = kp; name = name; nameToken = kn; arrowToken = ka; argExpr = argExpr; isProc = true }) t
+        parseContinuation (PEFn { fnToken = kp; name = name; nameToken = kn; arrowToken = ka; expr = argExpr; isProc = true }) t
     | (K KLet as klet)::(K(KIdentifier name) as kname)::(K KEquals as keq)::t ->
         let expr, t = parseExpression t
         let rest, t = parseExpression t
@@ -86,27 +85,34 @@ let rec parseExpression (tokens: PageToken list) : PE * PageToken list =
 
 let uniquify (e: PE): Expression =
   let rec uniquify (map: Map<string, Guid>) (e: PE): Expression =
-    let continue = uniquify map
-    let expr = match e with
-      | PEStr e -> EStr { str = e.str }
-      | PENum e -> ENum { num = e.num }
-      | PEVal e ->
-          match Map.tryFind e.name map with
-            | Some id -> EVal { id = id }
-            | None -> EError { message =  sprintf "identifier %s does not exist." e.name}
-      | PELet e ->
-          let id = Guid.NewGuid()
-          let map = Map.add e.name id map
-          ELet { identifier = { id = id }; expr = (uniquify map e.expr).expr; rest = (uniquify map e.rest).expr }
-      | PEFn e -> sprintf "(%s [%s] %s)" (if e.isProc then "proc" else "fn") e.name ^% lsp e.argExpr
-      | PEObj e -> sprintf "{ %s }" (String.concat ", " (e.fields |> List.map (fun field -> sprintf ":%s %s" field.key ^% lsp field.value)))
-      | PEWith e ->  sprintf "(with %s %s)" (lsp e.expr) (String.concat ", " (e.fields |> List.map (fun field -> sprintf ":%s %s" field.key ^% lsp field.value)))
-      | PEDot e -> sprintf "(:%s %s)" e.name ^% lsp e.expr
-      | PEEval e -> sprintf "(%s %s)" (lsp e.fnExpr) ^% lsp e.argExpr
-      | PEDo e -> sprintf "(do %s)" ^% lsp e.expr
-      | PEImport e -> sprintf "(import %s)" e.moduleName
-      | PEBlock e -> lsp e.expr
-      | PEError e -> sprintf "(err \"%s\")" (Regex.Unescape ^% sprintf "%s, found %A" e.message e.found)
+    let newuniq map e = (uniquify map e).expr
+    let uniq = newuniq map
+    let mapFields =  List.map ^% fun (pe: PEObjField) -> { key = pe.key; value = uniq pe.value }
+    let fresh name =
+        let id = Guid.NewGuid()
+        id, Map.add name id map
+    let expr =
+      match e with
+        | PEStr e -> EStr { str = e.str }
+        | PENum e -> ENum { num = e.num }
+        | PEVal e ->
+            match Map.tryFind e.name map with
+              | Some id -> EVal { id = id }
+              | None -> EError { message =  sprintf "identifier %s does not exist." e.name}
+        | PELet e ->
+            let id, map = fresh e.name
+            ELet { identifier = { id = id }; expr = newuniq map e.expr; rest = newuniq map e.rest }
+        | PEFn e ->
+            let id, map = fresh e.name
+            EFn { identifier = { id = id }; expr = (uniquify map e.expr).expr; isProc = e.isProc }
+        | PEObj e -> EObj { fields = mapFields e.fields }
+        | PEWith e -> EWith { expr = uniq e.expr; fields = mapFields e.fields }
+        | PEDot e -> EDot { expr = uniq e.expr; name = e.name }
+        | PEEval e -> EEval { fnExpr = uniq e.fnExpr; argExpr = uniq e.argExpr }
+        | PEDo e -> EDo { expr = uniq e.expr }
+        | PEImport e -> EImport { moduleName = e.moduleName }
+        | PEBlock e -> EBlock { expr = uniq e.expr }
+        | PEError e -> EError { message = e.message }
     { paged = e
-      epxr = expr }
+      expr = expr }
   uniquify Map.empty e

@@ -12,7 +12,7 @@ let rec lsp (e: PE): string =
     | PENum e -> e.num.ToString()
     | PEVal e -> e.name
     | PELet e -> sprintf "(let [%s %s] %s)" e.name (lsp e.expr) (lsp e.rest)
-    | PEFn e -> sprintf "(%s [%s] %s)" (if e.isProc then "proc" else "fn") e.name ^% lsp e.argExpr
+    | PEFn e -> sprintf "(%s [%s] %s)" (if e.isProc then "proc" else "fn") e.name ^% lsp e.expr
     | PEObj e -> sprintf "{ %s }" (String.concat ", " (e.fields |> List.map (fun field -> sprintf ":%s %s" field.key ^% lsp field.value)))
     | PEWith e ->  sprintf "(with %s %s)" (lsp e.expr) (String.concat ", " (e.fields |> List.map (fun field -> sprintf ":%s %s" field.key ^% lsp field.value)))
     | PEDot e -> sprintf "(:%s %s)" e.name ^% lsp e.expr

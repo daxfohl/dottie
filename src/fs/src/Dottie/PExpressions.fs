@@ -89,7 +89,7 @@ and PEFn =
     name: string
     nameToken: PageToken
     arrowToken: PageToken
-    argExpr: PE
+    expr: PE
     isProc: bool }
 
 type Expression =

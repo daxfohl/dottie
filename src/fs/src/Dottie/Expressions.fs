@@ -64,5 +64,5 @@ and EEval =
 
 and EFn =
   { identifier: EVal
-    epxr: E
+    expr: E
     isProc: bool }
