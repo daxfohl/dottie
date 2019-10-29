@@ -1,13 +1,17 @@
 ﻿module Types
 
+open System
 open Expressions
 
 type EError =
   { message: string }
 
+type SLit =
+  | SStr
+  | SNum
+
 type S =
-| SStr
-| SNum
+| SLit of SLit
 | SFree
 | SFn of SFn
 | SObj of SObj
@@ -25,7 +29,7 @@ and Spec =
   { spec: S
     expr: E }
 
-type Specs = Map<E, S>
+type Specs = Map<Guid, S>
 
 type MType =
 | Module of E
