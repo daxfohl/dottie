@@ -6,53 +6,6 @@ open Types
 open FSharpx.Choice
 
 
-let rec getExpressions (expr: E): (E*Guid) list =
-  seq {
-    match expr with
-      | EStr e -> yield expr, new Guid("10000000-0000-0000-0000-000000000000")
-      | ENum e -> yield expr, new Guid("20000000-0000-0000-0000-000000000000")
-      | EVal e -> yield expr, Guid.NewGuid()
-      | ELet e ->
-          let value = getExpressions e.expr
-          yield! value
-          let _, valueId = value.Head
-          yield EVal e.identifier, valueId
-          let rest = getExpressions e.rest
-          yield! rest
-          let _, restId = rest.Head
-          yield expr, restId
-      | EFn e -> 
-          yield EVal e.identifier, Guid.NewGuid()
-          yield! getExpressions e.expr
-          yield expr, Guid.NewGuid()
-      | EObj e ->
-          for field in e.fields do
-            yield! getExpressions field.value
-          yield expr, Guid.NewGuid()
-      | EWith e ->
-          for field in e.fields do
-            yield! getExpressions field.value
-          let orig = getExpressions e.expr
-          yield! orig
-          let _, origId = orig.Head
-          yield expr, origId
-      | EDot e ->
-          yield! getExpressions e.expr
-          yield expr, Guid.NewGuid()
-      | EEval e ->
-          yield! getExpressions e.argExpr
-          yield! getExpressions e.fnExpr
-          yield expr, Guid.NewGuid()
-      | EDo e ->
-          yield! getExpressions e.expr
-          yield expr, Guid.NewGuid()
-      | EImport e ->
-          yield expr, Guid.NewGuid()
-      | EBlock e ->
-          yield! getExpressions e.expr
-          yield expr, Guid.NewGuid()
-      | EError e ->
-          yield expr, Guid.NewGuid() } |> Seq.toList
 
 //module UnifyErrors =
 //  let cannotUnify(spec1: S, spec2: S) = sprintf "Cannot unify %A with %A" spec1 spec2

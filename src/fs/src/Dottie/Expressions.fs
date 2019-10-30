@@ -10,7 +10,8 @@ type ENum =
   { num: float }
 
 type EVal =
-  { id: Guid }
+  { id: Guid
+    name: string }
 
 type EImport =
   { moduleName: string }

@@ -1,25 +1,25 @@
 ﻿module ``Expression parser tester``
 open Xunit
-open Expressions
+open PExpressions
 open ExpressionParser
 open Tokenizer
 open System.Text.RegularExpressions
 
-let rec lsp (e: E): string =
+let rec lsp (e: PE): string =
   match e with
-    | EStr e -> sprintf "\"%s\"" e.str
-    | ENum e -> e.num.ToString()
-    | EVal e -> e.name
-    | ELet e -> sprintf "(let [%s %s] %s)" e.name (lsp e.expr) (lsp e.rest)
-    | EFn e -> sprintf "(%s [%s] %s)" (if e.isProc then "proc" else "fn") e.name ^% lsp e.argExpr
-    | EObj e -> sprintf "{ %s }" (String.concat ", " (e.fields |> List.map (fun field -> sprintf ":%s %s" field.key ^% lsp field.value)))
-    | EWith e ->  sprintf "(with %s %s)" (lsp e.expr) (String.concat ", " (e.fields |> List.map (fun field -> sprintf ":%s %s" field.key ^% lsp field.value)))
-    | EDot e -> sprintf "(:%s %s)" e.name ^% lsp e.expr
-    | EEval e -> sprintf "(%s %s)" (lsp e.fnExpr) ^% lsp e.argExpr
-    | EDo e -> sprintf "(do %s)" ^% lsp e.expr
-    | EImport e -> sprintf "(import %s)" e.moduleName
-    | EBlock e -> lsp e.expr
-    | EError e -> sprintf "(err \"%s\")" (Regex.Unescape ^% sprintf "%s, found %A" e.message e.found)
+    | PEStr e -> sprintf "\"%s\"" e.str
+    | PENum e -> e.num.ToString()
+    | PEVal e -> e.name
+    | PELet e -> sprintf "(let [%s %s] %s)" e.name (lsp e.expr) (lsp e.rest)
+    | PEFn e -> sprintf "(%s [%s] %s)" (if e.isProc then "proc" else "fn") e.name ^% lsp e.expr
+    | PEObj e -> sprintf "{ %s }" (String.concat ", " (e.fields |> List.map (fun field -> sprintf ":%s %s" field.key ^% lsp field.value)))
+    | PEWith e ->  sprintf "(with %s %s)" (lsp e.expr) (String.concat ", " (e.fields |> List.map (fun field -> sprintf ":%s %s" field.key ^% lsp field.value)))
+    | PEDot e -> sprintf "(:%s %s)" e.name ^% lsp e.expr
+    | PEEval e -> sprintf "(%s %s)" (lsp e.fnExpr) ^% lsp e.argExpr
+    | PEDo e -> sprintf "(do %s)" ^% lsp e.expr
+    | PEImport e -> sprintf "(import %s)" e.moduleName
+    | PEBlock e -> lsp e.expr
+    | PEError e -> sprintf "(err \"%s\")" (Regex.Unescape ^% sprintf "%s, found %A" e.message e.found)
 
 [<Fact>]
 let ``Test var``() =
