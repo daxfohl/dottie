@@ -1,5 +1,6 @@
 ﻿[<AutoOpen>]
 module Functions
+open FSharpx.Choice
 
 let inline (^%) f = f
 
@@ -23,3 +24,16 @@ module List =
       | _, [] -> output
       | _, h::t -> takeMax (h::output) (n-1) t
     takeMax [] n xs |> List.rev
+
+  let tryMap (f: 'a -> Choice<'b, 'c>) list =
+    let folder (state: Choice<'b list, 'c>) (x: 'a) =
+      choose {
+        let! items = state
+        let! item = f x
+        return item::items }
+    choose {
+      let! map = List.fold folder (Choice1Of2 []) list
+      return List.rev map }
+
+module Map =
+  let keys map = map |> Map.toList |> List.map fst |> Set.ofList

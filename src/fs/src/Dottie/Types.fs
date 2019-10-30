@@ -3,7 +3,7 @@
 open System
 open Expressions
 
-type EError =
+type SError =
   { message: string }
 
 type SLit =
@@ -15,7 +15,7 @@ type S =
 | SFree
 | SFn of SFn
 | SObj of SObj
-| EError of EError
+| SError of SError
 
 and SFn =
   { input: Spec
