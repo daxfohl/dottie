@@ -33,7 +33,7 @@ let rec getExpressions (expr: E): (E*Guid) list =
     match expr with
       | EStr e -> yield expr, new Guid("10000000-0000-0000-0000-000000000000")
       | ENum e -> yield expr, new Guid("20000000-0000-0000-0000-000000000000")
-      | EVal e -> yield expr, Guid.NewGuid()
+      | EVal e -> ()
       | ELet e ->
           let value = getExpressions e.expr
           yield! value
