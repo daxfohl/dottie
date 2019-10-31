@@ -28,13 +28,18 @@ let numGuid = new Guid("20000000-0000-0000-0000-000000000000")
 let strId = -1
 let numId = -2
 
-let rec getExpressions (expr: E): (E*Guid) list =
-  seq {
+let rec getExpressions (vals: Map<E, Guid>) (expr: E): Map<E, Guid> =
     match expr with
-      | EStr e -> yield expr, new Guid("10000000-0000-0000-0000-000000000000")
-      | ENum e -> yield expr, new Guid("20000000-0000-0000-0000-000000000000")
-      | EVal e -> ()
+      | EStr e -> vals.Add(expr, new Guid("10000000-0000-0000-0000-000000000000"))
+      | ENum e -> vals.Add(expr, new Guid("20000000-0000-0000-0000-000000000000"))
+      | EVal e -> vals
       | ELet e ->
+          let id = Guid.NewGuid()
+          let vals = vals.Add(expr, id)
+          // Question was whether to update valId to exprId or vice versa.
+          // No way to *create* them synchronized: Need to create val first to pass in for recursion.
+          // But exprId could be "int" so cannot match.
+          // Turns out this is for a reason: recursion could cause type error, so need a unify op to sync them.
           let value = getExpressions e.expr
           yield! value
           let _, valueId = value.Head
@@ -93,7 +98,7 @@ let idstr id =
 
 [<EntryPoint>]
 let main argv =
-  let strings = tokenize """let i = 4; let id = fn x -> x; id i"""
+  let strings = tokenize """let y = fn f -> f y f; y"""
   let e, tail = parseExpression strings
   let e = uniquify e
   let exprs = getExpressions e.expr
