@@ -3,6 +3,8 @@
 open System
 open Expressions
 
+type EquivalenceSet = EquivalenceSet of Guid
+
 type SError =
   { message: string }
 
@@ -12,22 +14,18 @@ type SLit =
 
 type S =
 | SLit of SLit
-| SFree
+| SFree of EquivalenceSet
 | SFn of SFn
 | SObj of SObj
 | SError of SError
 
 and SFn =
-  { input: Spec
-    output: Spec
+  { input: S
+    output: S
     isProc: bool }
 
 and SObj =
-  { fields: Map<string, Spec> }
-
-and Spec =
-  { spec: S
-    expr: E }
+  { fields: Map<string, S> }
 
 type Specs = Map<Guid, S>
 

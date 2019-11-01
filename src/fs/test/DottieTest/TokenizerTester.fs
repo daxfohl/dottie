@@ -13,7 +13,7 @@ let ``Name``() =
   assertEqual([KIdentifier "a"; KSemicolon], " a ")
   assertEqual([KIdentifier "a"; KSemicolon], "a")
   assertEqual([KIdentifier "a"; KSemicolon], " a")
-  
+
 [<Fact>]
 let ``Symbol``() =
   assertEqual([KDot], ". ")

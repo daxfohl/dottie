@@ -3,6 +3,7 @@ open Tokenizer
 open Translator
 open Expressions
 open ExpressionParser
+open Types
 open TypeInferencer
 open System.Text.RegularExpressions
 
@@ -22,64 +23,105 @@ let rec lsp (e: E): string =
     | EBlock e -> lsp e.expr
     | EError e -> sprintf "(err \"%s\")" (Regex.Unescape ^% sprintf "%s" e.message)
 
+type RunContext = Normal | Proc | Do
 
-let strGuid = new Guid("10000000-0000-0000-0000-000000000000")
-let numGuid = new Guid("20000000-0000-0000-0000-000000000000")
-let strId = -1
-let numId = -2
+let newEqSet() = EquivalenceSet ^% Guid.NewGuid()
+let strEqSet = EquivalenceSet ^% Guid.Parse("111111111-1111-1111-1111-111111111111")
+let numEqSet = EquivalenceSet ^% Guid.Parse("222222222-2222-2222-2222-222222222222")
 
-let rec getExpressions (vals: Map<E, Guid>) (expr: E): Map<E, Guid> =
+type Relation = GT | LT
+
+type Condition = Condition of EquivalenceSet * Relation * S
+
+type Context =
+  { runContext: RunContext
+    exprs: Map<E, EquivalenceSet>
+    specs: Map<EquivalenceSet, S>
+    conditions: Map<EquivalenceSet, Condition> }
+
+let fresh (expr: E) (context: Context): Context =
+  match Map.tryFind expr context.exprs with
+    | None ->
+        let id = newEqSet()
+        { context with
+            exprs = context.exprs |> Map.add expr id
+            specs = context.specs |> Map.add id ^% SFree id }
+    | Some _ -> context
+
+let freshVal (eVal: EVal) = fresh ^% EVal eVal
+
+let add (expr: E)  (eqSet: EquivalenceSet) (context: Context): Context =
+  { context with
+      exprs = context.exprs |> Map.add expr eqSet}
+
+let getEqSet (expr: E) (context: Context): EquivalenceSet =
+  context.exprs |> Map.find expr
+
+let getTypeFromSet (eqSet: EquivalenceSet) (context: Context): S =
+  context.specs |> Map.find eqSet
+
+let getType (expr: E) (context: Context): S =
+  let eqSet = context |> getEqSet expr
+  context |> getTypeFromSet eqSet
+
+let reconcile (expr1: E) (expr2: E) (context: Context): Context =
+  if expr1 = expr2 then context
+  else
+    let eqSet1 = context |> getEqSet expr1
+    let eqSet2 = context |> getEqSet expr2
+    if eqSet1 = eqSet2 then context
+    else
+      let s1 = getTypeFromSet eqSet1
+      let s2 = getTypeFromSet eqSet2
+      match s1, s2 with
+      | 
+
+
+let rec getExpressions (expr: E) (context: Context): Context =
     match expr with
-      | EStr e -> vals.Add(expr, new Guid("10000000-0000-0000-0000-000000000000"))
-      | ENum e -> vals.Add(expr, new Guid("20000000-0000-0000-0000-000000000000"))
-      | EVal e -> vals
+      | EStr e -> context |> add expr strEqSet
+      | ENum e -> context |> add expr numEqSet
+      | EVal e -> context
       | ELet e ->
-          let id = Guid.NewGuid()
-          let vals = vals.Add(expr, id)
-          // Question was whether to update valId to exprId or vice versa.
-          // No way to *create* them synchronized: Need to create val first to pass in for recursion.
-          // But exprId could be "int" so cannot match.
-          // Turns out this is for a reason: recursion could cause type error, so need a unify op to sync them.
-          let value = getExpressions e.expr
-          yield! value
-          let _, valueId = value.Head
-          yield EVal e.identifier, valueId
-          let rest = getExpressions e.rest
-          yield! rest
-          let _, restId = rest.Head
-          yield expr, restId
-      | EFn e -> 
-          yield EVal e.identifier, Guid.NewGuid()
-          yield! getExpressions e.expr
-          yield expr, Guid.NewGuid()
-      | EObj e ->
-          for field in e.fields do
-            yield! getExpressions field.value
-          yield expr, Guid.NewGuid()
-      | EWith e ->
-          for field in e.fields do
-            yield! getExpressions field.value
-          let orig = getExpressions e.expr
-          yield! orig
-          let _, origId = orig.Head
-          yield expr, origId
-      | EDot e ->
-          yield! getExpressions e.expr
-          yield expr, Guid.NewGuid()
-      | EEval e ->
-          yield! getExpressions e.argExpr
-          yield! getExpressions e.fnExpr
-          yield expr, Guid.NewGuid()
-      | EDo e ->
-          yield! getExpressions e.expr
-          yield expr, Guid.NewGuid()
-      | EImport e ->
-          yield expr, Guid.NewGuid()
-      | EBlock e ->
-          yield! getExpressions e.expr
-          yield expr, Guid.NewGuid()
-      | EError e ->
-          yield expr, Guid.NewGuid() } |> Seq.rev |> Seq.toList
+          let id = EVal e.identifier
+          let context = context |> fresh id
+          let context = context |> getExpressions e.expr
+          let context = context |> reconcile id e.expr
+          let context = context |> getExpressions e.rest
+          let eqSet = context.exprs |> Map.find e.rest
+          context |> add expr eqSet
+      //| EFn e -> 
+      //    yield EVal e.identifier, Guid.NewGuid()
+      //    yield! getExpressions e.expr
+      //    yield expr, Guid.NewGuid()
+      //| EObj e ->
+      //    for field in e.fields do
+      //      yield! getExpressions field.value
+      //    yield expr, Guid.NewGuid()
+      //| EWith e ->
+      //    for field in e.fields do
+      //      yield! getExpressions field.value
+      //    let orig = getExpressions e.expr
+      //    yield! orig
+      //    let _, origId = orig.Head
+      //    yield expr, origId
+      //| EDot e ->
+      //    yield! getExpressions e.expr
+      //    yield expr, Guid.NewGuid()
+      //| EEval e ->
+      //    yield! getExpressions e.argExpr
+      //    yield! getExpressions e.fnExpr
+      //    yield expr, Guid.NewGuid()
+      //| EDo e ->
+      //    yield! getExpressions e.expr
+      //    yield expr, Guid.NewGuid()
+      //| EImport e ->
+      //    yield expr, Guid.NewGuid()
+      //| EBlock e ->
+      //    yield! getExpressions e.expr
+      //    yield expr, Guid.NewGuid()
+      //| EError e ->
+      //    yield expr, Guid.NewGuid()
 
 
 let mapIds xs =
@@ -98,7 +140,7 @@ let idstr id =
 
 [<EntryPoint>]
 let main argv =
-  let strings = tokenize """let y = fn f -> f y f; y"""
+  let strings = tokenize """let x = 3; let y = x; y"""
   let e, tail = parseExpression strings
   let e = uniquify e
   let exprs = getExpressions e.expr
