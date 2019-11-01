@@ -5,32 +5,38 @@ open Expressions
 
 type EquivalenceSet = EquivalenceSet of Guid
 
-type SError =
-  { message: string }
-
 type SLit =
   | SStr
   | SNum
+  
+type SSub =
+  | SSubLit of SLit
+  | SSubFree of EquivalenceSet
 
-type S =
-| SLit of SLit
-| SFree of EquivalenceSet
-| SFn of SFn
-| SObj of SObj
-| SError of SError
+type SError =
+  { message: string }
 
-and SFn =
-  { input: S
-    output: S
+type SFn =
+  { input: SSub
+    output: SSub
     isProc: bool }
 
-and SObj =
-  { fields: Map<string, S> }
+type SObj =
+  { fields: Map<string, SSub> }
+  
+type S =
+  | SLit of SLit
+  | SFree of EquivalenceSet
+  | SFn of SFn
+  | SObj of SObj
+  | SError of SError
 
-type Specs = Map<Guid, S>
+type SRel =
+  | SRelFree of EquivalenceSet
+  | SRelObj of SObj
 
 type MType =
-| Module of E
-| ForeignModule of S
+  | Module of E
+  | ForeignModule of S
 
 type M = string * MType
