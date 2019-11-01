@@ -31,13 +31,13 @@ let numEqSet = EquivalenceSet ^% Guid.Parse("222222222-2222-2222-2222-2222222222
 
 type Relation = GT | LT
 
-type Condition = Condition of EquivalenceSet * Relation * S
+type Constraint = Condition of EquivalenceSet * Relation * S
 
 type Context =
   { runContext: RunContext
     exprs: Map<E, EquivalenceSet>
     specs: Map<EquivalenceSet, S>
-    conditions: Map<EquivalenceSet, Condition> }
+    constraints: Map<EquivalenceSet, Constraint> }
 
 let fresh (expr: E) (context: Context): Context =
   match Map.tryFind expr context.exprs with
@@ -71,10 +71,15 @@ let reconcile (expr1: E) (expr2: E) (context: Context): Context =
     let eqSet2 = context |> getEqSet expr2
     if eqSet1 = eqSet2 then context
     else
-      let s1 = getTypeFromSet eqSet1
-      let s2 = getTypeFromSet eqSet2
-      match s1, s2 with
-      | 
+      let s1 = context |> getTypeFromSet eqSet1
+      let s2 = context |> getTypeFromSet eqSet2
+      if s1 = s2 then context
+      else
+        match s1, s2 with
+        | SFree eqSet1, _ ->
+            { context with exprs = context.exprs |> Map.map ^% fun k v -> if v = eqSet1 then eqSet2 else v
+                           specs = context.specs |> Map.remove eqSet1 }
+          
 
 
 let rec getExpressions (expr: E) (context: Context): Context =
