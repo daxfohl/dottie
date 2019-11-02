@@ -70,6 +70,11 @@ let getType (expr: E) (context: Context): S =
   let eqSet = context |> getEqSet expr
   context |> getTypeFromSet eqSet
 
+let setType (expr: E) (spec: S) (context: Context): Context =
+  let eqSet = context |> getEqSet expr
+  { context with
+      specs = context.specs |> Map.add eqSet spec }
+
 let rec reconcile (eqSet1: EquivalenceSet) (eqSet2: EquivalenceSet) (context: Context): Context =
   if eqSet1 = eqSet2 then context
   else
@@ -96,7 +101,7 @@ let reconcileExprs (expr1: E) (expr2: E) (context: Context): Context =
     let eqSet2 = context |> getEqSet expr2
     context |> reconcile eqSet1 eqSet2
           
-let rec loadContext (expr: E) (context: Context): Context =
+let rec loadExpression (expr: E) (context: Context): Context =
     match expr with
       | EStr e -> context |> add expr strEqSet
       | ENum e -> context |> add expr numEqSet
@@ -104,16 +109,18 @@ let rec loadContext (expr: E) (context: Context): Context =
       | ELet e ->
           let id = EVal e.identifier
           let context = context |> fresh id
-          let context = context |> loadContext e.expr
+          let context = context |> loadExpression e.expr
           let context = context |> reconcileExprs id e.expr
-          let context = context |> loadContext e.rest
+          let context = context |> loadExpression e.rest
           let eqSet = context.exprs |> Map.find e.rest
           context |> add expr eqSet
+      | EFn e ->
+          let id = EVal e.identifier
+          let context = context |> fresh id
+          let context = context |> loadExpression e.expr
+          let context = context |> fresh expr
+          context |> setType expr ^% SFn { input = SSubFree(context |> getEqSet id); output = SSubFree(context |> getEqSet e.expr); isProc = e.isProc }
       | _ -> failwith "Not yet"
-      //| EFn e -> 
-      //    yield EVal e.identifier, Guid.NewGuid()
-      //    yield! getExpressions e.expr
-      //    yield expr, Guid.NewGuid()
       //| EObj e ->
       //    for field in e.fields do
       //      yield! getExpressions field.value
@@ -160,10 +167,10 @@ let rec loadContext (expr: E) (context: Context): Context =
 
 [<EntryPoint>]
 let main argv =
-  let strings = tokenize """let x = 3; let y = x; y"""
+  let strings = tokenize """let f = fn x -> 3; 4"""
   let e, tail = parseExpression strings
   let e = uniquify e
-  let context = emptyContext |> loadContext e.expr
+  let context = emptyContext |> loadExpression e.expr
   for expr in context.exprs do
     let expr, eqSet = expr.Key, expr.Value
     let spec = context |> getTypeFromSet eqSet
