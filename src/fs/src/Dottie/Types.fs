@@ -31,10 +31,6 @@ type S =
   | SObj of SObj
   | SError of SError
 
-type SRel =
-  | SRelFree of EquivalenceSet
-  | SRelObj of SObj
-
 type MType =
   | Module of E
   | ForeignModule of S

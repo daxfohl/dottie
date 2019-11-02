@@ -31,7 +31,7 @@ let numEqSet = EquivalenceSet ^% Guid.Parse("222222222-2222-2222-2222-2222222222
 
 type Relation = GT | LT
 
-type Constraint = Condition of EquivalenceSet * Relation * SRel
+type Constraint = Condition of EquivalenceSet * Relation * EquivalenceSet
 
 type Context =
   { runContext: RunContext
