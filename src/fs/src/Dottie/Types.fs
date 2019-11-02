@@ -8,18 +8,14 @@ type EquivalenceSet = EquivalenceSet of Guid
 type SLit =
   | SStr
   | SNum
-  
-type SSub =
-  | SSubLit of SLit
-  | SSubFree of EquivalenceSet
 
 type SFn =
-  { input: SSub
-    output: SSub
+  { input: EquivalenceSet
+    output: EquivalenceSet
     isProc: bool }
 
 type SObj =
-  { fields: Map<string, SSub> }
+  { fields: Map<string, EquivalenceSet> }
   
 type S =
   | SLit of SLit

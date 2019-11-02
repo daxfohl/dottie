@@ -119,7 +119,9 @@ let rec loadExpression (expr: E) (context: Context): Context =
           let context = context |> fresh id
           let context = context |> loadExpression e.expr
           let context = context |> fresh expr
-          context |> setType expr ^% SFn { input = SSubFree(context |> getEqSet id); output = SSubFree(context |> getEqSet e.expr); isProc = e.isProc }
+          context |> setType expr ^% SFn { input = context |> getEqSet id
+                                           output = context |> getEqSet e.expr
+                                           isProc = e.isProc }
       | _ -> failwith "Not yet"
       //| EObj e ->
       //    for field in e.fields do
