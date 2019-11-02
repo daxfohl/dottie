@@ -26,8 +26,8 @@ let rec lsp (e: E): string =
 type RunContext = Normal | Proc | Do
 
 let newEqSet() = EquivalenceSet ^% Guid.NewGuid()
-let strEqSet = EquivalenceSet ^% Guid.Parse("111111111-1111-1111-1111-111111111111")
-let numEqSet = EquivalenceSet ^% Guid.Parse("222222222-2222-2222-2222-222222222222")
+let strEqSet = EquivalenceSet ^% Guid.Parse("11111111-1111-1111-1111-111111111111")
+let numEqSet = EquivalenceSet ^% Guid.Parse("22222222-2222-2222-2222-222222222222")
 
 type Relation = GT | LT
 
@@ -38,6 +38,12 @@ type Context =
     exprs: Map<E, EquivalenceSet>
     specs: Map<EquivalenceSet, S>
     constraints: Map<EquivalenceSet, Constraint> }
+
+let emptyContext =
+  { runContext = Normal
+    exprs = Map.empty
+    specs = Map.empty.Add(strEqSet, SLit SStr).Add(numEqSet, SLit SNum)
+    constraints = Map.empty }
 
 let fresh (expr: E) (context: Context): Context =
   match Map.tryFind expr context.exprs with
@@ -80,9 +86,8 @@ let rec reconcile (eqSet1: EquivalenceSet) (eqSet2: EquivalenceSet) (context: Co
             { context with
                 exprs = context.exprs |> Map.map ^% fun k v -> if v = eqSet1 then eqSet2 else v
                 specs = context.specs |> Map.remove eqSet1 }
-          else failwith "Cannot reconcile"
-      | SObj s1, SObj s2 ->
-          
+          else failwith "Cannot reconcile string and number"
+      | _ -> failwith "Cannot reconcile objects or functions"
 
 let reconcileExprs (expr1: E) (expr2: E) (context: Context): Context =  
   if expr1 = expr2 then context
@@ -91,7 +96,7 @@ let reconcileExprs (expr1: E) (expr2: E) (context: Context): Context =
     let eqSet2 = context |> getEqSet expr2
     context |> reconcile eqSet1 eqSet2
           
-let rec getExpressions (expr: E) (context: Context): Context =
+let rec loadContext (expr: E) (context: Context): Context =
     match expr with
       | EStr e -> context |> add expr strEqSet
       | ENum e -> context |> add expr numEqSet
@@ -99,11 +104,12 @@ let rec getExpressions (expr: E) (context: Context): Context =
       | ELet e ->
           let id = EVal e.identifier
           let context = context |> fresh id
-          let context = context |> getExpressions e.expr
+          let context = context |> loadContext e.expr
           let context = context |> reconcileExprs id e.expr
-          let context = context |> getExpressions e.rest
+          let context = context |> loadContext e.rest
           let eqSet = context.exprs |> Map.find e.rest
           context |> add expr eqSet
+      | _ -> failwith "Not yet"
       //| EFn e -> 
       //    yield EVal e.identifier, Guid.NewGuid()
       //    yield! getExpressions e.expr
@@ -138,26 +144,28 @@ let rec getExpressions (expr: E) (context: Context): Context =
       //    yield expr, Guid.NewGuid()
 
 
-let mapIds xs =
-  let mapIds xs init =
-    let folder (i, map) x =
-      match Map.tryFind x map with
-        | Some _ -> i, map
-        | None -> i + 1, Map.add x i map
-    xs |> Seq.fold folder (0, init) |> snd
-  mapIds xs ^% Map.empty.Add(strGuid, strId).Add(numGuid, numId)
+//let mapIds xs =
+//  let mapIds xs init =
+//    let folder (i, map) x =
+//      match Map.tryFind x map with
+//        | Some _ -> i, map
+//        | None -> i + 1, Map.add x i map
+//    xs |> Seq.fold folder (0, init) |> snd
+//  mapIds xs ^% Map.empty.Add(strGuid, strId).Add(numGuid, numId)
 
-let idstr id =
-  if id = numId then "num"
-  elif id = strId then "str"
-  else sprintf "'%c" ^% char ^% int 'A' + id
+//let idstr id =
+//  if id = numId then "num"
+//  elif id = strId then "str"
+//  else sprintf "'%c" ^% char ^% int 'A' + id
 
 [<EntryPoint>]
 let main argv =
   let strings = tokenize """let x = 3; let y = x; y"""
   let e, tail = parseExpression strings
   let e = uniquify e
-  let exprs = getExpressions e.expr
-  let ids = exprs |> Seq.map snd |> mapIds
-  for (x, y) in exprs do printfn "%A" (Map.find y ids |> idstr, lsp x)
+  let context = emptyContext |> loadContext e.expr
+  for expr in context.exprs do
+    let expr, eqSet = expr.Key, expr.Value
+    let spec = context |> getTypeFromSet eqSet
+    printfn "%A, %A" spec ^% lsp expr
   0
