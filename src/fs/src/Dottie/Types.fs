@@ -13,9 +13,6 @@ type SSub =
   | SSubLit of SLit
   | SSubFree of EquivalenceSet
 
-type SError =
-  { message: string }
-
 type SFn =
   { input: SSub
     output: SSub
@@ -29,7 +26,6 @@ type S =
   | SFree of EquivalenceSet
   | SFn of SFn
   | SObj of SObj
-  | SError of SError
 
 type MType =
   | Module of E

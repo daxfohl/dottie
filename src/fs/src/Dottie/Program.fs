@@ -64,21 +64,32 @@ let getType (expr: E) (context: Context): S =
   let eqSet = context |> getEqSet expr
   context |> getTypeFromSet eqSet
 
-let reconcile (expr1: E) (expr2: E) (context: Context): Context =
+let rec reconcile (eqSet1: EquivalenceSet) (eqSet2: EquivalenceSet) (context: Context): Context =
+  if eqSet1 = eqSet2 then context
+  else
+    let s1 = context |> getTypeFromSet eqSet1
+    let s2 = context |> getTypeFromSet eqSet2
+    match s1, s2 with
+      | SFree eqSet1, _ ->
+          { context with
+              exprs = context.exprs |> Map.map ^% fun k v -> if v = eqSet1 then eqSet2 else v
+              specs = context.specs |> Map.remove eqSet1 }
+      | _, SFree _ -> context |> reconcile eqSet2 eqSet1
+      | SLit s1, SLit s2 ->
+          if s1 = s2 then
+            { context with
+                exprs = context.exprs |> Map.map ^% fun k v -> if v = eqSet1 then eqSet2 else v
+                specs = context.specs |> Map.remove eqSet1 }
+          else failwith "Cannot reconcile"
+      | SObj s1, SObj s2 ->
+          
+
+let reconcileExprs (expr1: E) (expr2: E) (context: Context): Context =  
   if expr1 = expr2 then context
   else
     let eqSet1 = context |> getEqSet expr1
     let eqSet2 = context |> getEqSet expr2
-    if eqSet1 = eqSet2 then context
-    else
-      let s1 = context |> getTypeFromSet eqSet1
-      let s2 = context |> getTypeFromSet eqSet2
-      if s1 = s2 then context
-      else
-        match s1, s2 with
-        | SFree eqSet1, _ ->
-            { context with exprs = context.exprs |> Map.map ^% fun k v -> if v = eqSet1 then eqSet2 else v
-                           specs = context.specs |> Map.remove eqSet1 }
+    context |> reconcile eqSet1 eqSet2
           
 let rec getExpressions (expr: E) (context: Context): Context =
     match expr with
@@ -89,7 +100,7 @@ let rec getExpressions (expr: E) (context: Context): Context =
           let id = EVal e.identifier
           let context = context |> fresh id
           let context = context |> getExpressions e.expr
-          let context = context |> reconcile id e.expr
+          let context = context |> reconcileExprs id e.expr
           let context = context |> getExpressions e.rest
           let eqSet = context.exprs |> Map.find e.rest
           context |> add expr eqSet
