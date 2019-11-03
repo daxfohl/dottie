@@ -102,6 +102,8 @@ let reconcileExprs (expr1: E) (expr2: E) (context: Context): Context =
     context |> reconcile eqSet1 eqSet2
           
 let rec loadExpression (expr: E) (context: Context): Context =
+  if context.exprs |> Map.containsKey expr then context
+  else
     match expr with
       | EStr e -> context |> add expr strEqSet
       | ENum e -> context |> add expr numEqSet
@@ -119,9 +121,21 @@ let rec loadExpression (expr: E) (context: Context): Context =
           let context = context |> fresh id
           let context = context |> loadExpression e.expr
           let context = context |> fresh expr
-          context |> setType expr ^% SFn { input = context |> getEqSet id
-                                           output = context |> getEqSet e.expr
-                                           isProc = e.isProc }
+          let fnSpec =
+            { input = context |> getEqSet id
+              output = context |> getEqSet e.expr
+              isProc = e.isProc }
+          context |> setType expr ^% SFn fnSpec
+      | EEval e ->
+        let context = context |> loadExpression e.fnExpr
+        let context = context |> loadExpression e.argExpr
+        let fnEqSet = context |> getEqSet e.fnExpr
+        let fnSpec = context |> getTypeFromSet fnEqSet
+        let argEqSet = context |> getEqSet e.argExpr
+        let argSpec = context |> getTypeFromSet argEqSet
+        match fnSpec with
+          | SFree es ->
+              let context = context |> setType e.fnExpr 
       | _ -> failwith "Not yet"
       //| EObj e ->
       //    for field in e.fields do
@@ -136,10 +150,6 @@ let rec loadExpression (expr: E) (context: Context): Context =
       //    yield expr, origId
       //| EDot e ->
       //    yield! getExpressions e.expr
-      //    yield expr, Guid.NewGuid()
-      //| EEval e ->
-      //    yield! getExpressions e.argExpr
-      //    yield! getExpressions e.fnExpr
       //    yield expr, Guid.NewGuid()
       //| EDo e ->
       //    yield! getExpressions e.expr
