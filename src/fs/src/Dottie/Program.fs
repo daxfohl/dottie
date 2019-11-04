@@ -85,28 +85,35 @@ let setType (expr: E) (spec: S) (context: Context): Context =
       specs = context.specs |> Map.add eqSet spec }
 
 let rec reconcile (eqSet1: EquivalenceSet) (eqSet2: EquivalenceSet) (context: Context): Context =
+  let remap (context: Context): Context =
+    let specs =
+      context.specs
+        |> Map.remove eqSet1
+        |> Map.map ^% fun k v ->
+          match v with
+            | SFn s -> SFn { s with
+                                 input = if s.input = eqSet1 then eqSet2 else s.input
+                                 output = if s.output = eqSet1 then eqSet2 else s.output }
+            | _ -> v
+    { context with
+        exprs = context.exprs |> Map.map ^% fun k v -> if v = eqSet1 then eqSet2 else v
+        specs = specs }
+      
   if eqSet1 = eqSet2 then context
   else
     let s1 = context |> getTypeFromSet eqSet1
     let s2 = context |> getTypeFromSet eqSet2
     match s1, s2 with
-      | SFree eqSet1, _ ->
-          { context with
-              exprs = context.exprs |> Map.map ^% fun k v -> if v = eqSet1 then eqSet2 else v
-              specs = context.specs |> Map.remove eqSet1 } // Have to update specs here too.
+      | SFree _, _ -> context |> remap
       | _, SFree _ -> context |> reconcile eqSet2 eqSet1
       | SLit s1, SLit s2 ->
-          if s1 = s2 then
-            { context with
-                exprs = context.exprs |> Map.map ^% fun k v -> if v = eqSet1 then eqSet2 else v
-                specs = context.specs |> Map.remove eqSet1 }
+          if s1 = s2 then context |> remap
           else failwith "Cannot reconcile string and number"
       | SFn s1, SFn s2 ->
+          let context = context |> remap
           let context = context |> reconcile s1.input s2.input
           let context = context |> reconcile s1.output s2.output
-          { context with
-              exprs = context.exprs |> Map.map ^% fun k v -> if v = eqSet1 then eqSet2 else v
-              specs = context.specs |> Map.remove eqSet1 }
+          context
       | _ -> failwith "Cannot reconcile objects or functions"
 
 let reconcileExprs (expr1: E) (expr2: E) (context: Context): Context =  
