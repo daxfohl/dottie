@@ -3,7 +3,7 @@
 open System
 open Expressions
 
-type EquivalenceSet = EquivalenceSet of Guid
+type EquivalenceSet = EquivalenceSet of int
 
 type SLit =
   | SStr

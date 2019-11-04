@@ -25,9 +25,13 @@ let rec lsp (e: E): string =
 
 type RunContext = Normal | Proc | Do
 
-let newEqSet() = EquivalenceSet ^% Guid.NewGuid()
-let strEqSet = EquivalenceSet ^% Guid.Parse("11111111-1111-1111-1111-111111111111")
-let numEqSet = EquivalenceSet ^% Guid.Parse("22222222-2222-2222-2222-222222222222")
+let mutable eqSetId = 100
+let newEqSet() =
+  eqSetId <- eqSetId + 1
+  EquivalenceSet eqSetId
+
+let strEqSet = EquivalenceSet 0
+let numEqSet = EquivalenceSet 1
 
 type Relation = GT | LT
 
@@ -89,7 +93,7 @@ let rec reconcile (eqSet1: EquivalenceSet) (eqSet2: EquivalenceSet) (context: Co
       | SFree eqSet1, _ ->
           { context with
               exprs = context.exprs |> Map.map ^% fun k v -> if v = eqSet1 then eqSet2 else v
-              specs = context.specs |> Map.remove eqSet1 }
+              specs = context.specs |> Map.remove eqSet1 } // Have to update specs here too.
       | _, SFree _ -> context |> reconcile eqSet2 eqSet1
       | SLit s1, SLit s2 ->
           if s1 = s2 then
@@ -122,10 +126,10 @@ let rec loadExpression (expr: E) (context: Context): Context =
       | EVal e -> context
       | ELet e ->
           let id = EVal e.identifier
-          let context = context |> fresh id
-          let context = context |> loadExpression e.expr
-          let context = context |> reconcileExprs id e.expr
-          let context = context |> loadExpression e.rest
+          let context1 = context |> fresh id
+          let context2 = context1 |> loadExpression e.expr
+          let context3 = context2 |> reconcileExprs id e.expr
+          let context = context3 |> loadExpression e.rest
           let eqSet = context.exprs |> Map.find e.rest
           context |> add expr eqSet
       | EFn e ->
