@@ -22,11 +22,6 @@ let rec lsp (e: E): string =
 
 type RunContext = Normal | Proc | Do
 
-let mutable eqSetId = 100
-let newEqSet() =
-  eqSetId <- eqSetId + 1
-  EquivalenceSet eqSetId
-
 let strEqSet = EquivalenceSet 0
 let numEqSet = EquivalenceSet 1
 
@@ -38,18 +33,22 @@ type Context =
   { runContext: RunContext
     exprs: Map<E, EquivalenceSet>
     specs: Map<EquivalenceSet, S>
-    constraints: Map<EquivalenceSet, Constraint> }
+    constraints: Map<EquivalenceSet, Constraint>
+    nextEqSetId: int }
 
 let emptyContext =
   { runContext = Normal
     exprs = Map.empty
     specs = Map.empty.Add(strEqSet, SLit SStr).Add(numEqSet, SLit SNum)
-    constraints = Map.empty }
+    constraints = Map.empty
+    nextEqSetId = 100 }
+
+let newEqSet context = { context with nextEqSetId = context.nextEqSetId + 1 }, EquivalenceSet context.nextEqSetId
 
 let fresh (expr: E) (context: Context): Context =
   match Map.tryFind expr context.exprs with
     | None ->
-        let id = newEqSet()
+        let context, id = newEqSet context
         { context with
             exprs = context.exprs |> Map.add expr id
             specs = context.specs |> Map.add id ^% SFree id }
@@ -58,7 +57,7 @@ let fresh (expr: E) (context: Context): Context =
 let freshVal (eVal: EVal) = fresh ^% EVal eVal
 
 let newSpec (spec: S) (context: Context): Context * EquivalenceSet =
-  let id = newEqSet()
+  let context, id = newEqSet context
   { context with
       specs = context.specs |> Map.add id spec }, id
 
