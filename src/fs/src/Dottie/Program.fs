@@ -56,6 +56,11 @@ let fresh (expr: E) (context: Context): Context =
 
 let freshVal (eVal: EVal) = fresh ^% EVal eVal
 
+let newSpec (spec: S) (context: Context): Context * EquivalenceSet =
+  let id = newEqSet()
+  { context with
+      specs = context.specs |> Map.add id spec }, id
+
 let add (expr: E)  (eqSet: EquivalenceSet) (context: Context): Context =
   { context with
       exprs = context.exprs |> Map.add expr eqSet}
@@ -92,6 +97,12 @@ let rec reconcile (eqSet1: EquivalenceSet) (eqSet2: EquivalenceSet) (context: Co
                 exprs = context.exprs |> Map.map ^% fun k v -> if v = eqSet1 then eqSet2 else v
                 specs = context.specs |> Map.remove eqSet1 }
           else failwith "Cannot reconcile string and number"
+      | SFn s1, SFn s2 ->
+          let context = context |> reconcile s1.input s2.input
+          let context = context |> reconcile s1.output s2.output
+          { context with
+              exprs = context.exprs |> Map.map ^% fun k v -> if v = eqSet1 then eqSet2 else v
+              specs = context.specs |> Map.remove eqSet1 }
       | _ -> failwith "Cannot reconcile objects or functions"
 
 let reconcileExprs (expr1: E) (expr2: E) (context: Context): Context =  
@@ -100,6 +111,7 @@ let reconcileExprs (expr1: E) (expr2: E) (context: Context): Context =
     let eqSet1 = context |> getEqSet expr1
     let eqSet2 = context |> getEqSet expr2
     context |> reconcile eqSet1 eqSet2
+
           
 let rec loadExpression (expr: E) (context: Context): Context =
   if context.exprs |> Map.containsKey expr then context
@@ -125,17 +137,17 @@ let rec loadExpression (expr: E) (context: Context): Context =
             { input = context |> getEqSet id
               output = context |> getEqSet e.expr
               isProc = e.isProc }
-          context |> setType expr ^% SFn fnSpec
+          context |> setType expr ^% SFn fnSpec // Seems not right.  Maybe newSpec and unify as below.
       | EEval e ->
-        let context = context |> loadExpression e.fnExpr
-        let context = context |> loadExpression e.argExpr
-        let fnEqSet = context |> getEqSet e.fnExpr
-        let fnSpec = context |> getTypeFromSet fnEqSet
-        let argEqSet = context |> getEqSet e.argExpr
-        let argSpec = context |> getTypeFromSet argEqSet
-        match fnSpec with
-          | SFree es ->
-              let context = context |> setType e.fnExpr 
+          let context = context |> fresh expr  // Let's do this above by default, maybe it returns the eqSet
+          let context = context |> loadExpression e.fnExpr  // Let's have these return the eqSet too
+          let context = context |> loadExpression e.argExpr
+          let exprEqSet = context |> getEqSet expr
+          let fnEqSet = context |> getEqSet e.fnExpr
+          let argEqSet = context |> getEqSet e.argExpr
+          let requiredFnSpec = SFn { input = argEqSet; output = exprEqSet; isProc = false }
+          let context, requiredFnEqSet = context |> newSpec requiredFnSpec
+          context |> reconcile fnEqSet requiredFnEqSet
       | _ -> failwith "Not yet"
       //| EObj e ->
       //    for field in e.fields do
@@ -179,7 +191,7 @@ let rec loadExpression (expr: E) (context: Context): Context =
 
 [<EntryPoint>]
 let main argv =
-  let strings = tokenize """let f = fn x -> 3; 4"""
+  let strings = tokenize """let y = fn f -> f y f; y"""
   let e, tail = parseExpression strings
   let e = uniquify e
   let context = emptyContext |> loadExpression e.expr
