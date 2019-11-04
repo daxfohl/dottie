@@ -54,8 +54,6 @@ let fresh (expr: E) (context: Context): Context =
             specs = context.specs |> Map.add id ^% SFree id }
     | Some _ -> context
 
-let freshVal (eVal: EVal) = fresh ^% EVal eVal
-
 let newSpec (spec: S) (context: Context): Context * EquivalenceSet =
   let context, id = newEqSet context
   { context with
@@ -119,9 +117,9 @@ let rec loadExpression (expr: E) (context: Context): Context =
   else
     let context = context |> fresh expr
     match expr with
-      | EStr e -> context |> add expr strEqSet
-      | ENum e -> context |> add expr numEqSet
-      | EVal e -> context
+      | EStr _ -> context |> add expr strEqSet
+      | ENum _ -> context |> add expr numEqSet
+      | EVal _ -> context
       | ELet e ->
           let id = EVal e.identifier
           let context = context |> fresh id
@@ -140,10 +138,10 @@ let rec loadExpression (expr: E) (context: Context): Context =
           let context = context |> loadExpression e.fnExpr
           let context = context |> loadExpression e.argExpr
           let exprEqSet = context |> getEqSet expr
-          let fnEqSet = context |> getEqSet e.fnExpr
           let argEqSet = context |> getEqSet e.argExpr
           let requiredFnSpec = SFn { input = argEqSet; output = exprEqSet; isProc = false }
           let context, requiredFnEqSet = context |> newSpec requiredFnSpec
+          let fnEqSet = context |> getEqSet e.fnExpr
           context |> reconcile fnEqSet requiredFnEqSet
       | _ -> failwith "Not yet"
       //| EObj e ->
