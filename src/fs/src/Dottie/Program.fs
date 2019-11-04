@@ -129,6 +129,7 @@ let rec loadExpression (expr: E) (context: Context): Context =
           context |> reconcileExprs expr e.rest
       | EFn e ->
           let id = EVal e.identifier
+          let context = context |> fresh id
           let context = context |> loadExpression e.body
           let fnSpec = SFn { input = context |> getEqSet id; output = context |> getEqSet e.body; isProc = e.isProc }
           let context, requiredFnEqSet = context |> newSpec fnSpec
