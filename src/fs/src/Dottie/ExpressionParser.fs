@@ -101,10 +101,10 @@ let uniquify (e: PE): Expression =
               | None -> EError { message =  sprintf "identifier %s does not exist." e.name}
         | PELet e ->
             let id, map = fresh e.name
-            ELet { identifier = { id = id; name = e.name }; expr = newuniq map e.expr; rest = newuniq map e.rest }
+            ELet { identifier = { id = id; name = e.name }; value = newuniq map e.expr; rest = newuniq map e.rest }
         | PEFn e ->
             let id, map = fresh e.name
-            EFn { identifier = { id = id; name = e.name }; expr = (uniquify map e.expr).expr; isProc = e.isProc }
+            EFn { identifier = { id = id; name = e.name }; body = (uniquify map e.expr).expr; isProc = e.isProc }
         | PEObj e -> EObj { fields = mapFields e.fields }
         | PEWith e -> EWith { expr = uniq e.expr; fields = mapFields e.fields }
         | PEDot e -> EDot { expr = uniq e.expr; name = e.name }

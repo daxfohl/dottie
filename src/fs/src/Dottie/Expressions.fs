@@ -39,7 +39,7 @@ and EBlock =
 
 and ELet =
   { identifier: EVal
-    expr: E
+    value: E
     rest: E }
 
 and EObjField =
@@ -66,7 +66,7 @@ and EEval =
 
 and EFn =
   { identifier: EVal
-    expr: E
+    body: E
     isProc: bool }
     
 type Expression =
