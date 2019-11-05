@@ -25,22 +25,20 @@ type RunContext = Normal | Proc | Do
 let strEqSet = EquivalenceSet 0
 let numEqSet = EquivalenceSet 1
 
-type Relation = GT | LT
-
-type Constraint = Condition of EquivalenceSet * Relation * EquivalenceSet
+type Constraint = EquivalenceSet * EquivalenceSet
 
 type Context =
   { runContext: RunContext
     exprs: Map<E, EquivalenceSet>
     specs: Map<EquivalenceSet, S>
-    constraints: Map<EquivalenceSet, Constraint>
+    constraints: Constraint list
     nextEqSetId: int }
 
 let emptyContext =
   { runContext = Normal
     exprs = Map.empty
     specs = Map.empty.Add(strEqSet, SLit SStr).Add(numEqSet, SLit SNum)
-    constraints = Map.empty
+    constraints = List.empty
     nextEqSetId = 100 }
 
 let newEqSet (context: Context): Context * EquivalenceSet =
@@ -197,4 +195,6 @@ let main argv =
   for expr in context.specs do
     let eqSet, spec = expr.Key, expr.Value
     printfn "%A, %A" eqSet spec
+  for gt, lt in context.constraints do    
+    printfn "%A > %A" gt lt
   0
