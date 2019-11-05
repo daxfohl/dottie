@@ -85,7 +85,8 @@ let rec reconcile (eqSet1: EquivalenceSet) (eqSet2: EquivalenceSet) (context: Co
               | _ -> v
       { context with
           exprs = context.exprs |> Map.map ^% fun k v -> if v = eqSet1 then eqSet2 else v
-          specs = specs }
+          specs = specs
+          constraints = context.constraints |> List.map (fun (eq1, eq2) -> (mapEqSet eq1, mapEqSet eq2)) |> List.filter ^% fun (eq1, eq2) -> eq1 <> eq2 }
     let s1 = context |> getTypeFromSet eqSet1
     let s2 = context |> getTypeFromSet eqSet2
     match s1, s2 with
@@ -108,7 +109,6 @@ let reconcileExprs (expr1: E) (expr2: E) (context: Context): Context =
     let eqSet2 = context |> getEqSet expr2
     context |> reconcile eqSet1 eqSet2
 
-          
 let rec loadExpression (expr: E) (context: Context): Context =
   if context.exprs |> Map.containsKey expr then context
   else
@@ -136,11 +136,17 @@ let rec loadExpression (expr: E) (context: Context): Context =
           let context = context |> loadExpression e.fnExpr
           let context = context |> loadExpression e.argExpr
           let exprEqSet = context |> getEqSet expr
-          let argEqSet = context |> getEqSet e.argExpr
-          let requiredFnSpec = SFn { input = argEqSet; output = exprEqSet; isProc = false }
+          let context, newEqSet = context |> newEqSet
+          let requiredFnSpec = SFn { input = newEqSet; output = exprEqSet; isProc = false }
           let context, requiredFnEqSet = context |> newSpec requiredFnSpec
           let fnEqSet = context |> getEqSet e.fnExpr
-          context |> reconcile fnEqSet requiredFnEqSet
+          let context = context |> reconcile fnEqSet requiredFnEqSet
+          let (SFn fnType) = context |> getType e.fnExpr
+          let argEqSet = context |> getEqSet e.argExpr
+          let context =
+            { context with
+                constraints = (argEqSet, fnType.input)::context.constraints }
+          context
       | _ -> failwith "Not yet"
       //| EObj e ->
       //    for field in e.fields do
@@ -182,6 +188,17 @@ let rec loadExpression (expr: E) (context: Context): Context =
 //  elif id = strId then "str"
 //  else sprintf "'%c" ^% char ^% int 'A' + id
 
+let prnEqSet eq =
+  let (EquivalenceSet eq) = eq
+  sprintf "'%s" ((eq - 3) |> char |> string)
+
+let prnSpec (s: S) =
+  match s with
+    | SLit SNum -> "float"
+    | SLit SStr -> "string"
+    | SFree eq -> prnEqSet eq
+    | SFn x -> sprintf "%s -> %s" (prnEqSet x.input) (prnEqSet x.output)
+
 [<EntryPoint>]
 let main argv =
   let strings = tokenize """let y = fn f -> f y f; y"""
@@ -191,10 +208,12 @@ let main argv =
   for expr in context.exprs do
     let expr, eqSet = expr.Key, expr.Value
     let spec = context |> getTypeFromSet eqSet
-    printfn "%A, %A" spec ^% lsp expr
+    printfn "%s: %s" (lsp expr) (prnSpec spec)
+  printfn ""
   for expr in context.specs do
     let eqSet, spec = expr.Key, expr.Value
-    printfn "%A, %A" eqSet spec
+    printfn "%s: %s" (prnEqSet eqSet) (prnSpec spec)
+  printfn ""
   for gt, lt in context.constraints do    
-    printfn "%A > %A" gt lt
+    printfn "%s > %s" (prnEqSet gt) (prnEqSet lt)
   0
