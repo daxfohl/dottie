@@ -43,25 +43,25 @@ let emptyContext =
     constraints = Map.empty
     nextEqSetId = 100 }
 
-let newEqSet context = { context with nextEqSetId = context.nextEqSetId + 1 }, EquivalenceSet context.nextEqSetId
+let newEqSet (context: Context): Context * EquivalenceSet =
+  let id = EquivalenceSet context.nextEqSetId
+  { context with
+      specs = context.specs |> Map.add id ^% SFree id
+      nextEqSetId = context.nextEqSetId + 1 }, id
 
 let fresh (expr: E) (context: Context): Context =
   match Map.tryFind expr context.exprs with
     | None ->
         let context, id = newEqSet context
-        { context with
-            exprs = context.exprs |> Map.add expr id
-            specs = context.specs |> Map.add id ^% SFree id }
+        { context with exprs = context.exprs |> Map.add expr id }
     | Some _ -> context
 
 let newSpec (spec: S) (context: Context): Context * EquivalenceSet =
   let context, id = newEqSet context
-  { context with
-      specs = context.specs |> Map.add id spec }, id
+  { context with specs = context.specs |> Map.add id spec }, id
 
 let add (expr: E)  (eqSet: EquivalenceSet) (context: Context): Context =
-  { context with
-      exprs = context.exprs |> Map.add expr eqSet}
+  { context with exprs = context.exprs |> Map.add expr eqSet}
 
 let getEqSet (expr: E) (context: Context): EquivalenceSet =
   context.exprs |> Map.find expr
@@ -77,14 +77,13 @@ let rec reconcile (eqSet1: EquivalenceSet) (eqSet2: EquivalenceSet) (context: Co
   if eqSet1 = eqSet2 then context
   else
     let remap (context: Context): Context =
+      let mapEqSet eqSet = if eqSet = eqSet1 then eqSet2 else eqSet
       let specs =
         context.specs
           |> Map.remove eqSet1
           |> Map.map ^% fun k v ->
             match v with
-              | SFn s -> SFn { s with
-                                   input = if s.input = eqSet1 then eqSet2 else s.input
-                                   output = if s.output = eqSet1 then eqSet2 else s.output }
+              | SFn s -> SFn { s with input = mapEqSet s.input; output = mapEqSet s.output }
               | _ -> v
       { context with
           exprs = context.exprs |> Map.map ^% fun k v -> if v = eqSet1 then eqSet2 else v
