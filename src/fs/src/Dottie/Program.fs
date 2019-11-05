@@ -17,7 +17,7 @@ let rec lsp (e: E): string =
     | EEval e -> sprintf "(%s %s)" (lsp e.fnExpr) ^% lsp e.argExpr
     | EDo e -> sprintf "(do %s)" ^% lsp e.expr
     | EImport e -> sprintf "(import %s)" e.moduleName
-    | EBlock e -> lsp e.expr
+    | EBlock e -> sprintf "(%s)" ^% lsp e.expr
     | EError e -> sprintf "(err \"%s\")" (Regex.Unescape ^% sprintf "%s" e.message)
 
 type RunContext = Normal | Proc | Do
@@ -117,6 +117,10 @@ let rec loadExpression (expr: E) (context: Context): Context =
       | EStr _ -> context |> add expr strEqSet
       | ENum _ -> context |> add expr numEqSet
       | EVal _ -> context
+      | EBlock e ->
+          let context = context |> loadExpression e.expr
+          let eqSet = context |> getEqSet e.expr
+          context |> add expr eqSet
       | ELet e ->
           let id = EVal e.identifier
           let context = context |> fresh id
@@ -203,7 +207,7 @@ let prnSpec (s: S) =
 
 [<EntryPoint>]
 let main argv =
-  let strings = tokenize """{ x: 1 }"""
+  let strings = tokenize """({ x: 1, s: "" })"""
   let e, tail = parseExpression strings
   let e = uniquify e
   let context = emptyContext |> loadExpression e.expr
