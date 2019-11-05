@@ -141,7 +141,7 @@ let rec loadExpression (expr: E) (context: Context): Context =
           let context, requiredFnEqSet = context |> newSpec requiredFnSpec
           let fnEqSet = context |> getEqSet e.fnExpr
           let context = context |> reconcile fnEqSet requiredFnEqSet
-          let (SFn fnType) = context |> getType e.fnExpr
+          let fnType = match context |> getType e.fnExpr with SFn fnType -> fnType | _ -> failwith "error"
           let argEqSet = context |> getEqSet e.argExpr
           let context =
             { context with
