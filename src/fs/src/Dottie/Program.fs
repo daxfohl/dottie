@@ -12,7 +12,7 @@ let rec lsp (e: E): string =
     | ELet e -> sprintf "(let [%s %s] %s)" e.identifier.name (lsp e.value) (lsp e.rest)
     | EFn e -> sprintf "(%s [%s] %s)" (if e.isProc then "proc" else "fn") e.identifier.name ^% lsp e.body
     | EObj e -> sprintf "{ %s }" (String.concat ", " (e.fields |> List.map (fun field -> sprintf ":%s %s" field.key ^% lsp field.value)))
-    | EWith e ->  sprintf "(with %s %s)" (lsp e.expr) (String.concat ", " (e.fields |> List.map (fun field -> sprintf ":%s %s" field.key ^% lsp field.value)))
+    | EWith e ->  sprintf "{ %s with %s }" (lsp e.expr) (String.concat ", " (e.fields |> List.map (fun field -> sprintf ":%s %s" field.key ^% lsp field.value)))
     | EDot e -> sprintf "(:%s %s)" e.name ^% lsp e.expr
     | EEval e -> sprintf "(%s %s)" (lsp e.fnExpr) ^% lsp e.argExpr
     | EDo e -> sprintf "(do %s)" ^% lsp e.expr
@@ -154,14 +154,18 @@ let rec loadExpression (expr: E) (context: Context): Context =
           let exprType = SObj { fields = fieldMap }
           let context, eqSet = context |> newSpec exprType
           context |> add expr eqSet
+      | EWith e ->
+          let context = context |> loadExpression e.expr
+          let objEqSet = context |> getEqSet e.expr
+          let context = context |> add expr objEqSet
+          let withFields = e.fields |> List.map (fun x -> x.key, let context = context |> loadExpression x.value in context |> getEqSet x.value)
+          let objSpec = match context |> getType e.expr with SObj e -> e | _ -> failwith "error"
+          let reconcileField context (name, withFieldEqSet) =
+              match objSpec.fields |> Map.tryFind name with
+                | Some objFieldEqSet -> context |> reconcile objFieldEqSet withFieldEqSet
+                | None -> failwith "object doesn't have the field"
+          withFields |> List.fold reconcileField context
       | _ -> failwith "Not yet"
-      //| EWith e ->
-      //    for field in e.fields do
-      //      yield! getExpressions field.value
-      //    let orig = getExpressions e.expr
-      //    yield! orig
-      //    let _, origId = orig.Head
-      //    yield expr, origId
       //| EDot e ->
       //    yield! getExpressions e.expr
       //    yield expr, Guid.NewGuid()
@@ -169,9 +173,6 @@ let rec loadExpression (expr: E) (context: Context): Context =
       //    yield! getExpressions e.expr
       //    yield expr, Guid.NewGuid()
       //| EImport e ->
-      //    yield expr, Guid.NewGuid()
-      //| EBlock e ->
-      //    yield! getExpressions e.expr
       //    yield expr, Guid.NewGuid()
       //| EError e ->
       //    yield expr, Guid.NewGuid()
@@ -207,7 +208,7 @@ let prnSpec (s: S) =
 
 [<EntryPoint>]
 let main argv =
-  let strings = tokenize """({ x: 1, s: "" })"""
+  let strings = tokenize """let z = { x: 1, s: "" }; { z with x: 5}"""
   let e, tail = parseExpression strings
   let e = uniquify e
   let context = emptyContext |> loadExpression e.expr
