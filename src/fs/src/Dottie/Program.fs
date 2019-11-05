@@ -143,15 +143,14 @@ let rec loadExpression (expr: E) (context: Context): Context =
           let context = context |> reconcile fnEqSet requiredFnEqSet
           let fnType = match context |> getType e.fnExpr with SFn fnType -> fnType | _ -> failwith "error"
           let argEqSet = context |> getEqSet e.argExpr
-          let context =
-            { context with
-                constraints = (argEqSet, fnType.input)::context.constraints }
-          context
+          { context with constraints = (argEqSet, fnType.input)::context.constraints }
+      | EObj e ->
+          let fields = e.fields |> List.map (fun x -> x.key, let context = context |> loadExpression x.value in context |> getEqSet x.value)
+          let fieldMap = Map.ofList fields
+          let exprType = SObj { fields = fieldMap }
+          let context, eqSet = context |> newSpec exprType
+          context |> add expr eqSet
       | _ -> failwith "Not yet"
-      //| EObj e ->
-      //    for field in e.fields do
-      //      yield! getExpressions field.value
-      //    yield expr, Guid.NewGuid()
       //| EWith e ->
       //    for field in e.fields do
       //      yield! getExpressions field.value
@@ -190,7 +189,9 @@ let rec loadExpression (expr: E) (context: Context): Context =
 
 let prnEqSet eq =
   let (EquivalenceSet eq) = eq
-  sprintf "'%s" ((eq - 3) |> char |> string)
+  if eq = 0 then "string"
+  elif eq = 1 then "float"
+  else sprintf "'%s" ((eq - 3) |> char |> string)
 
 let prnSpec (s: S) =
   match s with
@@ -198,10 +199,11 @@ let prnSpec (s: S) =
     | SLit SStr -> "string"
     | SFree eq -> prnEqSet eq
     | SFn x -> sprintf "%s -> %s" (prnEqSet x.input) (prnEqSet x.output)
+    | SObj x -> sprintf "{ %s }" ^% String.concat ", " (x.fields |> Map.toList |> List.map ^% fun (k, eq) -> sprintf "%s: %s" k ^% prnEqSet eq)
 
 [<EntryPoint>]
 let main argv =
-  let strings = tokenize """let y = fn f -> f y f; y"""
+  let strings = tokenize """{ x: 1 }"""
   let e, tail = parseExpression strings
   let e = uniquify e
   let context = emptyContext |> loadExpression e.expr
