@@ -149,7 +149,11 @@ let rec loadExpression (expr: E) (context: Context): Context =
           let argEqSet = context |> getEqSet e.argExpr
           { context with constraints = (argEqSet, fnType.input)::context.constraints }
       | EObj e ->
-          let fields = e.fields |> List.map (fun x -> x.key, let context = context |> loadExpression x.value in context |> getEqSet x.value)
+          let reconcileField (context, fields) (field: EObjField) =
+            let context = context |> loadExpression field.value
+            let fields = (field.key, context |> getEqSet field.value)::fields
+            context, fields
+          let context, fields = e.fields |> List.fold reconcileField (context, [])
           let fieldMap = Map.ofList fields
           let exprType = SObj { fields = fieldMap }
           let context, eqSet = context |> newSpec exprType
@@ -158,17 +162,23 @@ let rec loadExpression (expr: E) (context: Context): Context =
           let context = context |> loadExpression e.expr
           let objEqSet = context |> getEqSet e.expr
           let context = context |> add expr objEqSet
-          let withFields = e.fields |> List.map (fun x -> x.key, let context = context |> loadExpression x.value in context |> getEqSet x.value)
+          let reconcileField (context, fields) (field: EObjField) =
+            let context = context |> loadExpression field.value
+            let fields = (field.key, context |> getEqSet field.value)::fields
+            context, fields
+          let context, withFields = e.fields |> List.fold reconcileField (context, [])
           let objSpec = match context |> getType e.expr with SObj e -> e | _ -> failwith "error"
           let reconcileField context (name, withFieldEqSet) =
-              match objSpec.fields |> Map.tryFind name with
-                | Some objFieldEqSet -> context |> reconcile objFieldEqSet withFieldEqSet
-                | None -> failwith "object doesn't have the field"
+            match objSpec.fields |> Map.tryFind name with
+              | Some objFieldEqSet -> context |> reconcile objFieldEqSet withFieldEqSet
+              | None -> failwith "object doesn't have the field"
           withFields |> List.fold reconcileField context
-      | _ -> failwith "Not yet"
       //| EDot e ->
+      //    let context = context |> loadExpression e.expr
+      //    let objEqSet = context |> getEqSet e.expr
       //    yield! getExpressions e.expr
       //    yield expr, Guid.NewGuid()
+      | _ -> failwith "Not yet"
       //| EDo e ->
       //    yield! getExpressions e.expr
       //    yield expr, Guid.NewGuid()
@@ -208,7 +218,7 @@ let prnSpec (s: S) =
 
 [<EntryPoint>]
 let main argv =
-  let strings = tokenize """let z = { x: 1, s: "" }; { z with x: 5}"""
+  let strings = tokenize """let z = { x: { q: 5 } }; z"""
   let e, tail = parseExpression strings
   let e = uniquify e
   let context = emptyContext |> loadExpression e.expr
