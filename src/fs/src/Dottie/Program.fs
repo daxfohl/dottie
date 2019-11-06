@@ -97,10 +97,11 @@ let rec reconcile (eqSet1: EquivalenceSet) (eqSet2: EquivalenceSet) (context: Co
           if s1 = s2 then context |> remap
           else failwith "Cannot reconcile string and number"
       | SFn s1, SFn s2 ->
-          let context = context |> remap
           let context = context |> reconcile s1.input s2.input
+          let (SFn s1) = context |> getTypeFromSet eqSet1
+          let (SFn s2) = context |> getTypeFromSet eqSet2
           let context = context |> reconcile s1.output s2.output
-          context
+          context |> remap
       | _ -> failwith "Cannot reconcile objects or functions"
 
 let reconcileExprs (expr1: E) (expr2: E) (context: Context): Context =  
@@ -230,7 +231,7 @@ let main argv =
   for expr in context.exprs do
     let expr, eqSet = expr.Key, expr.Value
     let spec = context |> getTypeFromSet eqSet
-    printfn "%s: %s" (lsp expr) (prnSpec spec)
+    printfn "%s: %s (%s)" (lsp expr) (prnSpec spec) (prnEqSet eqSet)
   printfn ""
   for expr in context.specs do
     let eqSet, spec = expr.Key, expr.Value
