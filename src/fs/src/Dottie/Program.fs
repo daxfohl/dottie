@@ -114,7 +114,6 @@ let reconcileExprs (expr1: E) (expr2: E) (context: Context): Context =
 let rec loadExpression (expr: E) (context: Context): Context =
   if context.exprs |> Map.containsKey expr then context
   else
-    let context = context |> fresh expr
     match expr with
       | EStr _ -> context |> add expr strEqSet
       | ENum _ -> context |> add expr numEqSet
@@ -129,6 +128,7 @@ let rec loadExpression (expr: E) (context: Context): Context =
           let context = context |> loadExpression e.value
           let context = context |> reconcileExprs id e.value
           let context = context |> loadExpression e.rest
+          let context = context |> fresh expr
           context |> reconcileExprs expr e.rest
       | EFn e ->
           let id = EVal e.identifier
@@ -136,11 +136,13 @@ let rec loadExpression (expr: E) (context: Context): Context =
           let context = context |> loadExpression e.body
           let fnSpec = SFn { input = context |> getEqSet id; output = context |> getEqSet e.body; isProc = e.isProc }
           let context, requiredFnEqSet = context |> newSpec fnSpec
+          let context = context |> fresh expr
           let exprEqSet = context |> getEqSet expr
           context |> reconcile exprEqSet requiredFnEqSet
       | EEval e ->
           let context = context |> loadExpression e.fnExpr
           let context = context |> loadExpression e.argExpr
+          let context = context |> fresh expr
           let exprEqSet = context |> getEqSet expr
           let context, newEqSet = context |> newEqSet
           let requiredFnSpec = SFn { input = newEqSet; output = exprEqSet; isProc = false }
@@ -170,6 +172,7 @@ let rec loadExpression (expr: E) (context: Context): Context =
       | EDot e ->
           let context = context |> loadExpression e.expr
           let objSpec = context |> getType e.expr
+          let context = context |> fresh expr
           let exprEqSet = context |> getEqSet expr
           match objSpec with
             | SObj x ->
