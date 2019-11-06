@@ -4,22 +4,6 @@ open ExpressionParser
 open Types
 open System.Text.RegularExpressions
 
-let rec lsp (e: E): string =
-  match e with
-    | EStr e -> sprintf "\"%s\"" e.str
-    | ENum e -> e.num.ToString()
-    | EVal e -> e.name.ToString()
-    | ELet e -> sprintf "(let [%s %s] %s)" e.identifier.name (lsp e.value) (lsp e.rest)
-    | EFn e -> sprintf "(%s [%s] %s)" (if e.isProc then "proc" else "fn") e.identifier.name ^% lsp e.body
-    | EObj e -> sprintf "{ %s }" (String.concat ", " (e.fields |> List.map (fun field -> sprintf ":%s %s" field.key ^% lsp field.value)))
-    | EWith e ->  sprintf "{ %s with %s }" (lsp e.expr) (String.concat ", " (e.fields |> List.map (fun field -> sprintf ":%s %s" field.key ^% lsp field.value)))
-    | EDot e -> sprintf "(%s.%s)" (lsp e.expr) e.name
-    | EEval e -> sprintf "(%s %s)" (lsp e.fnExpr) ^% lsp e.argExpr
-    | EDo e -> sprintf "(do %s)" ^% lsp e.expr
-    | EImport e -> sprintf "(import %s)" e.moduleName
-    | EBlock e -> sprintf "(%s)" ^% lsp e.expr
-    | EError e -> sprintf "(err \"%s\")" (Regex.Unescape ^% sprintf "%s" e.message)
-
 type RunContext = Normal | Proc | Do
 
 let strEqSet = EquivalenceSet 0
@@ -85,7 +69,7 @@ let rec reconcile (eqSet1: EquivalenceSet) (eqSet2: EquivalenceSet) (context: Co
               | SObj s -> SObj { s with fields = s.fields |> Map.map ^% fun _ -> mapEqSet }
               | _ -> v
       { context with
-          exprs = context.exprs |> Map.map ^% fun k v -> if v = eqSet1 then eqSet2 else v
+          exprs = context.exprs |> Map.map ^% fun _ -> mapEqSet
           specs = specs
           constraints = context.constraints |> List.map (fun (eq1, eq2) -> (mapEqSet eq1, mapEqSet eq2)) |> List.filter ^% fun (eq1, eq2) -> eq1 <> eq2 }
     let s1 = context |> getTypeFromSet eqSet1
@@ -196,26 +180,28 @@ and loadField (context, fields) (field: EObjField) =
   let context = context |> loadExpression field.value
   let fields = (field.key, context |> getEqSet field.value)::fields
   context, fields
-
-//let mapIds xs =
-//  let mapIds xs init =
-//    let folder (i, map) x =
-//      match Map.tryFind x map with
-//        | Some _ -> i, map
-//        | None -> i + 1, Map.add x i map
-//    xs |> Seq.fold folder (0, init) |> snd
-//  mapIds xs ^% Map.empty.Add(strGuid, strId).Add(numGuid, numId)
-
-//let idstr id =
-//  if id = numId then "num"
-//  elif id = strId then "str"
-//  else sprintf "'%c" ^% char ^% int 'A' + id
+  
+let rec lsp (e: E): string =
+  match e with
+    | EStr e -> sprintf "\"%s\"" e.str
+    | ENum e -> e.num.ToString()
+    | EVal e -> e.name.ToString()
+    | ELet e -> sprintf "(let [%s %s] %s)" e.identifier.name (lsp e.value) (lsp e.rest)
+    | EFn e -> sprintf "(%s [%s] %s)" (if e.isProc then "proc" else "fn") e.identifier.name ^% lsp e.body
+    | EObj e -> sprintf "{ %s }" (String.concat ", " (e.fields |> List.map (fun field -> sprintf ":%s %s" field.key ^% lsp field.value)))
+    | EWith e ->  sprintf "{ %s with %s }" (lsp e.expr) (String.concat ", " (e.fields |> List.map (fun field -> sprintf ":%s %s" field.key ^% lsp field.value)))
+    | EDot e -> sprintf "(%s.%s)" (lsp e.expr) e.name
+    | EEval e -> sprintf "(%s %s)" (lsp e.fnExpr) ^% lsp e.argExpr
+    | EDo e -> sprintf "(do %s)" ^% lsp e.expr
+    | EImport e -> sprintf "(import %s)" e.moduleName
+    | EBlock e -> sprintf "(%s)" ^% lsp e.expr
+    | EError e -> sprintf "(err \"%s\")" (Regex.Unescape ^% sprintf "%s" e.message)
 
 let prnEqSet eq =
   let (EquivalenceSet eq) = eq
   if eq = 0 then "string"
   elif eq = 1 then "float"
-  else sprintf "'%i" eq
+  else sprintf "'%s" ((eq - 3)  |> string)
 
 let prnSpec (s: S) =
   match s with
@@ -227,7 +213,13 @@ let prnSpec (s: S) =
 
 [<EntryPoint>]
 let main argv =
-  let strings = tokenize """let fa = fn a -> let f = fn x -> { a: a }; let y = (f "").a; let z = f "a"; z.a; fa 4"""
+  let input = """
+  let id = fn a -> a
+  let i = id 4
+  let s = id ""
+  0
+  """
+  let strings = tokenize input
   let e, tail = parseExpression strings
   let e = uniquify e
   let context = emptyContext |> loadExpression e.expr
