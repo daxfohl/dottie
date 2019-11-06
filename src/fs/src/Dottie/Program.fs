@@ -82,6 +82,7 @@ let rec reconcile (eqSet1: EquivalenceSet) (eqSet2: EquivalenceSet) (context: Co
           |> Map.map ^% fun k v ->
             match v with
               | SFn s -> SFn { s with input = mapEqSet s.input; output = mapEqSet s.output }
+              | SObj s -> SObj { s with fields = s.fields |> Map.map ^% fun _ -> mapEqSet }
               | _ -> v
       { context with
           exprs = context.exprs |> Map.map ^% fun k v -> if v = eqSet1 then eqSet2 else v
@@ -210,7 +211,7 @@ let prnEqSet eq =
   let (EquivalenceSet eq) = eq
   if eq = 0 then "string"
   elif eq = 1 then "float"
-  else sprintf "'%s" ((eq - 3) |> char |> string)
+  else sprintf "'%i" eq
 
 let prnSpec (s: S) =
   match s with
@@ -222,7 +223,7 @@ let prnSpec (s: S) =
 
 [<EntryPoint>]
 let main argv =
-  let strings = tokenize """let f = fn x -> x.y; f"""
+  let strings = tokenize """let fa = fn a -> let f = fn x -> { a: a }; let y = (f "").a; let z = f "a"; z.a; fa 4"""
   let e, tail = parseExpression strings
   let e = uniquify e
   let context = emptyContext |> loadExpression e.expr
