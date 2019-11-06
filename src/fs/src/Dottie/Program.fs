@@ -13,7 +13,7 @@ let rec lsp (e: E): string =
     | EFn e -> sprintf "(%s [%s] %s)" (if e.isProc then "proc" else "fn") e.identifier.name ^% lsp e.body
     | EObj e -> sprintf "{ %s }" (String.concat ", " (e.fields |> List.map (fun field -> sprintf ":%s %s" field.key ^% lsp field.value)))
     | EWith e ->  sprintf "{ %s with %s }" (lsp e.expr) (String.concat ", " (e.fields |> List.map (fun field -> sprintf ":%s %s" field.key ^% lsp field.value)))
-    | EDot e -> sprintf "(:%s %s)" e.name ^% lsp e.expr
+    | EDot e -> sprintf "(%s.%s)" (lsp e.expr) e.name
     | EEval e -> sprintf "(%s %s)" (lsp e.fnExpr) ^% lsp e.argExpr
     | EDo e -> sprintf "(do %s)" ^% lsp e.expr
     | EImport e -> sprintf "(import %s)" e.moduleName
@@ -149,11 +149,7 @@ let rec loadExpression (expr: E) (context: Context): Context =
           let argEqSet = context |> getEqSet e.argExpr
           { context with constraints = (argEqSet, fnType.input)::context.constraints }
       | EObj e ->
-          let reconcileField (context, fields) (field: EObjField) =
-            let context = context |> loadExpression field.value
-            let fields = (field.key, context |> getEqSet field.value)::fields
-            context, fields
-          let context, fields = e.fields |> List.fold reconcileField (context, [])
+          let context, fields = e.fields |> List.fold loadField (context, [])
           let fieldMap = Map.ofList fields
           let exprType = SObj { fields = fieldMap }
           let context, eqSet = context |> newSpec exprType
@@ -162,22 +158,26 @@ let rec loadExpression (expr: E) (context: Context): Context =
           let context = context |> loadExpression e.expr
           let objEqSet = context |> getEqSet e.expr
           let context = context |> add expr objEqSet
-          let reconcileField (context, fields) (field: EObjField) =
-            let context = context |> loadExpression field.value
-            let fields = (field.key, context |> getEqSet field.value)::fields
-            context, fields
-          let context, withFields = e.fields |> List.fold reconcileField (context, [])
+          let context, withFields = e.fields |> List.fold loadField (context, [])
           let objSpec = match context |> getType e.expr with SObj e -> e | _ -> failwith "error"
           let reconcileField context (name, withFieldEqSet) =
             match objSpec.fields |> Map.tryFind name with
               | Some objFieldEqSet -> context |> reconcile objFieldEqSet withFieldEqSet
               | None -> failwith "object doesn't have the field"
           withFields |> List.fold reconcileField context
-      //| EDot e ->
-      //    let context = context |> loadExpression e.expr
-      //    let objEqSet = context |> getEqSet e.expr
-      //    yield! getExpressions e.expr
-      //    yield expr, Guid.NewGuid()
+      | EDot e ->
+          let context = context |> loadExpression e.expr
+          let objSpec = context |> getType e.expr
+          let exprEqSet = context |> getEqSet expr
+          match objSpec with
+            | SObj x ->
+                context |> reconcile exprEqSet (x.fields |> Map.find e.name)
+            | SFree x ->
+                let constraintSpec = SObj { fields = Map.empty.Add(e.name, exprEqSet) }
+                let context, constraintEqSet = context |> newSpec constraintSpec
+                let objEqSet = context |> getEqSet e.expr
+                { context with constraints = (objEqSet, constraintEqSet)::context.constraints }
+            | _ -> failwith ":"
       | _ -> failwith "Not yet"
       //| EDo e ->
       //    yield! getExpressions e.expr
@@ -187,6 +187,10 @@ let rec loadExpression (expr: E) (context: Context): Context =
       //| EError e ->
       //    yield expr, Guid.NewGuid()
 
+and loadField (context, fields) (field: EObjField) =
+  let context = context |> loadExpression field.value
+  let fields = (field.key, context |> getEqSet field.value)::fields
+  context, fields
 
 //let mapIds xs =
 //  let mapIds xs init =
@@ -218,7 +222,7 @@ let prnSpec (s: S) =
 
 [<EntryPoint>]
 let main argv =
-  let strings = tokenize """let z = { x: { q: 5 } }; z"""
+  let strings = tokenize """let f = fn x -> x.y; f"""
   let e, tail = parseExpression strings
   let e = uniquify e
   let context = emptyContext |> loadExpression e.expr
