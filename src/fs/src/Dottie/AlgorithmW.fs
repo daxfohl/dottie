@@ -155,10 +155,10 @@ let rec ti (env : TypeEnv) (e : E) : TypeSubst * S =
         composeSubst subsValue s2, t2
     | EFn e ->
         let tv = newTyVar()
-        let env2 : TypeEnv =
+        let env : TypeEnv =
             let polytype = { Type = tv; BoundVariables = [] }
             { Schemes = Map.unionMap (Map.singletonMap e.identifier polytype) env.Schemes }
-        let s1, t1 = ti env2 e.body
+        let s1, t1 = ti env e.body
         s1, SFn { input = tv.Apply s1; output = t1; isProc = e.isProc }
     | EEval e ->
         let freeSpec = newTyVar()
@@ -168,6 +168,10 @@ let rec ti (env : TypeEnv) (e : E) : TypeSubst * S =
         List.fold composeSubst Map.empty [s3; s2; s1], freeSpec.Apply s3
     | EObj e ->
         let addField (typeSubst: TypeSubst, fields: Map<string, S>, env: TypeEnv) (field: EObjField) =
+          let tv = newTyVar()
+          let env : TypeEnv =
+              let polytype = { Type = tv; BoundVariables = [] }
+              { Schemes = Map.unionMap (Map.singletonMap field.key polytype) env.Schemes }
           let subs, t = ti env field.value
           let env, t = env.Apply subs, t.Apply subs
           (composeSubst typeSubst subs, fields |> Map.add field.key t, env)
@@ -211,12 +215,23 @@ let test (e : E) =
     let t = typeInference Map.empty e
     printfn "%A :: %A" (lsp e) (prnSpec t)
   with ex -> printfn "ERROR %O" ex
+  
+type X<'a> = { x: 'a }
+type Y<'a> = { y: 'a }
+type Z<'a> = { z: 'a }
+
+let wrapInX = fun f -> fun x -> f { x = x }
+let f = fun x -> { z = x }
+let q = (wrapInX f) { y = 3 }
+let z = (wrapInX f) { y = "x" }
 
 [<EntryPoint>]
 let main argv =
   let input = """
-  let y = fn f -> f (y f)
-  { x: 3 }
+  let wrapInX = fn f -> fn x -> f { x: x }
+  let f = fn x -> { z: x }
+  let q = (wrapInX f) { y: 3 }
+  (wrapInX f) { y: "x" }
   """
   let strings = tokenize input
   let e, tail = parseExpression strings
