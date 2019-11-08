@@ -11,14 +11,15 @@ type SLit = | SNum | SStr
 type S =
     | SLit of SLit
     | STypeVariable of string
-    | SFn of ParameterType : S * ReturnType : S with
+    | SFn of SFn
+    | SObj of SObj with
     member this.GetAllVariables =
         match this with
         | SLit _ -> Set.empty
         | STypeVariable n -> Set.singleton n
-        | SFn (t1, t2) ->
-            let v1 = t1.GetAllVariables
-            let v2 = t2.GetAllVariables
+        | SFn s ->
+            let v1 = s.input.GetAllVariables
+            let v2 = s.output.GetAllVariables
             Set.union v1 v2
     member this.Apply (ts : TypeSubst) =
         match this with
@@ -26,9 +27,15 @@ type S =
             match ts.TryFind n with
             | Some t -> t
             | None -> STypeVariable n
-        | SFn (t1, t2) ->
-            SFn (t1.Apply ts, t2.Apply ts)
+        | SFn s -> SFn { input = s.input.Apply ts; output = s.output.Apply ts; isProc = s.isProc }
         | _ -> this
+and SFn =
+  { input: S
+    output: S
+    isProc: bool }
+        
+and SObj =
+  { fields: Map<string, S> }
 
 and TypeSubst = Map<string, S>
 
@@ -100,9 +107,9 @@ let varBind (u : string) (t : S) : TypeSubst =
 
 let rec unify (t1 : S) (t2 : S) : TypeSubst =
     match t1, t2 with
-    | SFn (l1, r1), SFn (l2, r2) ->
-        let s1 = unify l1 l2
-        let s2 = unify (r1.Apply s1) (r2.Apply s1)
+    | SFn f1, SFn f2 ->
+        let s1 = unify f1.input f2.input
+        let s2 = unify (f1.output.Apply s1) (f2.output.Apply s1)
         composeSubst s1 s2
     | STypeVariable u, t -> varBind u t
     | t, STypeVariable u -> varBind u t
@@ -121,35 +128,39 @@ let rec ti (env : TypeEnv) (e : E) : TypeSubst * S =
         | Some polytype ->
             let t = instantiate polytype
             Map.empty, t
+    | ELet e ->
+        let tv = newTyVar()
+        let env : TypeEnv =
+          let polytype = { Type = tv; BoundVariables = [] }
+          { Schemes = Map.add e.identifier polytype env.Schemes }
+        let subsValue, tValue = ti env e.value // get type of value
+        let tValue, tv = tValue.Apply subsValue, tv.Apply subsValue
+        let subsValue = composeSubst subsValue (unify tValue tv)
+        let tValue, env = tValue.Apply subsValue, env.Apply subsValue
+        let polytype = generalize env tValue // bind the type variables that are exclusive to this var
+        let env = { Schemes = Map.add e.identifier polytype env.Schemes }
+        let s2, t2 = ti env e.rest
+        composeSubst subsValue s2, t2
     | EFn e ->
         let tv = newTyVar()
         let env2 : TypeEnv =
             let polytype = { Type = tv; BoundVariables = [] }
             { Schemes = Map.unionMap (Map.singletonMap e.identifier polytype) env.Schemes }
         let s1, t1 = ti env2 e.body
-        s1, SFn (tv.Apply s1, t1)
+        s1, SFn { input = tv.Apply s1; output = t1; isProc = e.isProc }
     | EEval e ->
         let freeSpec = newTyVar()
         let s1, t1 = ti env e.fnExpr
         let s2, t2 = ti (env.Apply s1) e.argExpr
-        let s3 = unify (t1.Apply s2) (SFn (t2, freeSpec))
+        let s3 = unify (t1.Apply s2) (SFn { input = t2; output = freeSpec; isProc = false })
         List.fold composeSubst Map.empty [s3; s2; s1], freeSpec.Apply s3
-    | ELet e ->
-        let tv = newTyVar()
-        let env2 : TypeEnv =
-          let polytype = { Type = tv; BoundVariables = [] }
-          { Schemes = Map.unionMap (Map.singletonMap e.identifier polytype) env.Schemes }
-        let subsValue, tValue = ti env2 e.value // get type of value
-        let subsValue = composeSubst subsValue (unify (tValue.Apply subsValue) (tv.Apply subsValue))
-        let polytype = generalize (env.Apply subsValue) (tValue.Apply subsValue) // bind the type variables that are exclusive to this var
-        let env2 = { Schemes = Map.add e.identifier polytype env2.Schemes }
-        let s2, t2 = ti (env2.Apply subsValue) e.rest
-        composeSubst subsValue s2, t2
+    | EObj e -> failwith ""
 
 // Type inference with all substitutions applied
 let typeInference (env : Map<EVal, Polytype>) (e : E) =
     let s, t = ti { Schemes = env } e
     t.Apply s
+
 let rec lsp (e: E): string =
   match e with
     | EStr e -> sprintf "\"%s\"" e.str
@@ -165,7 +176,14 @@ let rec lsp (e: E): string =
     | EImport e -> sprintf "(import %s)" e.moduleName
     | EBlock e -> sprintf "(%s)" ^% lsp e.expr
     | EError e -> sprintf "(err \"%s\")" (Regex.Unescape ^% sprintf "%s" e.message)
-
+    
+let rec prnSpec (s: S) =
+  match s with
+    | SLit SNum -> "float"
+    | SLit SStr -> "string"
+    | STypeVariable v -> v
+    | SFn x -> sprintf "%s -> %s" (prnSpec x.input) (prnSpec x.output)
+    | SObj x -> sprintf "{ %s }" ^% String.concat ", " (x.fields |> Map.toList |> List.map ^% fun (k, eq) -> sprintf "%s: %s" k ^% prnSpec eq)
 
 // Test this puppy
 let test (e : E) =
@@ -173,7 +191,7 @@ let test (e : E) =
   printfn ""
   try
     let t = typeInference Map.empty e
-    printfn "%A :: %A" (lsp e) t
+    printfn "%A :: %A" (lsp e) (prnSpec t)
   with ex -> printfn "ERROR %O" ex
 
 [<EntryPoint>]
