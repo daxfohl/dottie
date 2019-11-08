@@ -93,7 +93,7 @@ let instantiate (polytype : Polytype) : S =
 // Bind a name to a Type and return that binding
 let varBind (u : string) (t : S) : TypeSubst =
     match t with
-    | STypeVariable u -> Map.empty
+    | STypeVariable u' when u = u' -> Map.empty
     | _ when t.GetAllVariables.Contains u ->
         failwithf "Occur check fails: %s vs %A" u t
     | _ -> Map.singletonMap u t
@@ -134,9 +134,14 @@ let rec ti (env : TypeEnv) (e : E) : TypeSubst * S =
         let s3 = unify (t1.Apply s2) (SFn (t2, freeSpec))
         List.fold composeSubst Map.empty [s3; s2; s1], freeSpec.Apply s3
     | ELet e ->
-        let subsValue, tValue = ti env e.value // get type of value
-        let polytype = generalize (env.Apply subsValue) tValue // bind the type variables that are exclusive to this var
-        let env2 = { Schemes = Map.add e.identifier polytype env.Schemes }
+        let tv = newTyVar()
+        let env2 : TypeEnv =
+          let polytype = { Type = tv; BoundVariables = [] }
+          { Schemes = Map.unionMap (Map.singletonMap e.identifier polytype) env.Schemes }
+        let subsValue, tValue = ti env2 e.value // get type of value
+        let subsValue = composeSubst subsValue (unify (tValue.Apply subsValue) (tv.Apply subsValue))
+        let polytype = generalize (env.Apply subsValue) (tValue.Apply subsValue) // bind the type variables that are exclusive to this var
+        let env2 = { Schemes = Map.add e.identifier polytype env2.Schemes }
         let s2, t2 = ti (env2.Apply subsValue) e.rest
         composeSubst subsValue s2, t2
 
@@ -171,8 +176,8 @@ let rec lsp (e: E): string =
 [<EntryPoint>]
 let main argv =
   let input = """
-  let id = fn x -> id x
-  id
+  let y = fn f -> f y f
+  y
   """
   let strings = tokenize input
   let e, tail = parseExpression strings
