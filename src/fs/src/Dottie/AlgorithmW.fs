@@ -1,19 +1,11 @@
 ﻿module AlgorithmW
 open System.Collections.Generic
+open Tokenizer
+open Expressions
+open ExpressionParser
+open System.Text.RegularExpressions
 // HINDLEY-MILNER TYPE INFERENCE
 // Based on http://catamorph.de/documents/AlgorithmW.pdf
-
-type Lit =
-    | ENum of float
-    | EStr of string
-
-type Exp =
-    | EVariable of string
-    | ELit of Lit
-    | EEval of Function : Exp * Argument : Exp
-    | EFn of ParameterName : string * Body : Exp
-    | ELet of Name : string * Value : Exp * Body : Exp
-
 
 type SLit = | SNum | SStr
 type S =
@@ -58,13 +50,13 @@ type Polytype =
 
 type TypeEnv =
   // Variables, I think
-  { Schemes: Map<string, Polytype> } with
+  { Schemes: Map<EVal, Polytype> } with
 
-  member this.Remove (var : string) = { Schemes = this.Schemes.Remove var }
+  member this.Remove (var : EVal) = { Schemes = this.Schemes.Remove var }
 
   // Union of all free type variables in all polytypes in env.  So everything that is defined in the scope.
   member this.FreeTypeVariables: Set<string> =
-    let folder aggregate (polytypes : KeyValuePair<string, Polytype>) = Set.union aggregate polytypes.Value.FreeTypeVariables
+    let folder aggregate (polytypes : KeyValuePair<_, Polytype>) = Set.union aggregate polytypes.Value.FreeTypeVariables
     Seq.fold folder Set.empty this.Schemes
         
   // Only apply the substitution to free variables (things defined outside the expression).
@@ -118,53 +110,72 @@ let rec unify (t1 : S) (t2 : S) : TypeSubst =
     | _ -> failwithf "Types do not unify: %A vs %A" t1 t2
 
 // Type inference with pending substitutions
-let rec ti (env : TypeEnv) (e : Exp) : TypeSubst * S =
+let rec ti (env : TypeEnv) (e : E) : TypeSubst * S =
     match e with
-    | EVariable n ->
-        match env.Schemes.TryFind n with
-        | None -> failwithf "Unbound variable: %s" n
+    | EStr _ -> Map.empty, SLit SStr
+    | ENum _ -> Map.empty, SLit SNum
+    | EVal e ->
+        match env.Schemes.TryFind e with
+        | None -> failwithf "Unbound variable: %A" e
         | Some polytype ->
             let t = instantiate polytype
             Map.empty, t
-    | ELit l ->
-        Map.empty, SLit(match l with | ENum _ -> SNum | EStr _ -> SStr)
-    | EFn (n, e) ->
+    | EFn e ->
         let tv = newTyVar()
         let env2 : TypeEnv =
             let polytype = { Type = tv; BoundVariables = [] }
-            { Schemes = Map.unionMap (Map.singletonMap n polytype) env.Schemes }
-        let s1, t1 = ti env2 e
+            { Schemes = Map.unionMap (Map.singletonMap e.identifier polytype) env.Schemes }
+        let s1, t1 = ti env2 e.body
         s1, SFn (tv.Apply s1, t1)
-    | EEval (e1, e2) ->
+    | EEval e ->
         let freeSpec = newTyVar()
-        let s1, t1 = ti env e1
-        let s2, t2 = ti (env.Apply s1) e2
+        let s1, t1 = ti env e.fnExpr
+        let s2, t2 = ti (env.Apply s1) e.argExpr
         let s3 = unify (t1.Apply s2) (SFn (t2, freeSpec))
         List.fold composeSubst Map.empty [s3; s2; s1], freeSpec.Apply s3
-    | ELet (identifier, value, rest) ->
-        let subsValue, tValue = ti env value // get type of value
+    | ELet e ->
+        let subsValue, tValue = ti env e.value // get type of value
         let polytype = generalize (env.Apply subsValue) tValue // bind the type variables that are exclusive to this var
-        let env2 = { Schemes = Map.add identifier polytype env.Schemes }
-        let s2, t2 = ti (env2.Apply subsValue) rest
+        let env2 = { Schemes = Map.add e.identifier polytype env.Schemes }
+        let s2, t2 = ti (env2.Apply subsValue) e.rest
         composeSubst subsValue s2, t2
 
 // Type inference with all substitutions applied
-let typeInference (env : Map<string, Polytype>) (e : Exp) =
+let typeInference (env : Map<EVal, Polytype>) (e : E) =
     let s, t = ti { Schemes = env } e
     t.Apply s
 
 // Test this puppy
-let test (e : Exp) =
+let test (e : E) =
     try
         let t = typeInference Map.empty e
         printfn "%A :: %A" e t
     with ex -> printfn "ERROR %O" ex
 
+let rec lsp (e: E): string =
+  match e with
+    | EStr e -> sprintf "\"%s\"" e.str
+    | ENum e -> e.num.ToString()
+    | EVal e -> e.name.ToString()
+    | ELet e -> sprintf "(let [%s %s] %s)" e.identifier.name (lsp e.value) (lsp e.rest)
+    | EFn e -> sprintf "(%s [%s] %s)" (if e.isProc then "proc" else "fn") e.identifier.name ^% lsp e.body
+    | EObj e -> sprintf "{ %s }" (String.concat ", " (e.fields |> List.map (fun field -> sprintf ":%s %s" field.key ^% lsp field.value)))
+    | EWith e ->  sprintf "{ %s with %s }" (lsp e.expr) (String.concat ", " (e.fields |> List.map (fun field -> sprintf ":%s %s" field.key ^% lsp field.value)))
+    | EDot e -> sprintf "(%s.%s)" (lsp e.expr) e.name
+    | EEval e -> sprintf "(%s %s)" (lsp e.fnExpr) ^% lsp e.argExpr
+    | EDo e -> sprintf "(do %s)" ^% lsp e.expr
+    | EImport e -> sprintf "(import %s)" e.moduleName
+    | EBlock e -> sprintf "(%s)" ^% lsp e.expr
+    | EError e -> sprintf "(err \"%s\")" (Regex.Unescape ^% sprintf "%s" e.message)
 
-let main argv = 
-    [
-        ELet ("id", EFn ("x", EVariable "x"), EVariable "id")
-        ELet ("id", ELit (ENum 42.0), EVariable "id")
-    ]
-    |> Seq.iter test
-    0
+[<EntryPoint>]
+let main argv =
+  let input = """
+  let id = fn x -> id x
+  id
+  """
+  let strings = tokenize input
+  let e, tail = parseExpression strings
+  let e = uniquify e
+  test e.expr
+  0

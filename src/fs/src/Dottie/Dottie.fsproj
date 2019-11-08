@@ -60,8 +60,8 @@
     <Compile Include="ModuleParser.fs" />
     <Compile Include="TypeInferencer.fs" />
     <Compile Include="Translator.fs" />
+    <Compile Include="OldThing.fs" />
     <Compile Include="AlgorithmW.fs" />
-    <Compile Include="Program.fs" />
   </ItemGroup>
   <ItemGroup>
     <Reference Include="mscorlib" />
