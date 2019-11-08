@@ -94,6 +94,7 @@ let addFinalSemicolon (tokens: Stack<PageToken>) =
     match lastToken.value with
     | KIdentifier _
     | KCloseBrace
+    | KCloseParen
     | KNumber _
     | KString _ -> tokens.Push({ row = lastToken.row; len = 0; col = lastToken.col + lastToken.len; value = KSemicolon })
     | _ -> ()

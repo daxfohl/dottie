@@ -114,6 +114,7 @@ let rec ti (env : TypeEnv) (e : E) : TypeSubst * S =
     match e with
     | EStr _ -> Map.empty, SLit SStr
     | ENum _ -> Map.empty, SLit SNum
+    | EBlock e -> ti env e.expr
     | EVal e ->
         match env.Schemes.TryFind e with
         | None -> failwithf "Unbound variable: %A" e
@@ -149,14 +150,6 @@ let rec ti (env : TypeEnv) (e : E) : TypeSubst * S =
 let typeInference (env : Map<EVal, Polytype>) (e : E) =
     let s, t = ti { Schemes = env } e
     t.Apply s
-
-// Test this puppy
-let test (e : E) =
-    try
-        let t = typeInference Map.empty e
-        printfn "%A :: %A" e t
-    with ex -> printfn "ERROR %O" ex
-
 let rec lsp (e: E): string =
   match e with
     | EStr e -> sprintf "\"%s\"" e.str
@@ -173,10 +166,20 @@ let rec lsp (e: E): string =
     | EBlock e -> sprintf "(%s)" ^% lsp e.expr
     | EError e -> sprintf "(err \"%s\")" (Regex.Unescape ^% sprintf "%s" e.message)
 
+
+// Test this puppy
+let test (e : E) =
+  printfn "%A :: %A" (lsp e) e
+  printfn ""
+  try
+    let t = typeInference Map.empty e
+    printfn "%A :: %A" (lsp e) t
+  with ex -> printfn "ERROR %O" ex
+
 [<EntryPoint>]
 let main argv =
   let input = """
-  let y = fn f -> f y f
+  let y = fn f -> f (y f)
   y
   """
   let strings = tokenize input
