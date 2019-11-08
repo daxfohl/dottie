@@ -37,3 +37,5 @@ module List =
 
 module Map =
   let keys map = map |> Map.toList |> List.map fst |> Set.ofList
+  let unionMap s1 s2 = Map.fold (fun acc key value -> Map.add key value acc) s2 s1
+  let singletonMap k v = Map.ofSeq [k, v]
