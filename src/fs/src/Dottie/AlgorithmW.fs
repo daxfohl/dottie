@@ -8,7 +8,15 @@ open System.Text.RegularExpressions
 // Based on http://catamorph.de/documents/AlgorithmW.pdf
 
 type SLit = | SNum | SStr
-type S =
+type SFn =
+  { input: S
+    output: S
+    isProc: bool }
+        
+and SObj =
+  { fields: Map<string, S> }
+
+and S =
     | SLit of SLit
     | STypeVariable of string
     | SFn of SFn
@@ -21,6 +29,7 @@ type S =
             let v1 = s.input.GetAllVariables
             let v2 = s.output.GetAllVariables
             Set.union v1 v2
+        | SObj s -> s.fields |> Seq.collect(fun kvp -> kvp.Value.GetAllVariables) |> Set.ofSeq
     member this.Apply (ts : TypeSubst) =
         match this with
         | STypeVariable n ->
@@ -28,14 +37,8 @@ type S =
             | Some t -> t
             | None -> STypeVariable n
         | SFn s -> SFn { input = s.input.Apply ts; output = s.output.Apply ts; isProc = s.isProc }
+        | SObj s -> SObj { fields = s.fields |> Map.map (fun _ v -> v.Apply ts) }
         | _ -> this
-and SFn =
-  { input: S
-    output: S
-    isProc: bool }
-        
-and SObj =
-  { fields: Map<string, S> }
 
 and TypeSubst = Map<string, S>
 
@@ -111,6 +114,15 @@ let rec unify (t1 : S) (t2 : S) : TypeSubst =
         let s1 = unify f1.input f2.input
         let s2 = unify (f1.output.Apply s1) (f2.output.Apply s1)
         composeSubst s1 s2
+    | SObj o1, SObj o2 ->
+        let keys = Map.keys o1.fields
+        if Map.keys o2.fields <> keys then failwithf "Objects have different keys"
+        let addKey (typeSubst: TypeSubst) (key: string) =
+          let v1 = (o1.fields |> Map.find key).Apply typeSubst
+          let v2 = (o2.fields |> Map.find key).Apply typeSubst
+          let ts = unify v1 v2
+          composeSubst typeSubst ts
+        keys |> Seq.fold addKey Map.empty
     | STypeVariable u, t -> varBind u t
     | t, STypeVariable u -> varBind u t
     | SLit x, SLit y when x = y -> Map.empty
@@ -154,7 +166,13 @@ let rec ti (env : TypeEnv) (e : E) : TypeSubst * S =
         let s2, t2 = ti (env.Apply s1) e.argExpr
         let s3 = unify (t1.Apply s2) (SFn { input = t2; output = freeSpec; isProc = false })
         List.fold composeSubst Map.empty [s3; s2; s1], freeSpec.Apply s3
-    | EObj e -> failwith ""
+    | EObj e ->
+        let addField (typeSubst: TypeSubst, fields: Map<string, S>, env: TypeEnv) (field: EObjField) =
+          let subs, t = ti env field.value
+          let env, t = env.Apply subs, t.Apply subs
+          (composeSubst typeSubst subs, fields |> Map.add field.key t, env)
+        let ts, fields, env = e.fields |> Seq.fold addField (Map.empty, Map.empty, env)
+        ts, SObj { fields = fields }
 
 // Type inference with all substitutions applied
 let typeInference (env : Map<EVal, Polytype>) (e : E) =
@@ -198,7 +216,7 @@ let test (e : E) =
 let main argv =
   let input = """
   let y = fn f -> f (y f)
-  y
+  { x: 3 }
   """
   let strings = tokenize input
   let e, tail = parseExpression strings
