@@ -166,17 +166,17 @@ let rec ti (env : TypeEnv) (e : E) : TypeSubst * S =
         let s2, t2 = ti (env.Apply s1) e.argExpr
         let s3 = unify (t1.Apply s2) (SFn { input = t2; output = freeSpec; isProc = false })
         List.fold composeSubst Map.empty [s3; s2; s1], freeSpec.Apply s3
-    | EObj e ->
-        let addField (typeSubst: TypeSubst, fields: Map<string, S>, env: TypeEnv) (field: EObjField) =
-          let tv = newTyVar()
-          let env : TypeEnv =
-              let polytype = { Type = tv; BoundVariables = [] }
-              { Schemes = Map.unionMap (Map.singletonMap field.key polytype) env.Schemes }
-          let subs, t = ti env field.value
-          let env, t = env.Apply subs, t.Apply subs
-          (composeSubst typeSubst subs, fields |> Map.add field.key t, env)
-        let ts, fields, env = e.fields |> Seq.fold addField (Map.empty, Map.empty, env)
-        ts, SObj { fields = fields }
+    //| EObj e ->
+    //    let addField (typeSubst: TypeSubst, fields: Map<string, S>, env: TypeEnv) (field: EObjField) =
+    //      let tv = newTyVar()
+    //      let env : TypeEnv =
+    //          let polytype = { Type = tv; BoundVariables = [] }
+    //          { Schemes = Map.unionMap (Map.singletonMap field.key polytype) env.Schemes }
+    //      let subs, t = ti env field.value
+    //      let env, t = env.Apply subs, t.Apply subs
+    //      (composeSubst typeSubst subs, fields |> Map.add field.key t, env)
+    //    let ts, fields, env = e.fields |> Seq.fold addField (Map.empty, Map.empty, env)
+    //    ts, SObj { fields = fields }
 
 // Type inference with all substitutions applied
 let typeInference (env : Map<EVal, Polytype>) (e : E) =
@@ -216,14 +216,41 @@ let test (e : E) =
     printfn "%A :: %A" (lsp e) (prnSpec t)
   with ex -> printfn "ERROR %O" ex
   
-type X<'a> = { x: 'a }
-type Y<'a> = { y: 'a }
-type Z<'a> = { z: 'a }
+//type X<'a> = { x: 'a }
+//type Y<'a> = { y: 'a }
+//type Z<'a> = { z: 'a }
 
-let wrapInX = fun f -> fun x -> f { x = x }
-let f = fun x -> { z = x }
-let q = (wrapInX f) { y = 3 }
-let z = (wrapInX f) { y = "x" }
+//let wrapInX = fun f -> fun x -> f { x = x }
+//let f = fun x -> { z = x }
+//let q = (wrapInX f) { y = 3 }
+//let z = (wrapInX f) { y = "x" }
+
+type IX =
+    abstract member X : int
+
+type X =
+  { X: int }
+  interface IX with member this.X = this.X
+
+type XY =
+  { X: int; Y: int }
+  interface IX with member this.X = this.X
+
+type Go = H of (unit -> IX * Go)
+
+let rec f(): IX * Go =
+  let next() = { X = 0 } :> IX, H f
+  { X = 0; Y = 0 } :> IX, H next
+
+let rec doit (f: unit -> IX * Go): unit =
+  let ix, (H next) = f()
+  printfn "%i" ix.X
+  doit next
+
+let ix1, (H f1) = f()
+let ix2, (H f2) = f1()
+
+let z = doit f2
 
 [<EntryPoint>]
 let main argv =
