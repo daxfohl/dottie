@@ -104,8 +104,8 @@ let instantiate (polytype : Polytype) : S =
 let varBind (u : string) (t : S) : TypeSubst =
     match t with
     | STypeVariable u' when u = u' -> Map.empty
-    | _ when t.GetAllVariables.Contains u ->
-        failwithf "Occur check fails: %s vs %A" u t
+    //| _ when t.GetAllVariables.Contains u ->
+    //    failwithf "Occur check fails: %s vs %A" u t
     | _ -> Map.singletonMap u t
 
 let rec unify (t1 : S) (t2 : S) : TypeSubst =
@@ -126,7 +126,7 @@ let rec unify (t1 : S) (t2 : S) : TypeSubst =
     | STypeVariable u, t -> varBind u t
     | t, STypeVariable u -> varBind u t
     | SLit x, SLit y when x = y -> Map.empty
-    | _ -> failwithf "Types do not unify: %A vs %A" t1 t2
+    | _ -> failwith ^% sprintf "Types do not unify: %A vs %A" t1 t2
 
 // Type inference with pending substitutions
 let rec ti (env : TypeEnv) (e : E) : TypeSubst * S =
@@ -204,7 +204,7 @@ let rec prnSpec (s: S) =
     | SLit SNum -> "float"
     | SLit SStr -> "string"
     | STypeVariable v -> v
-    | SFn x -> sprintf "%s -> %s" (prnSpec x.input) (prnSpec x.output)
+    | SFn x -> sprintf "(%s -> %s)" (prnSpec x.input) (prnSpec x.output)
     | SObj x -> sprintf "{ %s }" ^% String.concat ", " (x.fields |> Map.toList |> List.map ^% fun (k, eq) -> sprintf "%s: %s" k ^% prnSpec eq)
 
 // Test this puppy
@@ -216,49 +216,11 @@ let test (e : E) =
     printfn "%A :: %A" (lsp e) (prnSpec t)
   with ex -> printfn "ERROR %O" ex
   
-//type X<'a> = { x: 'a }
-//type Y<'a> = { y: 'a }
-//type Z<'a> = { z: 'a }
-
-//let wrapInX = fun f -> fun x -> f { x = x }
-//let f = fun x -> { z = x }
-//let q = (wrapInX f) { y = 3 }
-//let z = (wrapInX f) { y = "x" }
-
-type IX =
-    abstract member X : int
-
-type X =
-  { X: int }
-  interface IX with member this.X = this.X
-
-type XY =
-  { X: int; Y: int }
-  interface IX with member this.X = this.X
-
-type Go = H of (unit -> IX * Go)
-
-let rec f(): IX * Go =
-  let next() = { X = 0 } :> IX, H f
-  { X = 0; Y = 0 } :> IX, H next
-
-let rec doit (f: unit -> IX * Go): unit =
-  let ix, (H next) = f()
-  printfn "%i" ix.X
-  doit next
-
-let ix1, (H f1) = f()
-let ix2, (H f2) = f1()
-
-let z = doit f2
-
 [<EntryPoint>]
 let main argv =
   let input = """
-  let wrapInX = fn f -> fn x -> f { x: x }
-  let f = fn x -> { z: x }
-  let q = (wrapInX f) { y: 3 }
-  (wrapInX f) { y: "x" }
+  let y = fn f -> f.y
+  y
   """
   let strings = tokenize input
   let e, tail = parseExpression strings

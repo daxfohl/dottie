@@ -1,4 +1,4 @@
-﻿module TypeInferencer
+﻿module TypeInferencer1
 
 open System
 open Expressions
