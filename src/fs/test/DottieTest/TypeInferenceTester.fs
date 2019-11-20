@@ -1,11 +1,11 @@
 ﻿module ``Type inference tester``
 
+open System
 open Xunit
 open Tokenizer
 open Expressions
 open ExpressionParser
 open AlgorithmW
-open Types
 open SpecParser
 open FSharpx.Choice
 
@@ -17,22 +17,25 @@ let get choice =
 let assertSpec''(existing, expression, otherSpec) =
   let strings = tokenize expression
   let e, tail = parseExpression strings
-  let e = uniquify e
-  let spec = typeInference Map.empty e.expr
-  let s = sprintf "%A" spec
+  let existingVals = existing |> List.map fst |> List.map (fun x -> x.id, x.name) |> List.map(fun (x, y) -> y, x) |> Map.ofList
+  let e = uniquify' existingVals e
+  let existing = existing |> List.map (fun (x, y) -> x, { BoundVariables = []; Type = y }) |> Map.ofList
+  let spec = typeInference existing e.expr
+  let s = prnSpec spec
   System.Console.WriteLine(s)
   Assert.StrictEqual(otherSpec, spec)
 
 let assertSpec'''(expression, otherSpec) = assertSpec''([], expression, otherSpec)
 let assertSpec'(existing, expression, expectedSpec) =
-  match choose
-    {
-      let strings = tokenize expectedSpec
-      let! parsed, _ = parseRawSpec strings
-      return parsed
-    } with
-  | Choice1Of2 otherSpec -> assertSpec''(existing, expression, otherSpec)
-  | Choice2Of2 s -> failwith s
+  let strings = tokenize expression
+  let e, tail = parseExpression strings
+  let existingVals = existing |> List.map fst |> List.map (fun x -> x.id, x.name) |> List.map(fun (x, y) -> y, x) |> Map.ofList
+  let e = uniquify' existingVals e
+  let existing = existing |> List.map (fun (x, y) -> x, { BoundVariables = []; Type = y }) |> Map.ofList
+  let spec = typeInference existing e.expr
+  let s = prnSpec spec
+  System.Console.WriteLine(s)
+  Assert.StrictEqual(expectedSpec, s)
 
 let assertSpec(expression, expectedSpec) = assertSpec'([], expression, expectedSpec)
 
@@ -49,6 +52,8 @@ let assertSpec(expression, expectedSpec) = assertSpec'([], expression, expectedS
 
 let set = Set.ofList
 let map = Map.ofList
+let EVal s = { id = Guid.NewGuid(); name = s }
+let SFn(input, output, proc) = SFn { input = input; output = output; isProc = proc }
 
 //[<Fact>]
 //let ``Test undefined``() =
@@ -56,38 +61,43 @@ let map = Map.ofList
 
 [<Fact>]
 let ``Test number``() =
-  assertSpec("2", "literal int")
+  assertSpec("2", "float")
 
 [<Fact>]
 let ``Test string``() =
-  assertSpec("\"test\"", "literal string")
+  assertSpec("\"test\"", "string")
   
 [<Fact>]
 let ``Test let``() =
-  assertSpec("{ let x = 3; x }", "literal int")
+  assertSpec("let x = 3; x", "float")
 
 [<Fact>]
 let ``Test let two``() =
-  assertSpec("{ let x = 3; let y = x; y }}", "literal int")
+  assertSpec("let x = 3; let y = x; y", "float")
 
-//[<Fact>]
-//let ``Test let mixed``() =
-//  assertSpec("""{ let x = 3; let y = "test"; y }""", "literal string")
+[<Fact>]
+let ``Test let mixed``() =
+  assertSpec("""let x = 3; let y = "test"; y""", "string")
 
-//[<Fact>]
-//let ``Test let mixed 2``() =
-//  assertSpec("""{ let x = 3; let y = "test"; x }""", "literal int")
+[<Fact>]
+let ``Test let mixed 2``() =
+  assertSpec("""let x = 3; let y = "test"; x""", "float")
 
-//[<Fact>]
-//let ``Test let nested``() =
-//  assertSpec("{ let z = { let x = 3; let y = x; y }; z }", "literal int")
+[<Fact>]
+let ``Test let nested``() =
+  assertSpec("""
+    let z =
+      let x = 3
+      let y = x
+      y
+    z""", "float")
 
-//[<Fact>]
-//let ``Test inc``() =
-//  assertSpec' (
-//    [EVal "inc", SFn(SLit SInt, SLit SInt, false)],
-//    "{ let x = 3; inc x }",
-//    "literal int")
+[<Fact>]
+let ``Test inc``() =
+  assertSpec' (
+    [EVal "inc", SFn(SLit SNum, SLit SNum, false)],
+    "let x = 3; inc x",
+    "float")
 
 //[<Fact>]
 //let ``Test toStr``() =
@@ -130,11 +140,11 @@ let ``Test let two``() =
 //    "{ let inc2 = fn x -> inc inc x; inc2 4 }",
 //    "literal int")
     
-//[<Fact>]
-//let ``Test id``() =
-//  assertSpec'''(
-//    "{ let id = fn x -> x; id 3 }",
-//    SLit SInt)
+[<Fact>]
+let ``Test id``() =
+  assertSpec'''(
+    "let id = fn x -> x; id 3",
+    SLit SNum)
 
 //[<Fact>]
 //let ``Test id with``() =
