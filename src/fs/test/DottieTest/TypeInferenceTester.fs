@@ -6,7 +6,6 @@ open Tokenizer
 open Expressions
 open ExpressionParser
 open AlgorithmW
-open SpecParser
 open FSharpx.Choice
 
 let get choice =
@@ -39,25 +38,30 @@ let assertSpec'(existing, expression, expectedSpec) =
 
 let assertSpec(expression, expectedSpec) = assertSpec'([], expression, expectedSpec)
 
-//let assertError'(existing, expression, expectedError) =
-//  let spec = choose {
-//    let strings = tokenize expression
-//    let! parsed, _ = parseExpression strings
-//    let! spec, _ = getType parsed (Map.ofList existing) Map.empty Normal
-//    return spec
-//  }
-//  Assert.Equal(Choice2Of2 expectedError, spec)
+let assertError'(existing, expression, expectedError) =
+  try
+    let strings = tokenize expression
+    let e, tail = parseExpression strings
+    let existingVals = existing |> List.map fst |> List.map (fun x -> x.id, x.name) |> List.map(fun (x, y) -> y, x) |> Map.ofList
+    let e = uniquify' existingVals e
+    let existing = existing |> List.map (fun (x, y) -> x, { BoundVariables = []; Type = y }) |> Map.ofList
+    let spec = typeInference existing e.expr
+    let s = prnSpec spec
+    System.Console.WriteLine(s)
+    Assert.True(false)
+  with
+    | ex -> Assert.Equal(expectedError, ex.Message)
 
-//let assertError(expression, expectedError) = assertError'([], expression, expectedError)
+let assertError(expression, expectedError) = assertError'([], expression, expectedError)
 
 let set = Set.ofList
 let map = Map.ofList
 let EVal s = { id = Guid.NewGuid(); name = s }
 let SFn(input, output, proc) = SFn { input = input; output = output; isProc = proc }
 
-//[<Fact>]
-//let ``Test undefined``() =
-//  assertError("x", Errors.undefined "x")
+[<Fact>]
+let ``Test undefined``() =
+  assertError("x", "undefined x")
 
 [<Fact>]
 let ``Test number``() =
