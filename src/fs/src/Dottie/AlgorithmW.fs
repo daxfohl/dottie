@@ -92,6 +92,9 @@ let newTyVar =
         let nn = sprintf "a%d" !nextIndex
         nextIndex := !nextIndex + 1
         STypeVariable nn
+        
+module Errors =
+  let typesDoNotUnify t1 t2 = sprintf "Types do not unify: %A vs %A" t1 t2
 
 // Replace all bound type variables with fresh variables
 // Because we want each invocation of e.g. "id" to have its own bound vars.
@@ -126,7 +129,7 @@ let rec unify (t1 : S) (t2 : S) : TypeSubst =
     | STypeVariable u, t -> varBind u t
     | t, STypeVariable u -> varBind u t
     | SLit x, SLit y when x = y -> Map.empty
-    | _ -> failwith ^% sprintf "Types do not unify: %A vs %A" t1 t2
+    | _ -> failwith ^% Errors.typesDoNotUnify t1 t2
 
 // Type inference with pending substitutions
 let rec ti (env : TypeEnv) (e : E) : TypeSubst * S =
@@ -166,6 +169,7 @@ let rec ti (env : TypeEnv) (e : E) : TypeSubst * S =
         let s2, t2 = ti (env.Apply s1) e.argExpr
         let s3 = unify (t1.Apply s2) (SFn { input = t2; output = freeSpec; isProc = false })
         List.fold composeSubst Map.empty [s3; s2; s1], freeSpec.Apply s3
+    | EError e -> failwith e.message
     //| EObj e ->
     //    let addField (typeSubst: TypeSubst, fields: Map<string, S>, env: TypeEnv) (field: EObjField) =
     //      let tv = newTyVar()

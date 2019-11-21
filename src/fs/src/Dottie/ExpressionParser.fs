@@ -6,6 +6,9 @@ open PExpressions
 open Expressions
 open Tokens
 
+module EErrors =
+  let identifierDoesNotExist name = sprintf "identifier %s does not exist." name
+
 let rec parseExpression (tokens: PageToken list) : PE * PageToken list =
   let skipIgnorable = List.skipWhile isIgnorable
   let rec parseObjectFields (tokens: PageToken list) : PEObjField list * PageToken list =
@@ -98,7 +101,7 @@ let rec uniquify' (map: Map<string, Guid>) (e: PE): Expression =
       | PEVal e ->
           match Map.tryFind e.name map with
             | Some id -> EVal { id = id; name = e.name }
-            | None -> EError { message =  sprintf "identifier %s does not exist." e.name}
+            | None -> EError { message =  EErrors.identifierDoesNotExist e.name }
       | PELet e ->
           let id, map = fresh e.name
           ELet { identifier = { id = id; name = e.name }; value = newuniq map e.expr; rest = newuniq map e.rest }
