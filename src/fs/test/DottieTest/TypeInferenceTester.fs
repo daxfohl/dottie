@@ -110,18 +110,18 @@ let ``Test toStr``() =
     "let x = 3; toStr x",
     "string")
 
-//[<Fact>]
-//let ``Test not function``() =
-//  assertError(
-//    "{ let x = 3; x x }",
-//    Errors.notAFunction (EVal "x") (SLit SNum))
+[<Fact>]
+let ``Test not function``() =
+  assertError(
+    "let x = 3; x x",
+    """Errors.notAFunction (EVal "x") (SLit SNum)""")
 
-//[<Fact>]
-//let ``Test wrong type``() =
-//  assertError' (
-//    [EVal "parse", SFn(SLit SStr, SLit SNum, false)],
-//    "{ let x = 3; parse x }",
-//    UnifyErrors.cannotUnify(SLit SNum, SLit SStr))
+[<Fact>]
+let ``Test wrong type``() =
+  assertError' (
+    [EVal "parse", SFn(SLit SStr, SLit SNum, false)],
+    "let x = 3; parse x",
+    "UnifyErrors.cannotUnify(SLit SNum, SLit SStr)")
 
 [<Fact>]
 let ``Test inc def``() =
