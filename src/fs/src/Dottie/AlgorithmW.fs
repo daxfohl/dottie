@@ -220,7 +220,6 @@ let test (e : E) =
     printfn "%A :: %A" (lsp e) (prnSpec t)
   with ex -> printfn "ERROR %O" ex
   
-[<EntryPoint>]
 let main argv =
   let input = """
   let y = fn f -> f.y

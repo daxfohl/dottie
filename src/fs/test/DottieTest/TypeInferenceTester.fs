@@ -5,110 +5,109 @@ open Xunit
 open Tokenizer
 open Expressions
 open ExpressionParser
-open AlgorithmW
-open FSharpx.Choice
+open OldThing
 
-let get choice =
-  match choice with
-  | Choice1Of2 (x, _) -> x
-  | Choice2Of2 x -> failwith x
+//let get choice =
+//  match choice with
+//  | Choice1Of2 (x, _) -> x
+//  | Choice2Of2 x -> failwith x
   
-let assertSpec''(existing, expression, otherSpec) =
-  let strings = tokenize expression
-  let e, tail = parseExpression strings
-  let existingVals = existing |> List.map fst |> List.map (fun x -> x.id, x.name) |> List.map(fun (x, y) -> y, x) |> Map.ofList
-  let e = uniquify' existingVals e
-  let existing = existing |> List.map (fun (x, y) -> x, { BoundVariables = []; Type = y }) |> Map.ofList
-  let spec = typeInference existing e.expr
-  let s = prnSpec spec
-  System.Console.WriteLine(s)
-  Assert.StrictEqual(otherSpec, spec)
+//let assertSpec''(existing, expression, otherSpec) =
+//  let strings = tokenize expression
+//  let e, tail = parseExpression strings
+//  let existingVals = existing |> List.map fst |> List.map (fun x -> x.id, x.name) |> List.map(fun (x, y) -> y, x) |> Map.ofList
+//  let e = uniquify' existingVals e
+//  let existing = existing |> List.map (fun (x, y) -> x, { BoundVariables = []; Type = y }) |> Map.ofList
+//  let spec = typeInference existing e.expr
+//  let s = prnSpec spec
+//  System.Console.WriteLine(s)
+//  Assert.StrictEqual(otherSpec, spec)
 
-let assertSpec'''(expression, otherSpec) = assertSpec''([], expression, otherSpec)
-let assertSpec'(existing, expression, expectedSpec) =
-  let strings = tokenize expression
-  let e, tail = parseExpression strings
-  let existingVals = existing |> List.map fst |> List.map (fun x -> x.id, x.name) |> List.map(fun (x, y) -> y, x) |> Map.ofList
-  let e = uniquify' existingVals e
-  let existing = existing |> List.map (fun (x, y) -> x, { BoundVariables = []; Type = y }) |> Map.ofList
-  let spec = typeInference existing e.expr
-  let s = prnSpec spec
-  System.Console.WriteLine(s)
-  Assert.StrictEqual(expectedSpec, s)
+//let assertSpec'''(expression, otherSpec) = assertSpec''([], expression, otherSpec)
+//let assertSpec'(existing, expression, expectedSpec) =
+//  let strings = tokenize expression
+//  let e, tail = parseExpression strings
+//  let existingVals = existing |> List.map fst |> List.map (fun x -> x.id, x.name) |> List.map(fun (x, y) -> y, x) |> Map.ofList
+//  let e = uniquify' existingVals e
+//  let existing = existing |> List.map (fun (x, y) -> x, { BoundVariables = []; Type = y }) |> Map.ofList
+//  let spec = typeInference existing e.expr
+//  let s = prnSpec spec
+//  System.Console.WriteLine(s)
+//  Assert.StrictEqual(expectedSpec, s)
 
-let assertSpec(expression, expectedSpec) = assertSpec'([], expression, expectedSpec)
+//let assertSpec(expression, expectedSpec) = assertSpec'([], expression, expectedSpec)
 
-let assertError'(existing, expression, expectedError) =
-  try
-    let strings = tokenize expression
-    let e, tail = parseExpression strings
-    let existingVals = existing |> List.map fst |> List.map (fun x -> x.id, x.name) |> List.map(fun (x, y) -> y, x) |> Map.ofList
-    let e = uniquify' existingVals e
-    let existing = existing |> List.map (fun (x, y) -> x, { BoundVariables = []; Type = y }) |> Map.ofList
-    let spec = typeInference existing e.expr
-    let s = prnSpec spec
-    System.Console.WriteLine(s)
-    Assert.True(false)
-  with
-    | ex -> Assert.Equal(expectedError, ex.Message)
+//let assertError'(existing, expression, expectedError) =
+//  try
+//    let strings = tokenize expression
+//    let e, tail = parseExpression strings
+//    let existingVals = existing |> List.map fst |> List.map (fun x -> x.id, x.name) |> List.map(fun (x, y) -> y, x) |> Map.ofList
+//    let e = uniquify' existingVals e
+//    let existing = existing |> List.map (fun (x, y) -> x, { BoundVariables = []; Type = y }) |> Map.ofList
+//    let spec = typeInference existing e.expr
+//    let s = prnSpec spec
+//    System.Console.WriteLine(s)
+//    Assert.True(false)
+//  with
+//    | ex -> Assert.Equal(expectedError, ex.Message)
 
-let assertError(expression, expectedError) = assertError'([], expression, expectedError)
+//let assertError(expression, expectedError) = assertError'([], expression, expectedError)
 
-let set = Set.ofList
-let map = Map.ofList
-let EVal s = { id = Guid.NewGuid(); name = s }
-let SFn(input, output, proc) = SFn { input = input; output = output; isProc = proc }
+//let set = Set.ofList
+//let map = Map.ofList
+//let EVal s = { id = Guid.NewGuid(); name = s }
+//let SFn(input, output, proc) = SFn { input = input; output = output; isProc = proc }
 
-[<Fact>]
-let ``Test undefined``() =
-  assertError("x", EErrors.identifierDoesNotExist "x")
+//[<Fact>]
+//let ``Test undefined``() =
+//  assertError("x", EErrors.identifierDoesNotExist "x")
 
-[<Fact>]
-let ``Test number``() =
-  assertSpec("2", "float")
+//[<Fact>]
+//let ``Test number``() =
+//  assertSpec("2", "float")
 
-[<Fact>]
-let ``Test string``() =
-  assertSpec("\"test\"", "string")
+//[<Fact>]
+//let ``Test string``() =
+//  assertSpec("\"test\"", "string")
   
-[<Fact>]
-let ``Test let``() =
-  assertSpec("let x = 3; x", "float")
+//[<Fact>]
+//let ``Test let``() =
+//  assertSpec("let x = 3; x", "float")
 
-[<Fact>]
-let ``Test let two``() =
-  assertSpec("let x = 3; let y = x; y", "float")
+//[<Fact>]
+//let ``Test let two``() =
+//  assertSpec("let x = 3; let y = x; y", "float")
 
-[<Fact>]
-let ``Test let mixed``() =
-  assertSpec("""let x = 3; let y = "test"; y""", "string")
+//[<Fact>]
+//let ``Test let mixed``() =
+//  assertSpec("""let x = 3; let y = "test"; y""", "string")
 
-[<Fact>]
-let ``Test let mixed 2``() =
-  assertSpec("""let x = 3; let y = "test"; x""", "float")
+//[<Fact>]
+//let ``Test let mixed 2``() =
+//  assertSpec("""let x = 3; let y = "test"; x""", "float")
 
-[<Fact>]
-let ``Test let nested``() =
-  assertSpec("""
-    let z =
-      let x = 3
-      let y = x
-      y
-    z""", "float")
+//[<Fact>]
+//let ``Test let nested``() =
+//  assertSpec("""
+//    let z =
+//      let x = 3
+//      let y = x
+//      y
+//    z""", "float")
 
-[<Fact>]
-let ``Test inc``() =
-  assertSpec' (
-    [EVal "inc", SFn(SLit SNum, SLit SNum, false)],
-    "let x = 3; inc x",
-    "float")
+//[<Fact>]
+//let ``Test inc``() =
+//  assertSpec' (
+//    [EVal "inc", SFn(SLit SNum, SLit SNum, false)],
+//    "let x = 3; inc x",
+//    "float")
 
-[<Fact>]
-let ``Test toStr``() =
-  assertSpec' (
-    [EVal "toStr", SFn(SLit SNum, SLit SStr, false)],
-    "let x = 3; toStr x",
-    "string")
+//[<Fact>]
+//let ``Test toStr``() =
+//  assertSpec' (
+//    [EVal "toStr", SFn(SLit SNum, SLit SStr, false)],
+//    "let x = 3; toStr x",
+//    "string")
 
 //[<Fact>]
 //let ``Test not function``() =
@@ -116,39 +115,39 @@ let ``Test toStr``() =
 //    "let x = 3; x x",
 //    """Errors.notAFunction (EVal "x") (SLit SNum)""")
 
-[<Fact>]
-let ``Test wrong type``() =
-  assertError' (
-    [EVal "parse", SFn(SLit SStr, SLit SNum, false)],
-    "let x = 3; parse x",
-    Errors.typesDoNotUnify (SLit SStr) (SLit SNum))
+//[<Fact>]
+//let ``Test wrong type``() =
+//  assertError' (
+//    [EVal "parse", SFn(SLit SStr, SLit SNum, false)],
+//    "let x = 3; parse x",
+//    Errors.typesDoNotUnify (SLit SStr) (SLit SNum))
 
-[<Fact>]
-let ``Test inc def``() =
-  assertSpec' (
-    [EVal "inc", SFn(SLit SNum, SLit SNum, false)],
-    "fn x -> inc x",
-    "(float -> float)")
+//[<Fact>]
+//let ``Test inc def``() =
+//  assertSpec' (
+//    [EVal "inc", SFn(SLit SNum, SLit SNum, false)],
+//    "fn x -> inc x",
+//    "(float -> float)")
 
-[<Fact>]
-let ``Test inc inc def``() =
-  assertSpec' (
-    [EVal "inc", SFn(SLit SNum, SLit SNum, false)],
-    "fn x -> inc inc x",
-    "(float -> float)")
+//[<Fact>]
+//let ``Test inc inc def``() =
+//  assertSpec' (
+//    [EVal "inc", SFn(SLit SNum, SLit SNum, false)],
+//    "fn x -> inc inc x",
+//    "(float -> float)")
 
-[<Fact>]
-let ``Test inc inc eval``() =
-  assertSpec' (
-    [EVal "inc", SFn(SLit SNum, SLit SNum, false)],
-    "let inc2 = fn x -> inc inc x; inc2 4",
-    "float")
+//[<Fact>]
+//let ``Test inc inc eval``() =
+//  assertSpec' (
+//    [EVal "inc", SFn(SLit SNum, SLit SNum, false)],
+//    "let inc2 = fn x -> inc inc x; inc2 4",
+//    "float")
     
-[<Fact>]
-let ``Test id``() =
-  assertSpec'''(
-    "let id = fn x -> x; id 3",
-    SLit SNum)
+//[<Fact>]
+//let ``Test id``() =
+//  assertSpec'''(
+//    "let id = fn x -> x; id 3",
+//    SLit SNum)
 
 //[<Fact>]
 //let ``Test id with``() =

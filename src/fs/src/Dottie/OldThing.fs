@@ -211,7 +211,8 @@ let prnSpec (s: S) =
     | SFree eq -> prnEqSet eq
     | SFn x -> sprintf "%s -> %s" (prnEqSet x.input) (prnEqSet x.output)
     | SObj x -> sprintf "{ %s }" ^% String.concat ", " (x.fields |> Map.toList |> List.map ^% fun (k, eq) -> sprintf "%s: %s" k ^% prnEqSet eq)
-
+    
+[<EntryPoint>]
 let main argv =
   let input = """
   let id = fn a -> a
@@ -222,16 +223,16 @@ let main argv =
   let strings = tokenize input
   let e, tail = parseExpression strings
   let e = uniquify e
-  //let context = emptyContext |> loadExpression e.expr
-  //for expr in context.exprs do
-  //  let expr, eqSet = expr.Key, expr.Value
-  //  let spec = context |> getTypeFromSet eqSet
-  //  printfn "%s: %s (%s)" (lsp expr) (prnSpec spec) (prnEqSet eqSet)
-  //printfn ""
-  //for expr in context.specs do
-  //  let eqSet, spec = expr.Key, expr.Value
-  //  printfn "%s: %s" (prnEqSet eqSet) (prnSpec spec)
-  //printfn ""
-  //for gt, lt in context.constraints do    
-  //  printfn "%s > %s" (prnEqSet gt) (prnEqSet lt)
+  let context = emptyContext |> loadExpression e.expr
+  for expr in context.exprs do
+    let expr, eqSet = expr.Key, expr.Value
+    let spec = context |> getTypeFromSet eqSet
+    printfn "%s: %s (%s)" (lsp expr) (prnSpec spec) (prnEqSet eqSet)
+  printfn ""
+  for expr in context.specs do
+    let eqSet, spec = expr.Key, expr.Value
+    printfn "%s: %s" (prnEqSet eqSet) (prnSpec spec)
+  printfn ""
+  for gt, lt in context.constraints do    
+    printfn "%s > %s" (prnEqSet gt) (prnEqSet lt)
   0
