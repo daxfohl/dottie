@@ -5,6 +5,12 @@
 //open SpecParser
 //open FSharpx.Choice
 
+//type MType =
+//  | Module of E
+//  | ForeignModule of S
+
+//type M = string * MType
+
 //let rec parseModule (tokens: string list): Choice<M * string list, string> =
 //  choose {
 //    match tokens with

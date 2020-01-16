@@ -58,10 +58,9 @@
     <Compile Include="Types.fs" />
     <Compile Include="SpecParser.fs" />
     <Compile Include="ModuleParser.fs" />
-    <Compile Include="TypeInferencer.fs" />
+    <Compile Include="TypeInferencer_Old.fs" />
     <Compile Include="Translator.fs" />
-    <Compile Include="OldThing.fs" />
-    <Compile Include="AlgorithmW.fs" />
+    <Compile Include="TypeInferencer.fs" />
   </ItemGroup>
   <ItemGroup>
     <Reference Include="mscorlib" />

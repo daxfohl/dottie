@@ -65,7 +65,7 @@ and EEval =
     argExpr: E }
 
 and EFn =
-  { identifier: EVal
+  { argument: EVal
     body: E
     isProc: bool }
     

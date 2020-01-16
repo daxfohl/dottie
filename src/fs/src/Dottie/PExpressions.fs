@@ -85,8 +85,8 @@ and PEEval =
 
 and PEFn =
   { fnToken: PageToken
-    name: string
-    nameToken: PageToken
+    argument: string
+    argumentToken: PageToken
     arrowToken: PageToken
     expr: PE
     isProc: bool }
