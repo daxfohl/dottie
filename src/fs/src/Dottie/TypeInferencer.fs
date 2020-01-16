@@ -32,96 +32,107 @@ type Context =
 with
   member this.Add(expr: E, pt: Polytype): Context =
     { this with exprs = this.exprs.Add(expr, pt)}
-  member this.Add(expr: E, s: S): Context = this.Add(expr, Polytype.Unbound s)
   member this.GetType(expr: E): Polytype = this.exprs.[expr]
+  member this.Fresh(expr: E): Context =
+    match this.exprs.TryFind(expr) with
+      | None -> { exprs = this.exprs.Add(expr, { spec = SFree(this.next); boundTypes = Set.singleton(this.next) }); next = this.next + 1 }
+      | Some _ -> this
 
+type Context with
+  member context.TypeSubst(expr1: E, expr2: E): Context =
+    
+  member context.Reconcile(expr1: E, expr2: E): Context =
+    if expr1 = expr2 then context
+    else
+      match expr1, expr2 with
+        | SFree _, _ -> 
+type Context with
+  member context.LoadExpression(expr: E): Context =
+    if context.exprs.ContainsKey(expr) then context
+    else
+      match expr with
+        | EStr _ -> context.Add(expr, Polytype.Unbound ^% SLit SStr)
+        | ENum _ -> context.Add(expr, Polytype.Unbound ^% SLit SNum)
+        | EVal _ -> context
+        | EBlock e ->
+            let context = context.LoadExpression(e.expr)
+            let spec = context.GetType(e.expr)
+            context.Add(expr, spec)
+        | ELet e ->
+            let id = EVal e.identifier
+            let context = context.Fresh(id)
+            let context = context.LoadExpression(e.value)
+            let context = context |> reconcileExprs id e.value
+            let context = context.LoadExpression(e.rest)
+            let context = context.fresh expr
+            context |> reconcileExprs expr e.rest
+        | EFn e ->
+            let argId = EVal e.argument
+            let context = context.fresh argId
+            let context = context.LoadExpression e.body
+            let fnSpec = SFn { input = context.getEqSet argId; output = context.getEqSet e.body }
+            let context, requiredFnEqSet = context.newSpec fnSpec
+            let context = context.fresh expr
+            let exprEqSet = context.getEqSet expr
+            context |> reconcile exprEqSet requiredFnEqSet
+        | EEval e ->
+            let context = context |> loadExpression e.fnExpr
+            let context = context.LoadExpression e.argExpr
+            let context = context.fresh expr
+            let exprEqSet = context.getEqSet expr
+            let context, newEqSet = context.newEqSet()
+            let requiredFnSpec = SFn { input = newEqSet; output = exprEqSet }
+            let context, requiredFnEqSet = context.newSpec requiredFnSpec
+            let fnEqSet = context.getEqSet e.fnExpr
+            let context = context |> reconcile fnEqSet requiredFnEqSet
+            let fnType = match context.getType e.fnExpr with SFn fnType -> fnType | _ -> failwith "error"
+            let argEqSet = context.getEqSet e.argExpr
+            context
+        //| EObj e ->
+        //    let context, fields = e.fields |> List.fold loadField (this, [])
+        //    let fieldMap = Map.ofList fields
+        //    let exprType = SObj { fields = fieldMap }
+        //    let context, eqSet = context.newSpec exprType
+        //    context.add expr eqSet
+        //| EWith e ->
+        //    let context = this |> loadExpression e.expr
+        //    let objEqSet = context.getEqSet e.expr
+        //    let context = context.add expr objEqSet
+        //    let context, withFields = e.fields |> List.fold loadField (context, [])
+        //    let objSpec = match context.getType e.expr with SObj e -> e | _ -> failwith "error"
+        //    let reconcileField context (name, withFieldEqSet) =
+        //      match objSpec.fields |> Map.tryFind name with
+        //        | Some objFieldEqSet -> context |> reconcile objFieldEqSet withFieldEqSet
+        //        | None -> failwith "object doesn't have the field"
+        //    withFields |> List.fold reconcileField context
+        //| EDot e ->
+        //    let context = this |> loadExpression e.expr
+        //    let objSpec = context.getType e.expr
+        //    let context = context.fresh expr
+        //    let exprEqSet = context.getEqSet expr
+        //    match objSpec with
+        //      | SObj x ->
+        //          context |> reconcile exprEqSet (x.fields |> Map.find e.name)
+        //      | SFree x ->
+        //          let constraintSpec = SObj { fields = Map.empty.Add(e.name, exprEqSet) }
+        //          let context, constraintEqSet = context.newSpec constraintSpec
+        //          let objEqSet = context.getEqSet e.expr
+        //          context
+        //      | _ -> failwith ":"
+        | _ -> failwith "Not yet"
+        //| EDo e ->
+        //    yield! getExpressions e.expr
+        //    yield expr, Guid.NewGuid()
+        //| EImport e ->
+        //    yield expr, Guid.NewGuid()
+        //| EError e ->
+        //    yield expr, Guid.NewGuid()
 
-let rec loadExpression (expr: E) (context: Context): Context =
-  if context.exprs |> Map.containsKey expr then context
-  else
-    match expr with
-      | EStr _ -> context.Add(expr, SLit SStr)
-      | ENum _ -> context.Add(expr, SLit SNum)
-      | EVal _ -> context
-      | EBlock e ->
-          let context = context |> loadExpression e.expr
-          let spec = context.GetType e.expr
-          context.Add(expr, spec)
-      | ELet e ->
-          let id = EVal e.identifier
-          let context = context.fresh id
-          let context = context |> loadExpression e.value
-          let context = context |> reconcileExprs id e.value
-          let context = context |> loadExpression e.rest
-          let context = context.fresh expr
-          context |> reconcileExprs expr e.rest
-      | EFn e ->
-          let argId = EVal e.argument
-          let context = context.fresh argId
-          let context = context |> loadExpression e.body
-          let fnSpec = SFn { input = context.getEqSet argId; output = context.getEqSet e.body }
-          let context, requiredFnEqSet = context.newSpec fnSpec
-          let context = context.fresh expr
-          let exprEqSet = context.getEqSet expr
-          context |> reconcile exprEqSet requiredFnEqSet
-      | EEval e ->
-          let context = context |> loadExpression e.fnExpr
-          let context = context |> loadExpression e.argExpr
-          let context = context.fresh expr
-          let exprEqSet = context.getEqSet expr
-          let context, newEqSet = context.newEqSet()
-          let requiredFnSpec = SFn { input = newEqSet; output = exprEqSet }
-          let context, requiredFnEqSet = context.newSpec requiredFnSpec
-          let fnEqSet = context.getEqSet e.fnExpr
-          let context = context |> reconcile fnEqSet requiredFnEqSet
-          let fnType = match context.getType e.fnExpr with SFn fnType -> fnType | _ -> failwith "error"
-          let argEqSet = context.getEqSet e.argExpr
-          context
-      | EObj e ->
-          let context, fields = e.fields |> List.fold loadField (context, [])
-          let fieldMap = Map.ofList fields
-          let exprType = SObj { fields = fieldMap }
-          let context, eqSet = context.newSpec exprType
-          context.add expr eqSet
-      | EWith e ->
-          let context = context |> loadExpression e.expr
-          let objEqSet = context.getEqSet e.expr
-          let context = context.add expr objEqSet
-          let context, withFields = e.fields |> List.fold loadField (context, [])
-          let objSpec = match context.getType e.expr with SObj e -> e | _ -> failwith "error"
-          let reconcileField context (name, withFieldEqSet) =
-            match objSpec.fields |> Map.tryFind name with
-              | Some objFieldEqSet -> context |> reconcile objFieldEqSet withFieldEqSet
-              | None -> failwith "object doesn't have the field"
-          withFields |> List.fold reconcileField context
-      | EDot e ->
-          let context = context |> loadExpression e.expr
-          let objSpec = context.getType e.expr
-          let context = context.fresh expr
-          let exprEqSet = context.getEqSet expr
-          match objSpec with
-            | SObj x ->
-                context |> reconcile exprEqSet (x.fields |> Map.find e.name)
-            | SFree x ->
-                let constraintSpec = SObj { fields = Map.empty.Add(e.name, exprEqSet) }
-                let context, constraintEqSet = context.newSpec constraintSpec
-                let objEqSet = context.getEqSet e.expr
-                context
-            | _ -> failwith ":"
-      | _ -> failwith "Not yet"
-      //| EDo e ->
-      //    yield! getExpressions e.expr
-      //    yield expr, Guid.NewGuid()
-      //| EImport e ->
-      //    yield expr, Guid.NewGuid()
-      //| EError e ->
-      //    yield expr, Guid.NewGuid()
+  //member this.loadField(context, fields) (field: EObjField) =
+  //  let context = this.loadExpression field.value
+  //  let fields = (field.key, context.getEqSet field.value)::fields
+  //  context, fields
 
-and loadField (context, fields) (field: EObjField) =
-  let context = context |> loadExpression field.value
-  let fields = (field.key, context.getEqSet field.value)::fields
-  context, fields
-  
 let rec lsp (e: E): string =
   match e with
     | EStr e -> sprintf "\"%s\"" e.str

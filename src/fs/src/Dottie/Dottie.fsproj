@@ -55,7 +55,6 @@
     <Compile Include="PExpressions.fs" />
     <Compile Include="Expressions.fs" />
     <Compile Include="ExpressionParser.fs" />
-    <Compile Include="Types.fs" />
     <Compile Include="SpecParser.fs" />
     <Compile Include="ModuleParser.fs" />
     <Compile Include="TypeInferencer_Old.fs" />
