@@ -4,30 +4,27 @@ open Expressions
 open ExpressionParser
 open System.Text.RegularExpressions
 
-type SLit =
-  | SStr
-  | SNum
-  
-type SFn =
-  { input: S
-    output: S }
+type SLit = SStr | SNum
 
-and SObj =
-  { fields: Map<string, S> }
+type EquivalenceSet = EquivalenceSet of int
+
+type SFn =
+  { input: EquivalenceSet
+    output: EquivalenceSet
+    generics: Set<EquivalenceSet> }
+
+type SObj =
+  { fields: Map<string, EquivalenceSet> }
 
 and S =
   | SLit of SLit
-  | SFree of int
+  | SFree of EquivalenceSet
   | SFn of SFn
-  | SObj of Map<string, S>
-
-type Polytype =
-  { spec: S
-    boundTypes: Set<int> }
-with static member Unbound(spec: S) = { spec = spec; boundTypes = Set.empty }
+  | SObj of SObj
 
 type Context =
-  { exprs: Map<E, Polytype>
+  { exprs: Map<E, EquivalenceSet>
+    specs: Map<EquivalenceSet, S>
     next: int }
 with
   member this.Add(expr: E, pt: Polytype): Context =
