@@ -10,6 +10,8 @@ type PENum =
   { num: float
     token: PageToken }
 
+type PELit = PEStr of PEStr | PENum of PENum
+
 type PEVal =
   { name: string
     token: PageToken }
@@ -24,8 +26,7 @@ type PEError =
     found: PageToken list }
 
 type PE =
-  | PEStr of PEStr
-  | PENum of PENum
+  | PELit of PELit
   | PEVal of PEVal
   | PEBlock of PEBlock
   | PELet of PELet

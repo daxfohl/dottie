@@ -28,8 +28,7 @@ let rec parseExpression (tokens: PageToken list) : PE * PageToken list =
             | _ -> PEError { message = "expected identifier after dot"; found = List.takeMax 1 tokens }, t
       | _ ->
           match expr with
-          | PEStr _
-          | PENum _ -> expr, tokens
+          | PELit _ -> expr, tokens
           | _ ->
               let argExpr, t = parseExpression tokens
               match argExpr with
@@ -37,8 +36,8 @@ let rec parseExpression (tokens: PageToken list) : PE * PageToken list =
               | _ -> parseContinuation (PEEval { fnExpr = expr; argExpr = argExpr })  t
   match tokens with
     | Ignorable::t -> parseExpression t
-    | (K (KString s) as ks)::t -> parseContinuation (PEStr { str = s; token = ks }) t
-    | (K (KNumber n) as kn)::t -> parseContinuation (PENum { num = n; token = kn }) t
+    | (K (KString s) as ks)::t -> parseContinuation (PELit ^% PEStr { str = s; token = ks }) t
+    | (K (KNumber n) as kn)::t -> parseContinuation (PELit ^% PENum { num = n; token = kn }) t
     | (K (KIdentifier i) as ki)::t -> parseContinuation (PEVal { name = i; token = ki }) t
     | (K KImport as ki)::(K (KIdentifier id) as kid)::t -> parseContinuation (PEImport { importToken = ki; moduleName = id; nameToken = kid }) t
     | (K KFn as kf)::(K (KIdentifier name) as kn)::(K KArrow as ka)::t ->
@@ -93,8 +92,9 @@ let uniquify (e: PE): Expression =
         id, Map.add name id map
     let expr =
       match e with
-        | PEStr e -> EStr { str = e.str }
-        | PENum e -> ENum { num = e.num }
+        | PELit e -> ELit (match e with
+                             | PEStr e -> EStr { str = e.str }
+                             | PENum e -> ENum { num = e.num } )
         | PEVal e ->
             match Map.tryFind e.name map with
               | Some id -> EVal { id = id; name = e.name }

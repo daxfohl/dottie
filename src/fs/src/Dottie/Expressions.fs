@@ -9,6 +9,8 @@ type EStr =
 type ENum =
   { num: float }
 
+type ELit = EStr of EStr | ENum of ENum
+
 type EVal =
   { id: Guid
     name: string }
@@ -20,8 +22,7 @@ type EError =
   { message: string }
 
 type E =
-  | EStr of EStr
-  | ENum of ENum
+  | ELit of ELit
   | EVal of EVal
   | EBlock of EBlock
   | ELet of ELet

@@ -2,11 +2,16 @@
 open Tokenizer
 open Expressions
 open ExpressionParser
+open System
 open System.Text.RegularExpressions
 
 type SLit = SStr | SNum
+let getS = function EStr _ -> SStr | ENum _ -> SNum
 
 type EquivalenceSet = EquivalenceSet of int
+let strEqSet = EquivalenceSet 0
+let numEqSet = EquivalenceSet 1
+let getLitEqSet = function EStr _ -> strEqSet | ENum _ -> numEqSet
 
 type SFn =
   { input: EquivalenceSet
@@ -16,9 +21,9 @@ type SFn =
 type SObj =
   { fields: Map<string, EquivalenceSet> }
 
-and S =
+type S =
   | SLit of SLit
-  | SFree of EquivalenceSet
+  | SFree
   | SFn of SFn
   | SObj of SObj
 
@@ -27,34 +32,44 @@ type Context =
     specs: Map<EquivalenceSet, S>
     next: int }
 with
-  member this.Add(expr: E, pt: Polytype): Context =
-    { this with exprs = this.exprs.Add(expr, pt)}
-  member this.GetType(expr: E): Polytype = this.exprs.[expr]
+  static member Empty: Context =
+    { exprs = Map.empty
+      specs = Map.empty.Add(strEqSet, SLit SStr).Add(numEqSet, SLit SNum)
+      next = 100 }
+  member this.Add(expr: E, eqSet: EquivalenceSet): Context =
+    { this with exprs = this.exprs.Add(expr, eqSet) }
+  member this.GetEqSet(expr: E): EquivalenceSet =
+    this.exprs.[expr]
+  member this.GetType(expr: E): S =
+    this.specs.[this.exprs.[expr]]
   member this.Fresh(expr: E): Context =
     match this.exprs.TryFind(expr) with
-      | None -> { exprs = this.exprs.Add(expr, { spec = SFree(this.next); boundTypes = Set.singleton(this.next) }); next = this.next + 1 }
+      | None ->
+        let eqSet = EquivalenceSet this.next
+        { this with exprs = this.exprs.Add(expr, eqSet)
+                    specs = this.specs.Add(eqSet, SFree)
+                    next = this.next + 1 }
       | Some _ -> this
 
-type Context with
-  member context.TypeSubst(expr1: E, expr2: E): Context =
+//type Context with
+//  member context.TypeSubst(expr1: E, expr2: E): Context =
     
-  member context.Reconcile(expr1: E, expr2: E): Context =
-    if expr1 = expr2 then context
-    else
-      match expr1, expr2 with
-        | SFree _, _ -> 
+//  member context.Reconcile(expr1: E, expr2: E): Context =
+//    if expr1 = expr2 then context
+//    else
+//      match expr1, expr2 with
+//        | SFree _, _ -> 
 type Context with
   member context.LoadExpression(expr: E): Context =
     if context.exprs.ContainsKey(expr) then context
     else
       match expr with
-        | EStr _ -> context.Add(expr, Polytype.Unbound ^% SLit SStr)
-        | ENum _ -> context.Add(expr, Polytype.Unbound ^% SLit SNum)
+        | ELit e -> context.Add(expr, getLitEqSet(e))
         | EVal _ -> context
         | EBlock e ->
             let context = context.LoadExpression(e.expr)
-            let spec = context.GetType(e.expr)
-            context.Add(expr, spec)
+            let eqSet = context.GetEqSet(e.expr)
+            context.Add(expr, eqSet)
         | ELet e ->
             let id = EVal e.identifier
             let context = context.Fresh(id)
@@ -171,7 +186,7 @@ let main argv =
   let strings = tokenize input
   let e, tail = parseExpression strings
   let e = uniquify e
-  let context = Context() |> loadExpression e.expr
+  let context = Context.Empty |> loadExpression e.expr
   for expr in context.exprs do
     let expr, eqSet = expr.Key, expr.Value
     let spec = context.getTypeFromSet eqSet
