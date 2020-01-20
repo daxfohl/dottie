@@ -7,8 +7,8 @@ open System.Text.RegularExpressions
 
 let rec lsp (e: PE): string =
   match e with
-    | PEStr e -> sprintf "\"%s\"" e.str
-    | PENum e -> e.num.ToString()
+    | PELit (PEStr e) -> sprintf "\"%s\"" e.str
+    | PELit (PENum e) -> e.num.ToString()
     | PEVal e -> e.name
     | PELet e -> sprintf "(let [%s %s] %s)" e.name (lsp e.expr) (lsp e.rest)
     | PEFn e -> sprintf "(%s [%s] %s)" (if e.isProc then "proc" else "fn") e.argument ^% lsp e.expr

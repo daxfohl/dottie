@@ -7,11 +7,10 @@ open System.Text.RegularExpressions
 
 type SLit = SStr | SNum
 let getS = function EStr _ -> SStr | ENum _ -> SNum
+let getI = function SStr -> 0 | SNum -> 1
 
 type EquivalenceSet = EquivalenceSet of int
-let strEqSet = EquivalenceSet 0
-let numEqSet = EquivalenceSet 1
-let getLitEqSet = function EStr _ -> strEqSet | ENum _ -> numEqSet
+let getE = EquivalenceSet << getI
 
 type SFn =
   { input: EquivalenceSet
@@ -34,7 +33,7 @@ type Context =
 with
   static member Empty: Context =
     { exprs = Map.empty
-      specs = Map.empty.Add(strEqSet, SLit SStr).Add(numEqSet, SLit SNum)
+      specs = [SStr; SNum] |> List.map (fun x -> getE x, SLit x) |> Map.ofList
       next = 100 }
   member this.Add(expr: E, eqSet: EquivalenceSet): Context =
     { this with exprs = this.exprs.Add(expr, eqSet) }
@@ -64,7 +63,7 @@ type Context with
     if context.exprs.ContainsKey(expr) then context
     else
       match expr with
-        | ELit e -> context.Add(expr, getLitEqSet(e))
+        | ELit e -> context.Add(expr, getE(getS(e)))
         | EVal _ -> context
         | EBlock e ->
             let context = context.LoadExpression(e.expr)
