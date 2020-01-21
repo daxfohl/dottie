@@ -2,7 +2,6 @@
 open Tokenizer
 open Expressions
 open ExpressionParser
-open System
 open System.Text.RegularExpressions
 
 type SLit = SStr | SNum
@@ -22,7 +21,7 @@ type SObj =
 
 type S =
   | SLit of SLit
-  | SFree
+  | SFree of EquivalenceSet
   | SFn of SFn
   | SObj of SObj
 
@@ -35,29 +34,64 @@ with
     { exprs = Map.empty
       specs = [SStr; SNum] |> List.map (fun x -> getE x, SLit x) |> Map.ofList
       next = 100 }
+  member this.NewEqSet(): Context * EquivalenceSet =
+    let id = EquivalenceSet(this.next)
+    { this with
+        specs = this.specs.Add(id, SFree(id))
+        next = this.next + 1 }, id
   member this.Add(expr: E, eqSet: EquivalenceSet): Context =
     { this with exprs = this.exprs.Add(expr, eqSet) }
   member this.GetEqSet(expr: E): EquivalenceSet =
     this.exprs.[expr]
+  member this.GetType(eqSet: EquivalenceSet): S =
+    this.specs.[eqSet]
   member this.GetType(expr: E): S =
-    this.specs.[this.exprs.[expr]]
+    this.GetType(this.GetEqSet(expr))
   member this.Fresh(expr: E): Context =
     match this.exprs.TryFind(expr) with
       | None ->
-        let eqSet = EquivalenceSet this.next
-        { this with exprs = this.exprs.Add(expr, eqSet)
-                    specs = this.specs.Add(eqSet, SFree)
-                    next = this.next + 1 }
+        let this, eqSet = this.NewEqSet()
+        { this with exprs = this.exprs.Add(expr, eqSet) }
       | Some _ -> this
+  member this.NewSpec (spec: S): Context * EquivalenceSet =
+    let this, id = this.NewEqSet()
+    { this with specs = this.specs.Add(id, spec) }, id
 
-//type Context with
-//  member context.TypeSubst(expr1: E, expr2: E): Context =
-    
-//  member context.Reconcile(expr1: E, expr2: E): Context =
-//    if expr1 = expr2 then context
-//    else
-//      match expr1, expr2 with
-//        | SFree _, _ -> 
+type Context with
+  member this.Remap(eqSet1: EquivalenceSet, eqSet2: EquivalenceSet): Context =
+    let mapEqSet(eqSet) = if eqSet = eqSet1 then eqSet2 else eqSet
+    let specs =
+      this.specs
+        |> Map.remove eqSet1
+        |> Map.map ^% fun k v ->
+          match v with
+            | SFn s -> SFn { s with input = mapEqSet s.input; output = mapEqSet s.output }
+            | SObj s -> SObj { s with fields = s.fields |> Map.map ^% fun _ -> mapEqSet }
+            | _ -> v
+    { this with
+        exprs = this.exprs |> Map.map ^% fun _ -> mapEqSet
+        specs = specs }
+  member this.Reconcile(eqSet1: EquivalenceSet, eqSet2: EquivalenceSet): Context =
+    if eqSet1 = eqSet2 then this
+    else
+      let s1 = this.specs.[eqSet1]
+      let s2 = this.specs.[eqSet2]
+      match s1, s2 with
+        | SFree _, _ -> this.Remap(eqSet1, eqSet2)
+        | _, SFree _ -> this.Remap(eqSet2, eqSet1)
+        | SLit s1, SLit s2 ->
+            if s1 = s2 then this.Remap(eqSet1, eqSet2)
+            else failwith "Mismatched literal types"
+        | SFn s1, SFn s2 ->
+            let this = this.Reconcile(s1.input, s2.input)
+            let (SFn s1) = this.specs.[eqSet1]
+            let (SFn s2) = this.specs.[eqSet2]
+            let this = this.Reconcile(s1.output, s2.output)
+            this.Remap(eqSet1, eqSet2)
+        | _ -> failwith "Cannot reconcile objects"
+  member this.Reconcile(e1: E, e2: E): Context =
+    this.Reconcile(this.exprs.[e1], this.exprs.[e2])
+
 type Context with
   member context.LoadExpression(expr: E): Context =
     if context.exprs.ContainsKey(expr) then context
@@ -70,34 +104,34 @@ type Context with
             let eqSet = context.GetEqSet(e.expr)
             context.Add(expr, eqSet)
         | ELet e ->
-            let id = EVal e.identifier
+            let id = EVal(e.identifier)
             let context = context.Fresh(id)
             let context = context.LoadExpression(e.value)
-            let context = context |> reconcileExprs id e.value
+            let context = context.Reconcile(id, e.value)
             let context = context.LoadExpression(e.rest)
-            let context = context.fresh expr
-            context |> reconcileExprs expr e.rest
+            let context = context.Fresh(expr)
+            context.Reconcile(expr, e.rest)
         | EFn e ->
-            let argId = EVal e.argument
-            let context = context.fresh argId
-            let context = context.LoadExpression e.body
-            let fnSpec = SFn { input = context.getEqSet argId; output = context.getEqSet e.body }
-            let context, requiredFnEqSet = context.newSpec fnSpec
-            let context = context.fresh expr
-            let exprEqSet = context.getEqSet expr
-            context |> reconcile exprEqSet requiredFnEqSet
+            let argId = EVal(e.argument)
+            let context = context.Fresh(argId)
+            let context = context.LoadExpression(e.body)
+            let fnSpec = SFn { input = context.GetEqSet(argId); output = context.GetEqSet(e.body); generics = Set.empty }
+            let context, requiredFnEqSet = context.NewSpec(fnSpec)
+            let context = context.Fresh(expr)
+            let exprEqSet = context.GetEqSet(expr)
+            context.Reconcile(exprEqSet, requiredFnEqSet)
         | EEval e ->
-            let context = context |> loadExpression e.fnExpr
-            let context = context.LoadExpression e.argExpr
-            let context = context.fresh expr
-            let exprEqSet = context.getEqSet expr
-            let context, newEqSet = context.newEqSet()
-            let requiredFnSpec = SFn { input = newEqSet; output = exprEqSet }
-            let context, requiredFnEqSet = context.newSpec requiredFnSpec
-            let fnEqSet = context.getEqSet e.fnExpr
-            let context = context |> reconcile fnEqSet requiredFnEqSet
-            let fnType = match context.getType e.fnExpr with SFn fnType -> fnType | _ -> failwith "error"
-            let argEqSet = context.getEqSet e.argExpr
+            let context = context.LoadExpression(e.fnExpr)
+            let context = context.LoadExpression(e.argExpr)
+            let context = context.Fresh(expr)
+            let exprEqSet = context.GetEqSet(expr)
+            let context, newEqSet = context.NewEqSet()
+            let requiredFnSpec = SFn { input = newEqSet; output = exprEqSet; generics = Set.empty }
+            let context, requiredFnEqSet = context.NewSpec(requiredFnSpec)
+            let fnEqSet = context.GetEqSet(e.fnExpr)
+            let context = context.Reconcile(fnEqSet, requiredFnEqSet)
+            let fnType = match context.GetType(e.fnExpr) with SFn fnType -> fnType | _ -> failwith "error"
+            let argEqSet = context.GetEqSet(e.argExpr)
             context
         //| EObj e ->
         //    let context, fields = e.fields |> List.fold loadField (this, [])
@@ -146,8 +180,8 @@ type Context with
 
 let rec lsp (e: E): string =
   match e with
-    | EStr e -> sprintf "\"%s\"" e.str
-    | ENum e -> e.num.ToString()
+    | ELit (EStr e) -> sprintf "\"%s\"" e.str
+    | ELit (ENum e) -> e.num.ToString()
     | EVal e -> e.name.ToString()
     | ELet e -> sprintf "(let [%s %s] %s)" e.identifier.name (lsp e.value) (lsp e.rest)
     | EFn e -> sprintf "(%s [%s] %s)" (if e.isProc then "proc" else "fn") e.argument.name ^% lsp e.body
@@ -185,10 +219,10 @@ let main argv =
   let strings = tokenize input
   let e, tail = parseExpression strings
   let e = uniquify e
-  let context = Context.Empty |> loadExpression e.expr
+  let context = Context.Empty.LoadExpression(e.expr)
   for expr in context.exprs do
     let expr, eqSet = expr.Key, expr.Value
-    let spec = context.getTypeFromSet eqSet
+    let spec = context.GetType(eqSet)
     printfn "%s: %s (%s)" (lsp expr) (prnSpec spec) (prnEqSet eqSet)
   printfn ""
   for expr in context.specs do

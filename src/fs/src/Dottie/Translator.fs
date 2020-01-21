@@ -2,7 +2,7 @@
 
 open System
 open Expressions
-open Types
+//open Types
 
 let moduleVarName (moduleName: string): string = sprintf "__import_%s" ^% moduleName.Replace('.', '_')
 
