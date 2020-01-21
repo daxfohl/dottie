@@ -45,6 +45,8 @@ with
     this.exprs.[expr]
   member this.GetType(eqSet: EquivalenceSet): S =
     this.specs.[eqSet]
+  member this.SetType(eqSet: EquivalenceSet, s: S): Context =
+    { this with specs = this.specs.Add(eqSet, s) }
   member this.GetType(expr: E): S =
     this.GetType(this.GetEqSet(expr))
   member this.Fresh(expr: E): Context =
@@ -77,6 +79,7 @@ type Context with
       let s1 = this.specs.[eqSet1]
       let s2 = this.specs.[eqSet2]
       match s1, s2 with
+        | SFree x, SFree y -> this.Remap ^% if x > y then eqSet1, eqSet2 else eqSet2, eqSet1
         | SFree _, _ -> this.Remap(eqSet1, eqSet2)
         | _, SFree _ -> this.Remap(eqSet2, eqSet1)
         | SLit s1, SLit s2 ->
@@ -112,6 +115,7 @@ type Context with
             let context = context.Fresh(expr)
             context.Reconcile(expr, e.rest)
         | EFn e ->
+            let next = context.next
             let argId = EVal(e.argument)
             let context = context.Fresh(argId)
             let context = context.LoadExpression(e.body)
@@ -119,7 +123,12 @@ type Context with
             let context, requiredFnEqSet = context.NewSpec(fnSpec)
             let context = context.Fresh(expr)
             let exprEqSet = context.GetEqSet(expr)
-            context.Reconcile(exprEqSet, requiredFnEqSet)
+            let context = context.Reconcile(exprEqSet, requiredFnEqSet)
+            let keys = context.specs |> Map.filter(fun k v -> match k, v with | EquivalenceSet s, SFree _ when s >= next -> true | _ -> false) |> Map.keys
+            let eqSet = context.GetEqSet(expr)
+            let (SFn fnSpec) = context.GetType(eqSet)
+            let fnSpec = { fnSpec with generics = keys }
+            context.SetType(eqSet, SFn fnSpec)
         | EEval e ->
             let context = context.LoadExpression(e.fnExpr)
             let context = context.LoadExpression(e.argExpr)
