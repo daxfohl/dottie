@@ -12,8 +12,7 @@ type ENum =
 type ELit = EStr of EStr | ENum of ENum
 
 type EVal =
-  { id: Guid
-    name: string }
+  { name: string }
 
 type EImport =
   { moduleName: string }

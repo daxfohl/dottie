@@ -57,7 +57,6 @@
     <Compile Include="ExpressionParser.fs" />
     <Compile Include="SpecParser.fs" />
     <Compile Include="ModuleParser.fs" />
-    <Compile Include="TypeInferencer_Old.fs" />
     <Compile Include="Translator.fs" />
     <Compile Include="TypeInferencer.fs" />
   </ItemGroup>
