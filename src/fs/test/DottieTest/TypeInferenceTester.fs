@@ -15,6 +15,10 @@ let get choice =
   
 let assertSpec''(existing, expression, otherSpec) =
   let context = Context.create()
+  for k, v in existing do
+    context.eqsets.Add(v)
+    let sym = { scope = context.scope; name = k; eqset = context.eqsets.Count - 1 }
+    context.symbols.Add(sym)
   let strings = tokenize expression
   let parsed, _ = parseExpression strings
   let id = infer context (uniquify parsed).expr
@@ -64,37 +68,37 @@ let ``Test string``() =
   
 [<Fact>]
 let ``Test let``() =
-  assertSpec("{ let x = 3; x }", "float")
+  assertSpec("let x = 3; x", "float")
 
-//[<Fact>]
-//let ``Test let two``() =
-//  assertSpec("{ let x = 3; let y = x; y }}", "literal int")
+[<Fact>]
+let ``Test let two``() =
+  assertSpec("let x = 3; let y = x; y", "float")
 
-//[<Fact>]
-//let ``Test let mixed``() =
-//  assertSpec("""{ let x = 3; let y = "test"; y }""", "literal string")
+[<Fact>]
+let ``Test let mixed``() =
+  assertSpec("""let x = 3; let y = "test"; y""", "string")
 
-//[<Fact>]
-//let ``Test let mixed 2``() =
-//  assertSpec("""{ let x = 3; let y = "test"; x }""", "literal int")
+[<Fact>]
+let ``Test let mixed 2``() =
+  assertSpec("""let x = 3; let y = "test"; x""", "float")
 
-//[<Fact>]
-//let ``Test let nested``() =
-//  assertSpec("{ let z = { let x = 3; let y = x; y }; z }", "literal int")
+[<Fact>]
+let ``Test let nested``() =
+  assertSpec("let z = ( let x = 3; let y = x; y ); z", "float")
 
-//[<Fact>]
-//let ``Test inc``() =
-//  assertSpec' (
-//    [EVal "inc", SFn(SLit SInt, SLit SInt, false)],
-//    "{ let x = 3; inc x }",
-//    "literal int")
+[<Fact>]
+let ``Test inc``() =
+  assertSpec'' (
+    ["inc", SFn { input = EqSetNum; output = EqSetNum; generics = Set.empty }],
+    "let x = 3; inc x",
+    "float")
 
-//[<Fact>]
-//let ``Test toStr``() =
-//  assertSpec' (
-//    [EVal "toStr", SFn(SLit SInt, SLit SStr, false)],
-//    "{ let x = 3; toStr x }",
-//    "literal string")
+[<Fact>]
+let ``Test toStr``() =
+  assertSpec'' (
+    ["toStr", SFn { input = EqSetNum; output = EqSetStr; generics = Set.empty }],
+    "let x = 3; toStr x",
+    "string")
 
 //[<Fact>]
 //let ``Test not function``() =
@@ -109,32 +113,32 @@ let ``Test let``() =
 //    "{ let x = 3; parse x }",
 //    UnifyErrors.cannotUnify(SLit SInt, SLit SStr))
 
-//[<Fact>]
-//let ``Test inc def``() =
-//  assertSpec' (
-//    [EVal "inc", SFn(SLit SInt, SLit SInt, false)],
-//    "fn x -> inc x",
-//    "fn literal int -> literal int")
+[<Fact>]
+let ``Test inc def``() =
+  assertSpec'' (
+    ["inc", SFn { input = EqSetNum; output = EqSetNum; generics = Set.empty }],
+    "fn x -> inc x",
+    "fn float -> float")
 
-//[<Fact>]
-//let ``Test inc inc def``() =
-//  assertSpec' (
-//    [EVal "inc", SFn(SLit SInt, SLit SInt, false)],
-//    "fn x -> inc inc x",
-//    "fn literal int -> literal int")
+[<Fact>]
+let ``Test inc inc def``() =
+  assertSpec'' (
+    ["inc", SFn { input = EqSetNum; output = EqSetNum; generics = Set.empty }],
+    "fn x -> inc inc x",
+    "fn float -> float")
 
-//[<Fact>]
-//let ``Test inc inc eval``() =
-//  assertSpec' (
-//    [EVal "inc", SFn(SLit SInt, SLit SInt, false)],
-//    "{ let inc2 = fn x -> inc inc x; inc2 4 }",
-//    "literal int")
+[<Fact>]
+let ``Test inc inc eval``() =
+  assertSpec'' (
+    ["inc", SFn { input = EqSetNum; output = EqSetNum; generics = Set.empty }],
+    "let inc2 = fn x -> inc inc x; inc2 4",
+    "float")
     
-//[<Fact>]
-//let ``Test id``() =
-//  assertSpec'''(
-//    "{ let id = fn x -> x; id 3 }",
-//    SLit SInt)
+[<Fact>]
+let ``Test id``() =
+  assertSpec (
+    "let id = fn x -> x; id 3",
+    "float")
 
 //[<Fact>]
 //let ``Test id with``() =
@@ -273,7 +277,7 @@ let ``Test let``() =
 
 //[<Fact>]
 //let ``Test obj``() =
-//  assertSpec("{ x: 4 }", "{x: literal int}")
+//  assertSpec("{ x: 4 }", "{x: float}")
 
 //[<Fact>]
 //let ``Test obj empty``() =
@@ -283,13 +287,13 @@ let ``Test let``() =
 //let ``Test obj two``() =
 //  assertSpec(
 //    "{ x: 4; y: \"test\" }",
-//    "{ x: literal int, y: literal string }")
+//    "{ x: float, y: string }")
 
 //[<Fact>]
 //let ``Test obj with``() =
 //  assertSpec(
 //    "{ let o = { x: 4; y: \"test\" }; { o with x: 5 } }",
-//    "{ x: literal int, y: literal string }")
+//    "{ x: float, y: string }")
 
 //[<Fact>]
 //let ``Test obj with wrong type``() =

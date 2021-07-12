@@ -36,7 +36,7 @@ type Context =
     symbols: Symbol List
     eqsets: S List } with
   member context.findSym name =
-      context.symbols.Find(fun s -> context.scope.StartsWith s.name && s.name = name)
+      context.symbols.Find(fun s -> context.scope.StartsWith s.scope && s.name = name)
   member context.newSym name =
     if context.symbols.FindAll(fun s -> context.scope.StartsWith s.name && s.name = name).Count > 0 then
       failwith "Already exists"
@@ -143,6 +143,7 @@ let rec infer (context: Context) (e: E): EqSetId =
     | SFn f -> f.output
     | _ -> failwith "Not a function"
   | EError e -> failwith e.message
+  | EBlock e -> infer context e.expr
   | x -> failwith (x.ToString())
   
 
@@ -163,8 +164,8 @@ let rec lsp (e: E): string =
     | EError e -> sprintf "(err \"%s\")" (Regex.Unescape ^% sprintf "%s" e.message)
 
 let prnEqSet eq =
-  if eq = 0 then "string"
-  elif eq = 1 then "float"
+  if eq = EqSetStr then "string"
+  elif eq = EqSetNum then "float"
   else sprintf "'%s" ((eq - 3)  |> string)
 
 let prnSpec (s: S) =
@@ -172,7 +173,7 @@ let prnSpec (s: S) =
     | SLit SNum -> "float"
     | SLit SStr -> "string"
     | SUnk -> "unknown"
-    | SFn x -> sprintf "%s -> %s" (prnEqSet x.input) (prnEqSet x.output)
+    | SFn x -> sprintf "fn %s -> %s" (prnEqSet x.input) (prnEqSet x.output)
     | SObj x -> sprintf "{ %s }" ^% String.concat ", " (x.fields |> Map.toList |> List.map ^% fun (k, eq) -> sprintf "%s: %s" k ^% prnEqSet eq)
 
 [<EntryPoint>]
