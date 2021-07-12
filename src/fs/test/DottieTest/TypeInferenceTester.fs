@@ -1,42 +1,40 @@
 ﻿module ``Type inference tester``
 
-//open Xunit
-//open Tokenizer
-//open Expressions
-//open ExpressionParser
-//open TypeInferencer
-//open Types
-//open SpecParser
-//open FSharpx.Choice
+open Xunit
+open Tokenizer
+open Expressions
+open ExpressionParser
+open TypeInferencer
+open SpecParser
+open FSharpx.Choice
 
-//let get choice =
-//  match choice with
-//  | Choice1Of2 (x, _) -> x
-//  | Choice2Of2 x -> failwith x
+let get choice =
+  match choice with
+  | Choice1Of2 (x, _) -> x
+  | Choice2Of2 x -> failwith x
   
-//let assertSpec''(existing, expression, otherSpec) =
-//  let spec = choose {
-//    let strings = tokenize expression
-//    let! parsed, _ = parseExpression strings
-//    let! spec, _ = getType parsed (Map.ofList existing) Map.empty Normal
-//    return spec
-//  }
-//  let s = sprintf "%A" spec
-//  System.Console.WriteLine(s)
-//  Assert.StrictEqual(Choice1Of2 otherSpec, spec)
+let assertSpec''(existing, expression, otherSpec) =
+  let context = Context.create()
+  let strings = tokenize expression
+  let parsed, _ = parseExpression strings
+  let id = infer context (uniquify parsed).expr
+  let spec = prnSpec(context.eqsets.[id])
+  let s = sprintf "%A" spec
+  System.Console.WriteLine(s)
+  Assert.StrictEqual(otherSpec, spec)
 
-//let assertSpec'''(expression, otherSpec) = assertSpec''([], expression, otherSpec)
+let assertSpec'''(expression, otherSpec) = assertSpec''([], expression, otherSpec)
 //let assertSpec'(existing, expression, expectedSpec) =
 //  match choose
 //    {
 //      let strings = tokenize expectedSpec
-//      let! parsed, _ = parseRawSpec strings
+//      let parsed, _ = parseRawSpec strings
 //      return parsed
 //    } with
 //  | Choice1Of2 otherSpec -> assertSpec''(existing, expression, otherSpec)
 //  | Choice2Of2 s -> failwith s
 
-//let assertSpec(expression, expectedSpec) = assertSpec'([], expression, expectedSpec)
+let assertSpec(expression, expectedSpec) = assertSpec''([], expression, expectedSpec)
 
 //let assertError'(existing, expression, expectedError) =
 //  let spec = choose {
@@ -49,24 +47,24 @@
 
 //let assertError(expression, expectedError) = assertError'([], expression, expectedError)
 
-//let set = Set.ofList
-//let map = Map.ofList
+let set = Set.ofList
+let map = Map.ofList
 
 //[<Fact>]
 //let ``Test undefined``() =
 //  assertError("x", Errors.undefined "x")
 
-//[<Fact>]
-//let ``Test number``() =
-//  assertSpec("2", "literal int")
+[<Fact>]
+let ``Test number``() =
+  assertSpec("2", "float")
 
-//[<Fact>]
-//let ``Test string``() =
-//  assertSpec("\"test\"", "literal string")
+[<Fact>]
+let ``Test string``() =
+  assertSpec("\"test\"", "string")
   
-//[<Fact>]
-//let ``Test let``() =
-//  assertSpec("{ let x = 3; x }", "literal int")
+[<Fact>]
+let ``Test let``() =
+  assertSpec("{ let x = 3; x }", "float")
 
 //[<Fact>]
 //let ``Test let two``() =
