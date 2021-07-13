@@ -65,6 +65,8 @@ let rec unify (context: Context) (id1: EqSetId) (id2: EqSetId): EqSetId =
         | SUnk, x -> x
         | SFn f1, SFn f2 ->
           let inputid = unify context f1.input f2.input
+          let (SFn f1) = context.eqsets.[id1]
+          let (SFn f2) = context.eqsets.[id2]
           let outputid = unify context f1.output f2.output
           SFn { input = inputid; output = outputid; generics = Set.empty }
         | SObj o1, SObj o2 ->
@@ -111,9 +113,9 @@ let rec infer (context: Context) (e: E): EqSetId =
   | EVal e -> (context.findSym e.name).eqset
   | ELet e ->
     let sym = context.newSym e.identifier.name
-    let eqset = infer context e.value
+    let eqset = infer { context with scope = context.scope + "/" + e.identifier.name } e.value
     let _ = unify context sym.eqset eqset
-    infer { context with scope = context.scope + "/" + e.identifier.name } e.rest
+    infer context e.rest
   | EFn e ->
     let sym = context.newSym e.argument.name
     let sbody = infer context e.body

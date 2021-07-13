@@ -140,23 +140,23 @@ let ``Test id``() =
     "let id = fn x -> x; id 3",
     "float")
 
-//[<Fact>]
-//let ``Test id with``() =
-//  assertSpec'''(
-//    "{ let id = fn x -> { y: x }; id 3 }",
-//     SObj (map [("y", SLit SInt)]))
+[<Fact>]
+let ``Test id with``() =
+  assertSpec(
+    "let id = fn x -> { y: x }; id 3",
+    "{ y: float }")
 
-//[<Fact>]
-//let ``Test id dot``() =
-//  assertSpec'''(
-//    "{ let id = fn x -> x.y; id { y: 3 } }",
-//    SLit SInt)
+[<Fact>]
+let ``Test id dot``() =
+  assertSpec(
+    "let id = fn x -> x.y; id { y: 3 }",
+    "float")
 
-//[<Fact>]
-//let ``Test id id``() =
-//  assertSpec'''(
-//    "{ let id = fn x -> x; id id }",
-//    SFn (SFree (EVal "x"), SFree (EVal "x"), false))
+[<Fact>]
+let ``Test id id``() =
+  assertSpec(
+    "let id = fn x -> x; id id",
+    "")
 
 //[<Fact>]
 //let ``Test inc inc eval wrong type``() =
