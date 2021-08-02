@@ -70,15 +70,17 @@ let rec unify (context: Context) (id1: EqSetId) (id2: EqSetId): EqSetId =
           let outputid = unify context f1.output f2.output
           SFn { input = inputid; output = outputid; generics = Set.empty }
         | SObj o1, SObj o2 ->
-          let fieldSet = o1.fields |> Map.keys |> Set.union (o2.fields |> Map.keys)
-          let mergeField name =
-            match o1.fields.TryFind name, o2.fields.TryFind name with
-            | None, Some id -> id
-            | Some id, None -> id
-            | Some id1, Some  id2 -> unify context id1 id2
-            | None, None -> failwith "How did we get here?"
-          let fields = Set.map (fun n -> n, mergeField n) fieldSet |> Map.ofSeq
-          SObj { fields = fields }
+          while context.eqsets.[id1] <> context.eqsets.[id2] do
+            let fieldSet = o1.fields |> Map.keys |> Set.union (o2.fields |> Map.keys)
+            let mergeField name =
+              match o1.fields.TryFind name, o2.fields.TryFind name with
+              | None, Some id -> id
+              | Some id, None -> id
+              | Some id1, Some  id2 -> unify context id1 id2
+              | None, None -> failwith "How did we get here?"
+            for field in fieldSet do
+              mergeField field |> ignore
+          context.eqsets.[id1]
         | _ -> failwith "Unable to unify"
       let sid =
         match s with
