@@ -136,6 +136,18 @@ let ``Test inc inc eval``() =
     
 [<Fact>]
 let ``Test id``() =
+  assertSpec(
+    "fn x -> x",
+    "fn '1 -> '1")
+    
+[<Fact>]
+let ``Test id fn``() =
+  assertSpec (
+    "let id = fn x -> x; id",
+    "fn '1 -> '1")
+    
+[<Fact>]
+let ``Test id float``() =
   assertSpec (
     "let id = fn x -> x; id 3",
     "float")
@@ -153,10 +165,22 @@ let ``Test id dot``() =
     "float")
 
 [<Fact>]
-let ``Test id id``() =
-  assertSpec(
-    "let id = fn x -> x; id id",
-    "")
+let ``Test id let float``() =
+  assertSpec (
+    "let id = fn x -> x; let a = 3; id a",
+    "float")
+
+[<Fact>]
+let ``Test id gen``() =
+  assertSpec (
+    "let id = fn x -> x; let a = 3; id",
+    "fn '1 -> '1")
+
+//[<Fact>]
+//let ``Test id id``() =
+//  assertSpec(
+//    "let id = fn x -> x; id id",
+//    "")
 
 //[<Fact>]
 //let ``Test inc inc eval wrong type``() =

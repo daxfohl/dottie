@@ -57,55 +57,57 @@ let rec unify (context: Context) (id1: EqSetId) (id2: EqSetId): EqSetId =
   else
     let eqset1 = context.eqsets.[id1]
     let eqset2 = context.eqsets.[id2]
-    if eqset2 < eqset1 then unify context id2 id1
-    else
-      let s =
-        match eqset1, eqset2 with
-        | a, b when a = b -> a
-        | SUnk, x -> x
-        | SFn f1, SFn f2 ->
-          let inputid = unify context f1.input f2.input
-          let (SFn f1) = context.eqsets.[id1]
-          let (SFn f2) = context.eqsets.[id2]
-          let outputid = unify context f1.output f2.output
-          SFn { input = inputid; output = outputid; generics = Set.empty }
-        | SObj o1, SObj o2 ->
-          while context.eqsets.[id1] <> context.eqsets.[id2] do
-            let fieldSet = o1.fields |> Map.keys |> Set.union (o2.fields |> Map.keys)
-            let mergeField name =
-              match o1.fields.TryFind name, o2.fields.TryFind name with
-              | None, Some id -> id
-              | Some id, None -> id
-              | Some id1, Some  id2 -> unify context id1 id2
-              | None, None -> failwith "How did we get here?"
-            for field in fieldSet do
-              mergeField field |> ignore
-          context.eqsets.[id1]
-        | _ -> failwith "Unable to unify"
-      let sid =
-        match s with
-        | SLit SStr -> EqSetStr
-        | SLit SNum -> EqSetNum
-        | _ when eqset1 = eqset2 -> Math.Min(id1, id2)
-        | x when x = eqset1 -> id1
-        | x when x = eqset2 -> id2
-        | _ ->
-          context.eqsets.Add(s)
-          context.eqsets.Count - 1
-      let replace id = if id = id1 || id = id2 then sid else id
-      for i in 0 .. context.symbols.Count - 1 do
-        let sym = context.symbols.[i]
-        sym.eqset <- replace sym.eqset
-      for i in 0 .. context.eqsets.Count - 1 do
-        let eqset = context.eqsets.[i]
-        let eqset =
-          match eqset with
-          | SUnk -> eqset
-          | SLit _ -> eqset
-          | SFn f -> SFn { f with input = replace f.input; output = replace f.output }
-          | SObj o -> SObj { o with fields = Map.map (fun n eqset -> replace eqset) o.fields }
-        context.eqsets.[i] <- eqset
-      sid
+    let s =
+      match eqset1, eqset2 with
+      | a, b when a = b -> a
+      | SUnk, x
+      | x, SUnk -> x
+      | SFn f1, SFn f2 ->
+        let inputid = unify context f1.input f2.input
+        let (SFn f1) = context.eqsets.[id1]
+        let (SFn f2) = context.eqsets.[id2]
+        let outputid = unify context f1.output f2.output
+        SFn { input = inputid; output = outputid; generics = Set.empty }
+      | SObj o1, SObj o2 ->
+        while context.eqsets.[id1] <> context.eqsets.[id2] do
+          let fieldSet = o1.fields |> Map.keys |> Set.union (o2.fields |> Map.keys)
+          let mergeField name =
+            match o1.fields.TryFind name, o2.fields.TryFind name with
+            | None, Some id -> id
+            | Some id, None -> id
+            | Some id1, Some  id2 -> unify context id1 id2
+            | None, None -> failwith "How did we get here?"
+          for field in fieldSet do
+            mergeField field |> ignore
+        context.eqsets.[id1]
+      | _ -> failwith "Unable to unify"
+    let eqset1 = context.eqsets.[id1]
+    let eqset2 = context.eqsets.[id2]
+    let sid =
+      match s with
+      | SLit SStr -> EqSetStr
+      | SLit SNum -> EqSetNum
+      | _ when eqset1 = eqset2 -> Math.Min(id1, id2)
+      | x when x = eqset1 -> id1
+      | x when x = eqset2 -> id2
+      | _ ->
+        failwith "whatever"
+        context.eqsets.Add(s)
+        context.eqsets.Count - 1
+    let replace id = if id = id1 || id = id2 then sid else id
+    for i in 0 .. context.symbols.Count - 1 do
+      let sym = context.symbols.[i]
+      sym.eqset <- replace sym.eqset
+    for i in 0 .. context.eqsets.Count - 1 do
+      let eqset = context.eqsets.[i]
+      let eqset =
+        match eqset with
+        | SUnk -> eqset
+        | SLit _ -> eqset
+        | SFn f -> SFn { f with input = replace f.input; output = replace f.output }
+        | SObj o -> SObj { o with fields = Map.map (fun n eqset -> replace eqset) o.fields }
+      context.eqsets.[i] <- eqset
+    sid
  
 
 let rec infer (context: Context) (e: E): EqSetId =
@@ -170,7 +172,7 @@ let rec lsp (e: E): string =
 let prnEqSet eq =
   if eq = EqSetStr then "string"
   elif eq = EqSetNum then "float"
-  else sprintf "'%s" ((eq - 3)  |> string)
+  else sprintf "'%s" ((eq - 1)  |> string)
 
 let prnSpec (s: S) =
   match s with
