@@ -169,24 +169,20 @@ let rec lsp (e: E): string =
     | EBlock e -> sprintf "(%s)" ^% lsp e.expr
     | EError e -> sprintf "(err \"%s\")" (Regex.Unescape ^% sprintf "%s" e.message)
 
-let prnEqSet eq (gen: List<EqSetId>) =
-  if eq = EqSetStr then "string"
-  elif eq = EqSetNum then "float"
-  else
-    if not (gen.Contains(eq)) then
-      gen.Add(eq)
-    let i = gen.IndexOf(eq)      
-    "'" + (string)((char)i + 'a')
-
-let prnSpec (s: S) =
-  let prnSpec(s: S, gen: List<EqSetId>) =
+let prnSpec (c: Context, eq: EqSetId) =
+  let rec prnSpec (eq: EqSetId) (gen: List<EqSetId>) =
+    let s = c.eqsets.[eq]
     match s with
       | SLit SNum -> "float"
       | SLit SStr -> "string"
-      | SUnk -> "unknown"
-      | SFn x -> sprintf "fn %s -> %s" (prnEqSet x.input gen) (prnEqSet x.output gen)
-      | SObj x -> sprintf "{ %s }" ^% String.concat ", " (x.fields |> Map.toList |> List.map ^% fun (k, eq) -> sprintf "%s: %s" k ^% prnEqSet eq gen)
-  prnSpec(s, List<EqSetId>())
+      | SUnk -> 
+        if not (gen.Contains(eq)) then
+          gen.Add(eq)
+        let i = gen.IndexOf(eq)
+        "'" + (string)((char)i + 'a')
+      | SFn x -> sprintf "fn %s -> %s" (prnSpec x.input gen) (prnSpec x.output gen)
+      | SObj x -> sprintf "{ %s }" ^% String.concat ", " (x.fields |> Map.toList |> List.map ^% fun (k, eq) -> sprintf "%s: %s" k ^% prnSpec eq gen)
+  prnSpec eq (List<EqSetId>())
 
 [<EntryPoint>]
 let main argv =

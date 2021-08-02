@@ -22,7 +22,7 @@ let assertSpec''(existing, expression, otherSpec) =
   let strings = tokenize expression
   let parsed, _ = parseExpression strings
   let id = infer context (uniquify parsed).expr
-  let spec = prnSpec(context.eqsets.[id])
+  let spec = prnSpec(context, id)
   let s = sprintf "%A" spec
   System.Console.WriteLine(s)
   Assert.StrictEqual(otherSpec, spec)
@@ -166,21 +166,21 @@ let ``Test id dot``() =
 
 [<Fact>]
 let ``Test id let float``() =
-  assertSpec (
-    "let id = fn x -> x; let a = 3; id a",
+  assertSpec(
+    "let id = fn x -> x; let a = id 3; a",
     "float")
 
 [<Fact>]
 let ``Test id gen``() =
   assertSpec (
-    "let id = fn x -> x; let a = 3; id",
+    "let id = fn x -> x; let a = id 3; id",
     "fn 'a -> 'a")
 
 //[<Fact>]
 //let ``Test id id``() =
 //  assertSpec(
 //    "let id = fn x -> x; id id",
-//    "")
+//    "fn 'a -> 'a")
 
 //[<Fact>]
 //let ``Test inc inc eval wrong type``() =
