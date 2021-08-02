@@ -138,13 +138,13 @@ let ``Test inc inc eval``() =
 let ``Test id``() =
   assertSpec(
     "fn x -> x",
-    "fn '1 -> '1")
+    "fn 'a -> 'a")
     
 [<Fact>]
 let ``Test id fn``() =
   assertSpec (
     "let id = fn x -> x; id",
-    "fn '1 -> '1")
+    "fn 'a -> 'a")
     
 [<Fact>]
 let ``Test id float``() =
@@ -174,7 +174,7 @@ let ``Test id let float``() =
 let ``Test id gen``() =
   assertSpec (
     "let id = fn x -> x; let a = 3; id",
-    "fn '1 -> '1")
+    "fn 'a -> 'a")
 
 //[<Fact>]
 //let ``Test id id``() =
