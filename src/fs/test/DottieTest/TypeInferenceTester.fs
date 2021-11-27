@@ -153,18 +153,6 @@ let ``Test id float``() =
     "float")
 
 [<Fact>]
-let ``Test id with``() =
-  assertSpec(
-    "let id = fn x -> { y: x }; id 3",
-    "{ y: float }")
-
-[<Fact>]
-let ``Test id dot``() =
-  assertSpec(
-    "let id = fn x -> x.y; id { y: 3 }",
-    "float")
-
-[<Fact>]
 let ``Test id let float``() =
   assertSpec(
     "let id = fn x -> x; let a = id 3; a",
@@ -175,6 +163,18 @@ let ``Test id gen``() =
   assertSpec (
     "let id = fn x -> x; let a = id 3; id",
     "fn 'a -> 'a")
+
+//[<Fact>]
+//let ``Test id with``() =
+//  assertSpec(
+//    "let id = fn x -> { y: x }; id 3",
+//    "{ y: float }")
+
+//[<Fact>]
+//let ``Test id dot``() =
+//  assertSpec(
+//    "let id = fn x -> x.y; id { y: 3 }",
+//    "float")
 
 //[<Fact>]
 //let ``Test id id``() =

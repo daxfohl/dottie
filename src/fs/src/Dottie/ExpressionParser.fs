@@ -95,12 +95,12 @@ let uniquify (e: PE): Expression =
         | PEVal e -> EVal { name = e.name }
         | PELet e -> ELet { identifier = { name = e.name }; value = newuniq map e.expr; rest = newuniq map e.rest }
         | PEFn e -> EFn { argument = { name = e.argument }; body = (uniquify map e.expr).expr; isProc = e.isProc }
-        | PEObj e -> EObj { fields = mapFields e.fields }
-        | PEWith e -> EWith { expr = uniq e.expr; fields = mapFields e.fields }
-        | PEDot e -> EDot { expr = uniq e.expr; name = e.name }
         | PEEval e -> EEval { fnExpr = uniq e.fnExpr; argExpr = uniq e.argExpr }
-        | PEDo e -> EDo { expr = uniq e.expr }
-        | PEImport e -> EImport { moduleName = e.moduleName }
+        //| PEObj e -> EObj { fields = mapFields e.fields }
+        //| PEWith e -> EWith { expr = uniq e.expr; fields = mapFields e.fields }
+        //| PEDot e -> EDot { expr = uniq e.expr; name = e.name }
+        //| PEDo e -> EDo { expr = uniq e.expr }
+        //| PEImport e -> EImport { moduleName = e.moduleName }
         | PEBlock e -> EBlock { expr = uniq e.expr }
         | PEError e -> EError { message = e.message }
     { paged = e

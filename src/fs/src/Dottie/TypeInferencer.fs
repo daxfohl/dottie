@@ -24,7 +24,7 @@ type S =
   | SUnk
   | SLit of SLit
   | SFn of SFn
-  | SObj of SObj
+//  | SObj of SObj
 
 type Symbol =
   { scope: string
@@ -51,6 +51,20 @@ type Context =
     { scope = ""
       symbols = List()
       eqsets = List([SLit SNum; SLit SStr])}
+      
+let generics (c: Context, eq: EqSetId) =
+  let gen = List<EqSetId>()
+  let rec generics (eq: EqSetId) =
+    let s = c.eqsets.[eq]
+    match s with
+      | SLit SNum -> ()
+      | SLit SStr -> ()
+      | SUnk -> if not (gen.Contains(eq)) then gen.Add(eq)
+      | SFn x ->
+        generics x.input
+        generics x.output
+  generics eq
+  gen |> List.ofSeq
 
 let rec unify (context: Context) (id1: EqSetId) (id2: EqSetId): EqSetId =
   if id1 = id2 then id1
@@ -68,18 +82,6 @@ let rec unify (context: Context) (id1: EqSetId) (id2: EqSetId): EqSetId =
         let (SFn f2) = context.eqsets.[id2]
         let outputid = unify context f1.output f2.output
         SFn { input = inputid; output = outputid; generics = Set.empty }
-      | SObj o1, SObj o2 ->
-        while context.eqsets.[id1] <> context.eqsets.[id2] do
-          let fieldSet = o1.fields |> Map.keys |> Set.union (o2.fields |> Map.keys)
-          let mergeField name =
-            match o1.fields.TryFind name, o2.fields.TryFind name with
-            | None, Some id -> id
-            | Some id, None -> id
-            | Some id1, Some  id2 -> unify context id1 id2
-            | None, None -> failwith "How did we get here?"
-          for field in fieldSet do
-            mergeField field |> ignore
-        context.eqsets.[id1]
       | _ -> failwith "Unable to unify"
     let eqset1 = context.eqsets.[id1]
     let eqset2 = context.eqsets.[id2]
@@ -105,7 +107,6 @@ let rec unify (context: Context) (id1: EqSetId) (id2: EqSetId): EqSetId =
         | SUnk -> eqset
         | SLit _ -> eqset
         | SFn f -> SFn { f with input = replace f.input; output = replace f.output }
-        | SObj o -> SObj { o with fields = Map.map (fun n eqset -> replace eqset) o.fields }
       context.eqsets.[i] <- eqset
     sid
  
@@ -123,23 +124,7 @@ let rec infer (context: Context) (e: E): EqSetId =
   | EFn e ->
     let sym = context.newSym e.argument.name
     let sbody = infer context e.body
-    context.addEqSet(SFn { input = sym.eqset; output = sbody; generics = Set.empty })
-  | EObj e ->
-    let fields = e.fields |> List.map (fun field -> field.key, infer context field.value) |> Map.ofList
-    context.addEqSet(SObj { fields = fields })
-  | EWith e ->
-    let sid = infer context e.expr
-    let fields = e.fields |> List.map (fun field -> field.key, infer context field.value) |> Map.ofList
-    let dummySid = context.addEqSet(SObj { fields = fields })
-    unify context sid dummySid
-  | EDot e ->
-    let sid = infer context e.expr
-    let fields = [e.name, context.addEqSet(SUnk)] |> Map.ofList
-    let dummySid = context.addEqSet(SObj { fields = fields })
-    let unifiedSid = unify context sid dummySid
-    match context.eqsets.[unifiedSid] with
-    | SObj o -> o.fields.[e.name]
-    | _ -> failwith "Not an object"
+    context.addEqSet(SFn { input = sym.eqset; output = sbody; generics = Set.ofList(generics(context, sbody))})
   | EEval e ->
     let argsid = infer context e.argExpr
     let fsid = infer context e.fnExpr
@@ -152,6 +137,10 @@ let rec infer (context: Context) (e: E): EqSetId =
   | EBlock e -> infer context e.expr
   | x -> failwith (x.ToString())
   
+type Tables =
+  { symbols: Map<string, int>
+    equivs: Set<Set<int>> 
+    canbes: Set<Tuple<int, int>> }
 
 let rec lsp (e: E): string =
   match e with
@@ -160,12 +149,12 @@ let rec lsp (e: E): string =
     | EVal e -> e.name.ToString()
     | ELet e -> sprintf "(let [%s %s] %s)" e.identifier.name (lsp e.value) (lsp e.rest)
     | EFn e -> sprintf "(%s [%s] %s)" (if e.isProc then "proc" else "fn") e.argument.name ^% lsp e.body
-    | EObj e -> sprintf "{ %s }" (String.concat ", " (e.fields |> List.map (fun field -> sprintf ":%s %s" field.key ^% lsp field.value)))
-    | EWith e ->  sprintf "{ %s with %s }" (lsp e.expr) (String.concat ", " (e.fields |> List.map (fun field -> sprintf ":%s %s" field.key ^% lsp field.value)))
-    | EDot e -> sprintf "(%s.%s)" (lsp e.expr) e.name
     | EEval e -> sprintf "(%s %s)" (lsp e.fnExpr) ^% lsp e.argExpr
-    | EDo e -> sprintf "(do %s)" ^% lsp e.expr
-    | EImport e -> sprintf "(import %s)" e.moduleName
+    //| EObj e -> sprintf "{ %s }" (String.concat ", " (e.fields |> List.map (fun field -> sprintf ":%s %s" field.key ^% lsp field.value)))
+    //| EWith e ->  sprintf "{ %s with %s }" (lsp e.expr) (String.concat ", " (e.fields |> List.map (fun field -> sprintf ":%s %s" field.key ^% lsp field.value)))
+    //| EDot e -> sprintf "(%s.%s)" (lsp e.expr) e.name
+    //| EDo e -> sprintf "(do %s)" ^% lsp e.expr
+    //| EImport e -> sprintf "(import %s)" e.moduleName
     | EBlock e -> sprintf "(%s)" ^% lsp e.expr
     | EError e -> sprintf "(err \"%s\")" (Regex.Unescape ^% sprintf "%s" e.message)
 
@@ -181,7 +170,7 @@ let prnSpec (c: Context, eq: EqSetId) =
         let i = gen.IndexOf(eq)
         "'" + (string)((char)i + 'a')
       | SFn x -> sprintf "fn %s -> %s" (prnSpec x.input gen) (prnSpec x.output gen)
-      | SObj x -> sprintf "{ %s }" ^% String.concat ", " (x.fields |> Map.toList |> List.map ^% fun (k, eq) -> sprintf "%s: %s" k ^% prnSpec eq gen)
+      //| SObj x -> sprintf "{ %s }" ^% String.concat ", " (x.fields |> Map.toList |> List.map ^% fun (k, eq) -> sprintf "%s: %s" k ^% prnSpec eq gen)
   prnSpec eq (List<EqSetId>())
 
 [<EntryPoint>]

@@ -27,11 +27,11 @@ type E =
   | ELet of ELet
   | EEval of EEval
   | EFn of EFn
-  | EObj of EObj
-  | EWith of EWith
-  | EDot of EDot
-  | EDo of EDo
-  | EImport of EImport
+  //| EObj of EObj
+  //| EWith of EWith
+  //| EDot of EDot
+  //| EDo of EDo
+  //| EImport of EImport
   | EError of EError
 
 and EBlock =
