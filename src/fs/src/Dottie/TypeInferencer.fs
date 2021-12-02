@@ -128,6 +128,7 @@ let rec infer (context: Context) (e: E): EqSetId =
   | EEval e ->
     let argsid = infer context e.argExpr
     let fsid = infer context e.fnExpr
+    let fsid = context.addEqSet(context.eqsets.[fsid])
     let dummySid = context.addEqSet(SFn { input = argsid; output = context.addEqSet(SUnk); generics = Set.empty })
     let unifiedSid = unify context fsid dummySid
     match context.eqsets.[unifiedSid] with

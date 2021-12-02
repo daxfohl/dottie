@@ -58,6 +58,7 @@
     <Compile Include="SpecParser.fs" />
     <Compile Include="ModuleParser.fs" />
     <Compile Include="Translator.fs" />
+    <Compile Include="AlgorithmW.fs" />
     <Compile Include="TypeInferencer.fs" />
   </ItemGroup>
   <ItemGroup>
