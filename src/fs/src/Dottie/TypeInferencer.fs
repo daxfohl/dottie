@@ -185,4 +185,5 @@ let main argv =
   let strings = tokenize input
   let e, tail = parseExpression strings
   let e = uniquify e
+  printfn("hello")
   0
