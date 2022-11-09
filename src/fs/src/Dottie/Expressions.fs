@@ -1,74 +1,60 @@
 ﻿module Expressions
 
-open System
-open PExpressions
-
-type EStr =
-  { str: string }
-
-type ENum =
-  { num: float }
-
-type ELit = EStr of EStr | ENum of ENum
-
-type EVal =
+type [<ReferenceEquality>] EVal =
   { name: string }
 
-type EImport =
+type [<ReferenceEquality>] EImport =
   { moduleName: string }
 
-type EError =
+type [<ReferenceEquality>] EError =
   { message: string }
 
-type E =
-  | ELit of ELit
+type [<ReferenceEquality>] EBlock =
+  { expr: E }
+
+and [<ReferenceEquality>] ELet =
+  { identifier: EVal
+    expr: E
+    rest: E }
+
+and [<ReferenceEquality>] EObjField =
+  { key: string
+    value: E }
+    
+and [<ReferenceEquality>] EObj =
+  { fields: EObjField list }
+    
+and [<ReferenceEquality>] EWith =
+  { expr: E
+    fields: EObjField list }
+
+and [<ReferenceEquality>] EDo =
+  { expr: E }
+
+and [<ReferenceEquality>] EDot =
+  { expr: E
+    name: string }
+
+and [<ReferenceEquality>] EEval =
+  { fnExpr: E
+    argExpr: E }
+
+and [<ReferenceEquality>] EFn =
+  { argument: EVal
+    expr: E
+    isProc: bool }
+
+and [<ReferenceEquality>] E =
+  | ENum of float
+  | EStr of string
   | EVal of EVal
   | EBlock of EBlock
   | ELet of ELet
   | EEval of EEval
   | EFn of EFn
-  //| EObj of EObj
-  //| EWith of EWith
-  //| EDot of EDot
-  //| EDo of EDo
-  //| EImport of EImport
+  | EObj of EObj
+  | EWith of EWith
+  | EDot of EDot
+  | EDo of EDo
+  | EImport of EImport
   | EError of EError
-
-and EBlock =
-  { expr: E }
-
-and ELet =
-  { identifier: EVal
-    value: E
-    rest: E }
-
-and EObjField =
-  { key: string
-    value: E }
-    
-and EObj =
-  { fields: EObjField list }
-    
-and EWith =
-  { expr: E
-    fields: EObjField list }
-
-and EDo =
-  { expr: E }
-
-and EDot =
-  { expr: E
-    name: string }
-
-and EEval =
-  { fnExpr: E
-    argExpr: E }
-
-and EFn =
-  { argument: EVal
-    body: E
-    isProc: bool }
-    
-type Expression =
-  { paged: PE
-    expr: E }

@@ -1,29 +1,29 @@
 ﻿module Tokens
 
 type Token =
-| KNumber of float // x-
-| KString of string // x-
-| KIdentifier of string // x-
-| KImport // x-
-| KFn // x-
-| KProc // x-
-| KLet // x-
-| KDo // x-
-| KWith // x
-| KEquals // x
+| KNumber of float
+| KString of string
+| KIdentifier of string
+| KImport
+| KFn
+| KProc
+| KLet
+| KDo
+| KWith
+| KEquals
 | KLiteral
 | KModule
 | KForeign
-| KOpenParen // x-
-| KCloseParen // x
-| KOpenBrace // x-
-| KCloseBrace // x
-| KDot // x +
-| KColon // x
-| KArrow // x
-| KSemicolon // x-
-| KComment of string // x-
-| KError of string // x-
+| KOpenParen
+| KCloseParen
+| KOpenBrace
+| KCloseBrace
+| KDot
+| KColon
+| KArrow
+| KSemicolon
+| KComment of string
+| KError of string
 
 [<ReferenceEquality>]
 type PageToken = {

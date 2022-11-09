@@ -11,7 +11,6 @@
     <Content Include="Samples.txt" />
     <Compile Include="TokenizerTester.fs" />
     <Compile Include="ExpressionParserTester.fs" />
-    <Compile Include="SpecParserTester.fs" />
     <Compile Include="TypeInferenceTester.fs" />
     <Compile Include="TranslatorTester.fs" />
     <Content Include="concat.dott">
