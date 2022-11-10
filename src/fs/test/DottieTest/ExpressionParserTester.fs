@@ -11,16 +11,16 @@ let rec lsp (e: E): string =
     | EStr(value) -> sprintf "\"%s\"" value
     | ENum(value) -> value.ToString()
     | EVal(name) -> name.ToString()
-    | ELet(identifier, expr, rest)  -> sprintf "(let [%s %s] %s)" identifier (lsp expr) (lsp rest)
+    | ELet(identifier, expr, rest) -> sprintf "(let [%s %s] %s)" identifier (lsp expr) (lsp rest)
     | EFn(argument, expr, isProc) -> sprintf "(%s [%s] %s)" (if isProc then "proc" else "fn") argument ^% lsp expr
     | EEval(fnExpr, argExpr) -> sprintf "(%s %s)" (lsp fnExpr) ^% lsp argExpr
-    //| EObj e -> sprintf "{ %s }" (String.concat ", " (e.fields |> List.map (fun field -> sprintf ":%s %s" field.key ^% lsp field.value)))
-    //| EWith e ->  sprintf "{ %s with %s }" (lsp e.expr) (String.concat ", " (e.fields |> List.map (fun field -> sprintf ":%s %s" field.key ^% lsp field.value)))
-    //| EDot e -> sprintf "(%s.%s)" (lsp e.expr) e.name
-    //| EDo e -> sprintf "(do %s)" ^% lsp e.expr
-    //| EImport e -> sprintf "(import %s)" e.moduleName
-    | EBlock expr -> sprintf "(%s)" ^% lsp expr
-    | EError message -> sprintf "(err \"%s\")" (Regex.Unescape ^% sprintf "%s" message)
+    | EObj(fields) -> sprintf "{ %s }" (String.concat ", " (fields |> Map.toList |> List.map (fun (k, v) -> sprintf ":%s %s" k ^% lsp v)))
+    | EWith(expr, fields) ->  sprintf "(with %s %s)" (lsp expr) (String.concat ", " (fields |> Map.toList |> List.map (fun (k, v) -> sprintf ":%s %s" k ^% lsp v)))
+    | EDot(expr, name) -> sprintf "(:%s %s)" name (lsp expr)
+    | EDo(expr) -> sprintf "(do %s)" ^% lsp expr
+    | EImport(moduleName) -> sprintf "(import %s)" moduleName
+    | EBlock(expr) -> lsp expr
+    | EError(message) -> sprintf "(err \"%s\")" (Regex.Unescape ^% sprintf "%s" message)
 
 [<Fact>]
 let ``Test var``() =
@@ -291,8 +291,8 @@ let ``Parse concat``() =
   let strings = tokenize "fn ss -> { s1 with raw: ffi.concat { s1: ss.s1.raw, s2: ss.s2.raw } }"
   let e, tail = parseExpression strings
   let lisp = lsp e
-  Assert.Equal("(fn [ss] (with s1 :raw ((:concat ffi) { :s1 (:raw (:s1 ss)), :s2 (:raw (:s2 ss)) })))", lisp)
-  
+  Assert.Equal("(fn [ss] (with s1 :raw ((:concat ffi) { :s1 (:raw (:s1 ss)), :s2 (:raw (:s2 ss)) })))", lisp)  
+
 
 [<Fact>]
 let ``Parse concat2``() =
