@@ -20,7 +20,7 @@ and S =
   | SObj of SObj
 
 type Rule =
-| Is of EVal * S
+| Is of string * S
 
 type Context =
   { rules: Rule list }
@@ -31,27 +31,27 @@ let rec infer (context: Context) (e: E): Context * S =
   match e with
   | EStr _ -> context, SStr
   | ENum _ -> context, SNum
-  | EVal e -> context, context.rules |> List.choose (function | Is (e', s) when e = e' -> Some s | _ -> None) |> List.exactlyOne
+  | EVal(name) -> context, context.rules |> List.choose (function | Is (name', s) when name = name' -> Some s | _ -> None) |> List.exactlyOne
       
-  | EError e -> failwith e.message
-  | EBlock e -> infer context e.expr
+  | EError message -> failwith message
+  | EBlock expr -> infer context expr
   | x -> failwith (x.ToString())
 
 let rec lsp (e: E): string =
   match e with
-    | EStr e -> sprintf "\"%s\"" e
-    | ENum e -> e.ToString()
-    | EVal e -> e.name.ToString()
-    | ELet e -> sprintf "(let [%s %s] %s)" e.identifier (lsp e.expr) (lsp e.rest)
-    | EFn e -> sprintf "(%s [%s] %s)" (if e.isProc then "proc" else "fn") e.argument ^% lsp e.expr
-    | EEval e -> sprintf "(%s %s)" (lsp e.fnExpr) ^% lsp e.argExpr
+    | EStr(value) -> sprintf "\"%s\"" value
+    | ENum(value) -> value.ToString()
+    | EVal(name) -> name.ToString()
+    | ELet(identifier, expr, rest)  -> sprintf "(let [%s %s] %s)" identifier (lsp expr) (lsp rest)
+    | EFn(argument, expr, isProc) -> sprintf "(%s [%s] %s)" (if isProc then "proc" else "fn") argument ^% lsp expr
+    | EEval(fnExpr, argExpr) -> sprintf "(%s %s)" (lsp fnExpr) ^% lsp argExpr
     //| EObj e -> sprintf "{ %s }" (String.concat ", " (e.fields |> List.map (fun field -> sprintf ":%s %s" field.key ^% lsp field.value)))
     //| EWith e ->  sprintf "{ %s with %s }" (lsp e.expr) (String.concat ", " (e.fields |> List.map (fun field -> sprintf ":%s %s" field.key ^% lsp field.value)))
     //| EDot e -> sprintf "(%s.%s)" (lsp e.expr) e.name
     //| EDo e -> sprintf "(do %s)" ^% lsp e.expr
     //| EImport e -> sprintf "(import %s)" e.moduleName
-    | EBlock e -> sprintf "(%s)" ^% lsp e.expr
-    | EError e -> sprintf "(err \"%s\")" (Regex.Unescape ^% sprintf "%s" e.message)
+    | EBlock expr -> sprintf "(%s)" ^% lsp expr
+    | EError message -> sprintf "(err \"%s\")" (Regex.Unescape ^% sprintf "%s" message)
 
 let rec prnSpec (s: S) =
     match s with
@@ -63,8 +63,8 @@ let rec prnSpec (s: S) =
 [<EntryPoint>]
 let main argv =
   printfn("hello")
-  let v = { name = "hi" }
-  let context = { rules = [Is(v, SNum)]}
-  let _, s = infer context (EVal v)
+  let v = EVal "hi"
+  let context = { rules = [Is("hi", SNum)]}
+  let _, s = infer context (v)
   printfn "%s" (prnSpec s)
   1
