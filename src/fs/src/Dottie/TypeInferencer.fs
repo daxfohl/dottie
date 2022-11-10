@@ -18,29 +18,32 @@ and S =
   | SNum
   | SFn of SFn
   | SObj of SObj
- 
 
-let rec infer (e: E): S =
+type Rule =
+| Is of EVal * S
+
+type Context =
+  { rules: Rule list }
+
+let emptyContext = { rules = [] }
+
+let rec infer (context: Context) (e: E): Context * S =
   match e with
-  | EStr _ -> SStr
-  | ENum _ -> SNum
-  //| EVal e -> (context.findSym e.name).eqset
+  | EStr _ -> context, SStr
+  | ENum _ -> context, SNum
+  | EVal e -> context, context.rules |> List.choose (function | Is (e', s) when e = e' -> Some s | _ -> None) |> List.exactlyOne
+      
   | EError e -> failwith e.message
-  | EBlock e -> infer e.expr
+  | EBlock e -> infer context e.expr
   | x -> failwith (x.ToString())
-  
-type Tables =
-  { symbols: Map<string, int>
-    equivs: Set<Set<int>> 
-    canbes: Set<Tuple<int, int>> }
 
 let rec lsp (e: E): string =
   match e with
     | EStr e -> sprintf "\"%s\"" e
     | ENum e -> e.ToString()
     | EVal e -> e.name.ToString()
-    | ELet e -> sprintf "(let [%s %s] %s)" e.identifier.name (lsp e.expr) (lsp e.rest)
-    | EFn e -> sprintf "(%s [%s] %s)" (if e.isProc then "proc" else "fn") e.argument.name ^% lsp e.expr
+    | ELet e -> sprintf "(let [%s %s] %s)" e.identifier (lsp e.expr) (lsp e.rest)
+    | EFn e -> sprintf "(%s [%s] %s)" (if e.isProc then "proc" else "fn") e.argument ^% lsp e.expr
     | EEval e -> sprintf "(%s %s)" (lsp e.fnExpr) ^% lsp e.argExpr
     //| EObj e -> sprintf "{ %s }" (String.concat ", " (e.fields |> List.map (fun field -> sprintf ":%s %s" field.key ^% lsp field.value)))
     //| EWith e ->  sprintf "{ %s with %s }" (lsp e.expr) (String.concat ", " (e.fields |> List.map (fun field -> sprintf ":%s %s" field.key ^% lsp field.value)))
@@ -60,5 +63,8 @@ let rec prnSpec (s: S) =
 [<EntryPoint>]
 let main argv =
   printfn("hello")
-  printfn "%s" (prnSpec(infer(EStr "asdf")))
+  let v = { name = "hi" }
+  let context = { rules = [Is(v, SNum)]}
+  let _, s = infer context (EVal v)
+  printfn "%s" (prnSpec s)
   1

@@ -42,14 +42,14 @@ let rec parseExpression (tokens: PageToken list) : E * PageToken list =
     | (K KImport as ki)::(K (KIdentifier id) as kid)::t -> parseContinuation (EImport { moduleName = id }) t
     | (K KFn as kf)::(K (KIdentifier name) as kn)::(K KArrow as ka)::t ->
         let argExpr, t = parseExpression t
-        parseContinuation (EFn { argument = { name = name }; expr = argExpr; isProc = false }) t
+        parseContinuation (EFn { argument = name; expr = argExpr; isProc = false }) t
     | (K KProc as kp)::(K (KIdentifier name) as kn)::(K KArrow as ka)::t ->
         let argExpr, t = parseExpression t
-        parseContinuation (EFn { argument = { name = name }; expr = argExpr; isProc = true }) t
+        parseContinuation (EFn { argument = name; expr = argExpr; isProc = true }) t
     | (K KLet as klet)::(K(KIdentifier name) as kname)::(K KEquals as keq)::t ->
         let expr, t = parseExpression t
         let rest, t = parseExpression t
-        parseContinuation (ELet { identifier = { name = name }; expr = expr; rest = rest }) t
+        parseContinuation (ELet { identifier = name; expr = expr; rest = rest }) t
     | (K KDo as kdo)::t ->
         let expr, t = parseExpression t
         parseContinuation (EDo { expr = expr }) t

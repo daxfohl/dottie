@@ -13,7 +13,7 @@ type [<ReferenceEquality>] EBlock =
   { expr: E }
 
 and [<ReferenceEquality>] ELet =
-  { identifier: EVal
+  { identifier: string
     expr: E
     rest: E }
 
@@ -40,7 +40,7 @@ and [<ReferenceEquality>] EEval =
     argExpr: E }
 
 and [<ReferenceEquality>] EFn =
-  { argument: EVal
+  { argument: string
     expr: E
     isProc: bool }
 

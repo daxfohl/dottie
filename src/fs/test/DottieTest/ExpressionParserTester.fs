@@ -10,8 +10,8 @@ let rec lsp (e: E): string =
     | EStr e -> sprintf "\"%s\"" e
     | ENum e -> e.ToString()
     | EVal e -> e.name
-    | ELet e -> sprintf "(let [%s %s] %s)" e.identifier.name (lsp e.expr) (lsp e.rest)
-    | EFn e -> sprintf "(%s [%s] %s)" (if e.isProc then "proc" else "fn") e.argument.name ^% lsp e.expr
+    | ELet e -> sprintf "(let [%s %s] %s)" e.identifier (lsp e.expr) (lsp e.rest)
+    | EFn e -> sprintf "(%s [%s] %s)" (if e.isProc then "proc" else "fn") e.argument ^% lsp e.expr
     | EObj e -> sprintf "{ %s }" (String.concat ", " (e.fields |> List.map (fun field -> sprintf ":%s %s" field.key ^% lsp field.value)))
     | EWith e ->  sprintf "(with %s %s)" (lsp e.expr) (String.concat ", " (e.fields |> List.map (fun field -> sprintf ":%s %s" field.key ^% lsp field.value)))
     | EDot e -> sprintf "(:%s %s)" e.name ^% lsp e.expr
