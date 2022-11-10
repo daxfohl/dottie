@@ -6,35 +6,26 @@ open System.Text.RegularExpressions
 open System.Collections.Generic
 open System
 
-type SFn =
-  { input: S
-    output: S }
+type TRef =
+  | TRefStr
+  | TRefNum
+  | TRefFun of input: int * output: int
+  | TRefObj of fields: Map<string, int>
 
-and SObj =
-  { fields: Map<string, S> }
+type Scope =
+  { vars: Map<string, int>
+    types: TRef list }
 
-and S =
-  | SStr
-  | SNum
-  | SFn of SFn
-  | SObj of SObj
+let emptyContext = { vars = Map.empty; types = [] }
 
-type Rule =
-| Is of string * S
-
-type Context =
-  { rules: Rule list }
-
-let emptyContext = { rules = [] }
-
-let rec infer (context: Context) (e: E): Context * S =
+let rec infer (scope: Scope) (e: E): TRef =
   match e with
-  | EStr _ -> context, SStr
-  | ENum _ -> context, SNum
-  | EVal(name) -> context, context.rules |> List.choose (function | Is (name', s) when name = name' -> Some s | _ -> None) |> List.exactlyOne
+  | EStr _ -> TRefStr
+  | ENum _ -> TRefNum
+  | EVal(name) -> scope.types.[scope.vars.[name]]
       
   | EError message -> failwith message
-  | EBlock expr -> infer context expr
+  | EBlock expr -> infer scope expr
   | x -> failwith (x.ToString())
 
 let rec lsp (e: E): string =
@@ -53,18 +44,26 @@ let rec lsp (e: E): string =
     | EBlock expr -> sprintf "(%s)" ^% lsp expr
     | EError message -> sprintf "(err \"%s\")" (Regex.Unescape ^% sprintf "%s" message)
 
-let rec prnSpec (s: S) =
+    
+
+type T =
+  | TStr
+  | TNum
+  | TFun of input: T * output: T
+  | TObj of fields: Map<string, T>
+
+let rec prnSpec (s: T) =
     match s with
-      | SNum -> "float"
-      | SStr -> "string"
-      | SFn x -> sprintf "fn %s -> %s" (prnSpec x.input) (prnSpec x.output)
+      | TNum -> "float"
+      | TStr -> "string"
+      | TFun(input, output) -> sprintf "fn %s -> %s" (prnSpec input) (prnSpec output)
       //| SObj x -> sprintf "{ %s }" ^% String.concat ", " (x.fields |> Map.toList |> List.map ^% fun (k, eq) -> sprintf "%s: %s" k ^% prnSpec eq gen)
 
 [<EntryPoint>]
 let main argv =
   printfn("hello")
   let v = EVal "hi"
-  let context = { rules = [Is("hi", SNum)]}
+  let context = { rules = [Is("hi", TNum)]}
   let _, s = infer context (v)
   printfn "%s" (prnSpec s)
   1
