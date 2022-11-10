@@ -11,12 +11,40 @@ type TRef =
   | TRefNum
   | TRefFun of input: int * output: int
   | TRefObj of fields: Map<string, int>
+  
+type T =
+  | TStr
+  | TNum
+  | TFun of input: T * output: T
+  | TObj of fields: Map<string, T>
 
 type Scope =
   { vars: Map<string, int>
-    types: TRef list }
+    types: Map<int, TRef>
+    next: int }
 
-let emptyContext = { vars = Map.empty; types = [] }
+let emptyScope = { vars = Map.empty; types = Map.empty; next = 0 }
+
+let rec addToTypes (scope: Scope) (t: T) =
+    let n = scope.next
+    match t with
+    | TNum -> { scope with types = scope.types.Add(n, TRefNum); next = n + 1 }
+    | TStr -> { scope with types = scope.types.Add(n, TRefStr); next = n + 1 }
+    | TFun(i, o) ->
+        let after_i = addToTypes scope i
+        let after_o = addToTypes after_i o
+        let f = TRefFun(after_i.next - 1, after_o.next - 1)
+        { after_o with types = after_o.types.Add(after_o.next, f); next = after_o.next + 1 }
+    | TObj(fields) ->
+        let (afters, final) = fields |> Map.values |> Seq.toList |> List.mapFold (fun s v -> let x = addToTypes s v in x, x) scope
+        let field_ids = afters |> List.map (fun s -> s.next - 1)
+        let o = (List.ofSeq(fields.Keys), field_ids) ||> List.zip |> Map.ofList |> TRefObj
+        { final with types = final.types.Add(final.next, o); next = final.next + 1 }
+
+let rec addToScope (scope: Scope) (name: string, t: T): Scope =
+    let after = addToTypes scope t
+    { after with vars = after.vars.Add(name, after.next - 1) }
+  
 
 let rec infer (scope: Scope) (e: E): TRef =
   match e with
@@ -46,11 +74,16 @@ let rec lsp (e: E): string =
 
     
 
-type T =
-  | TStr
-  | TNum
-  | TFun of input: T * output: T
-  | TObj of fields: Map<string, T>
+
+
+let rec parseTRef (scope: Scope) (tref: TRef) =
+  match tref with
+  | TRefStr -> TStr
+  | TRefNum -> TNum
+  | TRefFun(i, o)-> TFun(parseTRef scope scope.types.[i], parseTRef scope scope.types.[o])
+  | TRefObj(fields)-> TObj(Map.map(fun k v -> parseTRef scope scope.types[v]) fields)
+
+   
 
 let rec prnSpec (s: T) =
     match s with
@@ -63,7 +96,8 @@ let rec prnSpec (s: T) =
 let main argv =
   printfn("hello")
   let v = EVal "hi"
-  let context = { rules = [Is("hi", TNum)]}
-  let _, s = infer context (v)
-  printfn "%s" (prnSpec s)
+  let scope = addToScope emptyScope ("hi", TStr)
+  let tref = infer scope v
+  let t = parseTRef scope tref
+  printfn "%s" (prnSpec t)
   1
