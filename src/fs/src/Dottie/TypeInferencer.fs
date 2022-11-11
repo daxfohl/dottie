@@ -52,7 +52,9 @@ type Scope =
     | EStr _ -> TRefStr
     | ENum _ -> TRefNum
     | EVal(name) -> this.types[this.vars[name]]
-      
+    | ELet(id, expr, rest) ->
+        let scope = this.AddVar(id, this.Infer(expr))
+        scope.InferTref(rest)
     | EError message -> failwith message
     | EBlock expr -> this.InferTref(expr)
     | x -> failwith (x.ToString())
