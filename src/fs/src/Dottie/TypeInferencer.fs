@@ -1,10 +1,6 @@
 ﻿module TypeInferencer
-open Tokenizer
 open Expressions
-open ExpressionParser
 open System.Text.RegularExpressions
-open System.Collections.Generic
-open System
 
 type TRef =
   | TRefStr
@@ -22,41 +18,50 @@ type Scope =
   { vars: Map<string, int>
     types: Map<int, TRef>
     next: int }
-
-let emptyScope = { vars = Map.empty; types = Map.empty; next = 0 }
-
-let rec addToTypes (scope: Scope) (t: T) =
-    let n = scope.next
+  with
+  member this.AddTRef(t: TRef) =
+    { this with types = this.types.Add(this.next, t); next = this.next + 1 }, this.next
+  member this.AddType(t: T) =
+    let n = this.next
     match t with
-    | TNum -> { scope with types = scope.types.Add(n, TRefNum); next = n + 1 }
-    | TStr -> { scope with types = scope.types.Add(n, TRefStr); next = n + 1 }
+    | TNum -> this, 0
+    | TStr -> this, 1
     | TFun(i, o) ->
-        let after_i = addToTypes scope i
-        let after_o = addToTypes after_i o
-        let f = TRefFun(after_i.next - 1, after_o.next - 1)
-        { after_o with types = after_o.types.Add(after_o.next, f); next = after_o.next + 1 }
+        let i_scope, i_index = this.AddType(i)
+        let o_scope, o_index = i_scope.AddType(o)
+        o_scope.AddTRef(TRefFun(i_index, o_index))
     | TObj(fields) ->
-        let (afters, final) = fields |> Map.values |> Seq.toList |> List.mapFold (fun s v -> let x = addToTypes s v in x, x) scope
-        let field_ids = afters |> List.map (fun s -> s.next - 1)
-        let o = (List.ofSeq(fields.Keys), field_ids) ||> List.zip |> Map.ofList |> TRefObj
-        { final with types = final.types.Add(final.next, o); next = final.next + 1 }
+        let indexes, final = fields |> Map.values |> Seq.toList |> List.mapFold (fun (s: Scope) v -> let x, i = s.AddType(v) in i, x) this
+        let o = (List.ofSeq(fields.Keys), indexes) ||> List.zip |> Map.ofList |> TRefObj
+        final.AddTRef(o)
+  member this.AddVar(name: string, t: T): Scope =
+        let after, index = this.AddType(t)
+        { after with vars = after.vars.Add(name, index) }
+  static member Empty =
+    let l = [TRefNum; TRefStr]
+    { vars = Map.empty; types = l |> List.indexed |> Map.ofList; next = l.Length }
 
-let rec addToScope (scope: Scope) (name: string, t: T): Scope =
-    let after = addToTypes scope t
-    { after with vars = after.vars.Add(name, after.next - 1) }
-  
-
-let rec infer (scope: Scope) (e: E): TRef =
-  match e with
-  | EStr _ -> TRefStr
-  | ENum _ -> TRefNum
-  | EVal(name) -> scope.types.[scope.vars.[name]]
+  member this.InferTref(e: E): TRef =
+    match e with
+    | EStr _ -> TRefStr
+    | ENum _ -> TRefNum
+    | EVal(name) -> this.types[this.vars[name]]
       
-  | EError message -> failwith message
-  | EBlock expr -> infer scope expr
-  | x -> failwith (x.ToString())
+    | EError message -> failwith message
+    | EBlock expr -> this.InferTref(expr)
+    | x -> failwith (x.ToString())
+    
+  member this.Hydrate(tref: TRef): T =
+    match tref with
+    | TRefStr -> TStr
+    | TRefNum -> TNum
+    | TRefFun(i, o)-> TFun(this.Hydrate(this.types[i]), this.Hydrate(this.types[o]))
+    | TRefObj(fields)-> TObj(Map.map(fun k v -> this.Hydrate(this.types[v])) fields)
+    
+  member this.Infer(e: E): T =
+    this.Hydrate(this.InferTref(e))
 
-let rec lsp (e: E): string =
+let rec lsp(e: E): string =
   match e with
     | EStr(value) -> sprintf "\"%s\"" value
     | ENum(value) -> value.ToString()
@@ -72,18 +77,6 @@ let rec lsp (e: E): string =
     | EBlock expr -> sprintf "(%s)" ^% lsp expr
     | EError message -> sprintf "(err \"%s\")" (Regex.Unescape ^% sprintf "%s" message)
 
-    
-
-
-
-let rec parseTRef (scope: Scope) (tref: TRef) =
-  match tref with
-  | TRefStr -> TStr
-  | TRefNum -> TNum
-  | TRefFun(i, o)-> TFun(parseTRef scope scope.types.[i], parseTRef scope scope.types.[o])
-  | TRefObj(fields)-> TObj(Map.map(fun k v -> parseTRef scope scope.types[v]) fields)
-
-   
 
 let rec prnSpec (s: T) =
     match s with
@@ -96,8 +89,7 @@ let rec prnSpec (s: T) =
 let main argv =
   printfn("hello")
   let v = EVal "hi"
-  let scope = addToScope emptyScope ("hi", TStr)
-  let tref = infer scope v
-  let t = parseTRef scope tref
+  let scope = Scope.Empty.AddVar("hi", TStr)
+  let t = scope.Infer(v)
   printfn "%s" (prnSpec t)
   1

@@ -39,7 +39,7 @@ let get choice =
 let assertSpec(expression, expectedSpec) =
   let strings = tokenize expression
   let parsed, _ = parseExpression strings
-  let t = infer emptyScope parsed |> parseTRef emptyScope
+  let t = Scope.Empty.Infer(parsed)
   let spec = prnSpec t
   Assert.StrictEqual(expectedSpec, spec)
 
