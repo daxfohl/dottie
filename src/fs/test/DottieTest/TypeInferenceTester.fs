@@ -5,7 +5,6 @@ open Tokenizer
 open Expressions
 open ExpressionParser
 open TypeInferencer
-open SpecParser
 open FSharpx.Choice
 
 let get choice =
@@ -13,21 +12,20 @@ let get choice =
   | Choice1Of2 (x, _) -> x
   | Choice2Of2 x -> failwith x
   
-let assertSpec''(existing, expression, otherSpec) =
-  let context = Context.create()
-  for k, v in existing do
-    context.eqsets.Add(v)
-    let sym = { scope = context.scope; name = k; eqset = context.eqsets.Count - 1 }
-    context.symbols.Add(sym)
-  let strings = tokenize expression
-  let parsed, _ = parseExpression strings
-  let id = infer context (uniquify parsed).expr
-  let spec = prnSpec(context, id)
-  let s = sprintf "%A" spec
-  System.Console.WriteLine(s)
-  Assert.StrictEqual(otherSpec, spec)
+//let assertSpec''(existing, expression, otherSpec) =
+//  let context = Context.create()
+//  for k, v in existing do
+//    context.eqsets.Add(v)
+//    let sym = { scope = context.scope; name = k; eqset = context.eqsets.Count - 1 }
+//    context.symbols.Add(sym)
+//  let strings = tokenize expression
+//  let parsed, _ = parseExpression strings
+//  let id = infer context (uniquify parsed).expr
+//  let spec = prnSpec(context, id)
+//  let s = sprintf "%A" spec
+//  System.Console.WriteLine(s)
+//  Assert.StrictEqual(otherSpec, spec)
 
-let assertSpec'''(expression, otherSpec) = assertSpec''([], expression, otherSpec)
 //let assertSpec'(existing, expression, expectedSpec) =
 //  match choose
 //    {
@@ -38,7 +36,12 @@ let assertSpec'''(expression, otherSpec) = assertSpec''([], expression, otherSpe
 //  | Choice1Of2 otherSpec -> assertSpec''(existing, expression, otherSpec)
 //  | Choice2Of2 s -> failwith s
 
-let assertSpec(expression, expectedSpec) = assertSpec''([], expression, expectedSpec)
+let assertSpec(expression, expectedSpec) =
+  let strings = tokenize expression
+  let parsed, _ = parseExpression strings
+  let t = infer emptyScope parsed |> parseTRef emptyScope
+  let spec = prnSpec t
+  Assert.StrictEqual(expectedSpec, spec)
 
 //let assertError'(existing, expression, expectedError) =
 //  let spec = choose {
