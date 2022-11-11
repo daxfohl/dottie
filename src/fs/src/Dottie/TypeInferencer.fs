@@ -30,8 +30,8 @@ type Scope =
     { this with types = this.types.Add(this.next, t); next = this.next + 1 }, this.next
   member this.AddType(t: T) =
     match t with
-    | TNum -> this, 0
-    | TStr -> this, 1
+    | TStr -> this, 0
+    | TNum -> this, 1
     | TFun(i, o) ->
         let i_scope, i_index = this.AddType(i)
         let o_scope, o_index = i_scope.AddType(o)
@@ -43,17 +43,18 @@ type Scope =
   member this.AddVar(name: string, t: T): Scope =
         let after, index = this.AddType(t)
         { after with vars = after.vars.Add(name, index) }
-  static member Native = [TRefNum; TRefStr]
+  static member Native = [TRefStr; TRefNum]
   static member Empty =
     { vars = Map.empty; types = Scope.Native |> List.indexed |> Map.ofList; next = Scope.Native.Length }
 
-  member this.InferTref(e: E): TRef =
+  member this.InferTref(e: E): Scope * int =
     match e with
-    | EStr _ -> TRefStr
-    | ENum _ -> TRefNum
-    | EVal(name) -> this.types[this.vars[name]]
+    | EStr _ -> this, 0
+    | ENum _ -> this, 1
+    | EVal(name) -> this, this.vars[name]
     | ELet(id, expr, rest) ->
-        let scope = this.AddVar(id, this.Infer(expr))
+        let scope, i = this.InferTref(expr)
+        let scope = { scope with vars = scope.vars.Add(id, i) }
         scope.InferTref(rest)
     | EError message -> failwith message
     | EBlock expr -> this.InferTref(expr)
@@ -67,7 +68,8 @@ type Scope =
     | TRefObj(fields)-> TObj(Map.map(fun k v -> this.Hydrate(this.types[v])) fields)
     
   member this.Infer(e: E): T =
-    this.Hydrate(this.InferTref(e))
+    let scope, i = this.InferTref(e)
+    this.Hydrate(scope.types[i])
 
 
 
