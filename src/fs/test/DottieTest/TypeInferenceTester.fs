@@ -40,7 +40,7 @@ let assertSpec(expression, expectedSpec) =
   let strings = tokenize expression
   let parsed, _ = parseExpression strings
   let t = Scope.Empty.Infer(parsed)
-  let spec = prnSpec t
+  let spec = t.ToString()
   Assert.StrictEqual(expectedSpec, spec)
 
 //let assertError'(existing, expression, expectedError) =

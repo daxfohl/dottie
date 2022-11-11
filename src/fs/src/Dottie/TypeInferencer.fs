@@ -13,6 +13,13 @@ type T =
   | TNum
   | TFun of input: T * output: T
   | TObj of fields: Map<string, T>
+  with
+  override this.ToString() =
+    match this with
+      | TNum -> "float"
+      | TStr -> "string"
+      | TFun(input, output) -> sprintf "fn %A -> %A" input output
+      //| SObj x -> sprintf "{ %s }" ^% String.concat ", " (x.fields |> Map.toList |> List.map ^% fun (k, eq) -> sprintf "%s: %s" k ^% prnSpec eq gen)
 
 type Scope =
   { vars: Map<string, int>
@@ -22,7 +29,6 @@ type Scope =
   member this.AddTRef(t: TRef) =
     { this with types = this.types.Add(this.next, t); next = this.next + 1 }, this.next
   member this.AddType(t: T) =
-    let n = this.next
     match t with
     | TNum -> this, 0
     | TStr -> this, 1
@@ -37,9 +43,9 @@ type Scope =
   member this.AddVar(name: string, t: T): Scope =
         let after, index = this.AddType(t)
         { after with vars = after.vars.Add(name, index) }
+  static member Native = [TRefNum; TRefStr]
   static member Empty =
-    let l = [TRefNum; TRefStr]
-    { vars = Map.empty; types = l |> List.indexed |> Map.ofList; next = l.Length }
+    { vars = Map.empty; types = Scope.Native |> List.indexed |> Map.ofList; next = Scope.Native.Length }
 
   member this.InferTref(e: E): TRef =
     match e with
@@ -61,29 +67,7 @@ type Scope =
   member this.Infer(e: E): T =
     this.Hydrate(this.InferTref(e))
 
-let rec lsp(e: E): string =
-  match e with
-    | EStr(value) -> sprintf "\"%s\"" value
-    | ENum(value) -> value.ToString()
-    | EVal(name) -> name.ToString()
-    | ELet(identifier, expr, rest)  -> sprintf "(let [%s %s] %s)" identifier (lsp expr) (lsp rest)
-    | EFn(argument, expr, isProc) -> sprintf "(%s [%s] %s)" (if isProc then "proc" else "fn") argument ^% lsp expr
-    | EEval(fnExpr, argExpr) -> sprintf "(%s %s)" (lsp fnExpr) ^% lsp argExpr
-    //| EObj e -> sprintf "{ %s }" (String.concat ", " (e.fields |> List.map (fun field -> sprintf ":%s %s" field.key ^% lsp field.value)))
-    //| EWith e ->  sprintf "{ %s with %s }" (lsp e.expr) (String.concat ", " (e.fields |> List.map (fun field -> sprintf ":%s %s" field.key ^% lsp field.value)))
-    //| EDot e -> sprintf "(%s.%s)" (lsp e.expr) e.name
-    //| EDo e -> sprintf "(do %s)" ^% lsp e.expr
-    //| EImport e -> sprintf "(import %s)" e.moduleName
-    | EBlock expr -> sprintf "(%s)" ^% lsp expr
-    | EError message -> sprintf "(err \"%s\")" (Regex.Unescape ^% sprintf "%s" message)
 
-
-let rec prnSpec (s: T) =
-    match s with
-      | TNum -> "float"
-      | TStr -> "string"
-      | TFun(input, output) -> sprintf "fn %s -> %s" (prnSpec input) (prnSpec output)
-      //| SObj x -> sprintf "{ %s }" ^% String.concat ", " (x.fields |> Map.toList |> List.map ^% fun (k, eq) -> sprintf "%s: %s" k ^% prnSpec eq gen)
 
 [<EntryPoint>]
 let main argv =
@@ -91,5 +75,5 @@ let main argv =
   let v = EVal "hi"
   let scope = Scope.Empty.AddVar("hi", TStr)
   let t = scope.Infer(v)
-  printfn "%s" (prnSpec t)
+  printfn "%A" (TObj(Map.ofList [("a", TStr); ("b", TNum)]))
   1
