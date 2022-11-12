@@ -4,7 +4,9 @@ open System
 open Expressions
 //open Types
 
-let moduleVarName (moduleName: string): string = sprintf "__import_%s" ^% moduleName.Replace('.', '_')
+let moduleVarName (moduleName: string) : string =
+    sprintf "__import_%s"
+    ^% moduleName.Replace('.', '_')
 
 //let rec translateRest rest =
 //  match rest with
@@ -60,7 +62,7 @@ let moduleVarName (moduleName: string): string = sprintf "__import_%s" ^% module
 //    getImports e
 //    |> Seq.map ^% fun name -> sprintf "import * as %s from './%s.mjs';\n" (moduleVarName name) name
 //    |> String.concat ""
-//  let rec getExport(e: E) = 
+//  let rec getExport(e: E) =
 //    match e with
 //    | ELet(name, expr, rest) ->
 //      sprintf "let %s = %s;\n%s" name (wrap expr) (getExport rest)

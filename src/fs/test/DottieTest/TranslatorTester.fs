@@ -16,7 +16,7 @@
 //let get' choice =
 //  let (x, _) = get choice
 //  x
-  
+
 //let assertSpec(sExpr, s) =
 //  let strings = tokenize sExpr
 //  let expr = get' ^% parseExpression strings
@@ -32,7 +32,7 @@
 //[<Fact>]
 //let ``Test string``() =
 //  assertSpec("\"test\"", "\"test\"")
-  
+
 //[<Fact>]
 //let ``Test let``() =
 //  assertSpec("{ let x = 3; x }", "let x = 3; return x;")

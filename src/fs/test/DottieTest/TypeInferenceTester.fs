@@ -8,10 +8,10 @@ open TypeInferencer
 open FSharpx.Choice
 
 let get choice =
-  match choice with
-  | Choice1Of2 (x, _) -> x
-  | Choice2Of2 x -> failwith x
-  
+    match choice with
+    | Choice1Of2 (x, _) -> x
+    | Choice2Of2 x -> failwith x
+
 //let assertSpec''(existing, expression, otherSpec) =
 //  let context = Context.create()
 //  for k, v in existing do
@@ -36,12 +36,12 @@ let get choice =
 //  | Choice1Of2 otherSpec -> assertSpec''(existing, expression, otherSpec)
 //  | Choice2Of2 s -> failwith s
 
-let assertSpec(expression, expectedSpec) =
-  let strings = tokenize expression
-  let parsed, _ = parseExpression strings
-  let t = Scope.Empty.Infer(parsed)
-  let spec = t.ToString()
-  Assert.StrictEqual(expectedSpec, spec)
+let assertSpec (expression, expectedSpec) =
+    let strings = tokenize expression
+    let parsed, _ = parseExpression strings
+    let t = Scope.Empty.Infer(parsed)
+    let spec = t.ToString()
+    Assert.StrictEqual(expectedSpec, spec)
 
 //let assertError'(existing, expression, expectedError) =
 //  let spec = choose {
@@ -62,32 +62,29 @@ let map = Map.ofList
 //  assertError("x", Errors.undefined "x")
 
 [<Fact>]
-let ``Test number``() =
-  assertSpec("2", "float")
+let ``Test number`` () = assertSpec ("2", "float")
 
 [<Fact>]
-let ``Test string``() =
-  assertSpec("\"test\"", "string")
-  
-[<Fact>]
-let ``Test let``() =
-  assertSpec("let x = 3; x", "float")
+let ``Test string`` () = assertSpec ("\"test\"", "string")
 
 [<Fact>]
-let ``Test let two``() =
-  assertSpec("let x = 3; let y = x; y", "float")
+let ``Test let`` () = assertSpec ("let x = 3; x", "float")
 
 [<Fact>]
-let ``Test let mixed``() =
-  assertSpec("""let x = 3; let y = "test"; y""", "string")
+let ``Test let two`` () =
+    assertSpec ("let x = 3; let y = x; y", "float")
 
 [<Fact>]
-let ``Test let mixed 2``() =
-  assertSpec("""let x = 3; let y = "test"; x""", "float")
+let ``Test let mixed`` () =
+    assertSpec ("""let x = 3; let y = "test"; y""", "string")
 
 [<Fact>]
-let ``Test let nested``() =
-  assertSpec("let z = ( let x = 3; let y = x; y ); z", "float")
+let ``Test let mixed 2`` () =
+    assertSpec ("""let x = 3; let y = "test"; x""", "float")
+
+[<Fact>]
+let ``Test let nested`` () =
+    assertSpec ("let z = ( let x = 3; let y = x; y ); z", "float")
 
 //[<Fact>]
 //let ``Test inc``() =
@@ -136,36 +133,25 @@ let ``Test let nested``() =
 //    ["inc", SFn { input = EqSetNum; output = EqSetNum; generics = Set.empty }],
 //    "let inc2 = fn x -> inc inc x; inc2 4",
 //    "float")
-    
-[<Fact>]
-let ``Test id``() =
-  assertSpec(
-    "fn x -> x",
-    "fn 'a -> 'a")
-    
-[<Fact>]
-let ``Test id fn``() =
-  assertSpec (
-    "let id = fn x -> x; id",
-    "fn 'a -> 'a")
-    
-[<Fact>]
-let ``Test id float``() =
-  assertSpec (
-    "let id = fn x -> x; id 3",
-    "float")
 
 [<Fact>]
-let ``Test id let float``() =
-  assertSpec(
-    "let id = fn x -> x; let a = id 3; a",
-    "float")
+let ``Test id`` () = assertSpec ("fn x -> x", "fn 'a -> 'a")
 
 [<Fact>]
-let ``Test id gen``() =
-  assertSpec (
-    "let id = fn x -> x; let a = id 3; id",
-    "fn 'a -> 'a")
+let ``Test id fn`` () =
+    assertSpec ("let id = fn x -> x; id", "fn 'a -> 'a")
+
+[<Fact>]
+let ``Test id float`` () =
+    assertSpec ("let id = fn x -> x; id 3", "float")
+
+[<Fact>]
+let ``Test id let float`` () =
+    assertSpec ("let id = fn x -> x; let a = id 3; a", "float")
+
+[<Fact>]
+let ``Test id gen`` () =
+    assertSpec ("let id = fn x -> x; let a = id 3; id", "fn 'a -> 'a")
 
 //[<Fact>]
 //let ``Test id with``() =
@@ -203,7 +189,7 @@ let ``Test id gen``() =
 //  assertError(
 //    "{ let eff = proc x -> 3; do eff 5 }",
 //    Errors.notInProcContext (EEval (EVal "eff", ELit(EInt 5))))
-    
+
 //[<Fact>]
 //let ``Test proc``() =
 //  assertSpec'''(
@@ -265,7 +251,7 @@ let ``Test id gen``() =
 //       log1
 //     }",
 //    Errors.notInDoContext (EVal "log"))
-  
+
 //[<Fact>]
 //let ``Test higher order``() =
 //  let strings = tokenize "{ let x = 3; let doToX = fn f -> f x; doToX }"
@@ -292,7 +278,7 @@ let ``Test id gen``() =
 //  match spec with
 //  | SFn(SFree a, SFn(SFreeFn(_, b, SFree c, false), SFree d, false), false) when c = d && a <> c && b = set[SFree a] -> () // allow a >= b
 //  | x -> Assert.True(false, sprintf "%A" x)
-  
+
 //[<Fact>]
 //let ``Test y combinator``() =
 //  let strings = tokenize "{ let y = fn f -> f y f; y }"
