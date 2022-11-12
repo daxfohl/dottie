@@ -86,12 +86,17 @@ let ``Test let mixed 2`` () =
 let ``Test let nested`` () =
     assertSpec ("let z = ( let x = 3; let y = x; y ); z", "float")
 
-//[<Fact>]
-//let ``Test inc``() =
-//  assertSpec'' (
-//    ["inc", SFn { input = EqSetNum; output = EqSetNum; generics = Set.empty }],
-//    "let x = 3; inc x",
-//    "float")
+[<Fact>]
+let ``Test inc`` () =
+    assertSpec'' (
+        [ "inc",
+          SFn
+              { input = EqSetNum
+                output = EqSetNum
+                generics = Set.empty } ],
+        "let x = 3; inc x",
+        "float"
+    )
 
 //[<Fact>]
 //let ``Test toStr``() =

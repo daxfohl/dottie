@@ -1,13 +1,13 @@
 ﻿module TypeInferencer
 
 open Expressions
-open System.Text.RegularExpressions
 
 type TRef =
     | TRefStr
     | TRefNum
     | TRefFun of input: int * output: int
     | TRefObj of fields: Map<string, int>
+    | TRefUnk
 
 type T =
     | TStr
@@ -47,16 +47,19 @@ type Scope =
                 |> List.mapFold (fun (s: Scope) v -> let x, i = s.AddType(v) in i, x) this
 
             let o =
-                (List.ofSeq (fields.Keys), indexes)
+                (Map.keys fields |> List.ofSeq, indexes)
                 ||> List.zip
                 |> Map.ofList
                 |> TRefObj
 
             final.AddTRef(o)
 
+    member this.AddVar(name: string, index: int) : Scope =
+        { this with vars = this.vars.Add(name, index) }
+
     member this.AddVar(name: string, t: T) : Scope =
         let after, index = this.AddType(t)
-        { after with vars = after.vars.Add(name, index) }
+        after.AddVar(name, index)
 
     static member Native = [ TRefStr; TRefNum ]
 
@@ -72,10 +75,16 @@ type Scope =
         | EVal (name) -> this, this.vars[name]
         | ELet (id, expr, rest) ->
             let scope, i = this.InferTref(expr)
-            let scope = { scope with vars = scope.vars.Add(id, i) }
-            scope.InferTref(rest)
-        | EError message -> failwith message
-        | EBlock expr -> this.InferTref(expr)
+            let scope1 = scope.AddVar(id, i)
+            scope1.InferTref(rest)
+        | EFn (argument, expr, isProc) ->
+            let before, i = this.AddTRef(TRefUnk)
+            let local = before.AddVar(argument, i)
+            let after, i = local.InferTref(expr)
+            let f = TRefFun(after.vars[argument], i)
+            after.AddTRef(f)
+        | EError (message) -> failwith message
+        | EBlock (expr) -> this.InferTref(expr)
         | x -> failwith (x.ToString())
 
     member this.Hydrate(tref: TRef) : T =
