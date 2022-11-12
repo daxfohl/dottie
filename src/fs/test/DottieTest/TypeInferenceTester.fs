@@ -88,6 +88,14 @@ let ``Test let nested`` () =
 let ``Test inc`` () =
     assertSpec'' ([ ("inc", TFun(TNum, TNum)) ], "let x = 3; inc x", "float")
 
+[<Fact>]
+let ``Test inc let`` () =
+    assertSpec'' ([ ("inc", TFun(TNum, TNum)) ], "let dink = fn i -> inc i; let x = 3; dink x", "float")
+
+[<Fact>]
+let ``Test inc expr`` () =
+    assertSpec'' ([ ("inc", TFun(TNum, TNum)) ], "let x = 3; (let dink = fn i -> inc i; dink) x", "float")
+
 //[<Fact>]
 //let ``Test toStr``() =
 //  assertSpec'' (
