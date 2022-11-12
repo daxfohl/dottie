@@ -12,19 +12,21 @@ let get choice =
     | Choice1Of2 (x, _) -> x
     | Choice2Of2 x -> failwith x
 
-//let assertSpec''(existing, expression, otherSpec) =
-//  let context = Context.create()
-//  for k, v in existing do
-//    context.eqsets.Add(v)
-//    let sym = { scope = context.scope; name = k; eqset = context.eqsets.Count - 1 }
-//    context.symbols.Add(sym)
-//  let strings = tokenize expression
-//  let parsed, _ = parseExpression strings
-//  let id = infer context (uniquify parsed).expr
-//  let spec = prnSpec(context, id)
-//  let s = sprintf "%A" spec
-//  System.Console.WriteLine(s)
-//  Assert.StrictEqual(otherSpec, spec)
+
+
+let assertSpec' (scope: Scope, expression, expectedSpec) =
+    let strings = tokenize expression
+    let parsed, _ = parseExpression strings
+    let t = scope.Infer(parsed)
+    let spec = t.ToString()
+    Assert.StrictEqual(expectedSpec, spec)
+
+let assertSpec'' (existing, expression, otherSpec) =
+    let scope =
+        existing
+        |> List.fold (fun (s: Scope) (k, v: T) -> s.AddVar(k, v)) Scope.Empty
+
+    assertSpec' (scope, expression, otherSpec)
 
 //let assertSpec'(existing, expression, expectedSpec) =
 //  match choose
@@ -37,11 +39,7 @@ let get choice =
 //  | Choice2Of2 s -> failwith s
 
 let assertSpec (expression, expectedSpec) =
-    let strings = tokenize expression
-    let parsed, _ = parseExpression strings
-    let t = Scope.Empty.Infer(parsed)
-    let spec = t.ToString()
-    Assert.StrictEqual(expectedSpec, spec)
+    assertSpec' (Scope.Empty, expression, expectedSpec)
 
 //let assertError'(existing, expression, expectedError) =
 //  let spec = choose {
@@ -88,15 +86,7 @@ let ``Test let nested`` () =
 
 [<Fact>]
 let ``Test inc`` () =
-    assertSpec'' (
-        [ "inc",
-          SFn
-              { input = EqSetNum
-                output = EqSetNum
-                generics = Set.empty } ],
-        "let x = 3; inc x",
-        "float"
-    )
+    assertSpec'' ([ ("inc", TFun(TNum, TNum)) ], "let x = 3; inc x", "float")
 
 //[<Fact>]
 //let ``Test toStr``() =

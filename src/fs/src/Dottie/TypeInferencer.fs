@@ -25,6 +25,14 @@ type Scope =
     { vars: Map<string, int>
       types: Map<int, TRef>
       next: int }
+
+    static member Native = [ TRefStr; TRefNum ]
+
+    static member Empty =
+        { vars = Map.empty
+          types = Scope.Native |> List.indexed |> Map.ofList
+          next = Scope.Native.Length }
+
     member this.AddTRef(t: TRef) =
         { this with
             types = this.types.Add(this.next, t)
@@ -61,13 +69,6 @@ type Scope =
         let after, index = this.AddType(t)
         after.AddVar(name, index)
 
-    static member Native = [ TRefStr; TRefNum ]
-
-    static member Empty =
-        { vars = Map.empty
-          types = Scope.Native |> List.indexed |> Map.ofList
-          next = Scope.Native.Length }
-
     member this.InferTref(e: E) : Scope * int =
         match e with
         | EStr _ -> this, 0
@@ -83,6 +84,14 @@ type Scope =
             let after, i = local.InferTref(expr)
             let f = TRefFun(after.vars[argument], i)
             after.AddTRef(f)
+        | EEval (fnExpr, argExpr) ->
+            let first, i = this.InferTref(argExpr)
+            let second, i2 = first.InferTref(fnExpr)
+
+            match second.types[i2] with
+            | TRefFun (i, o) -> second, o
+            | _ -> failwith "Not a function"
+
         | EError (message) -> failwith message
         | EBlock (expr) -> this.InferTref(expr)
         | x -> failwith (x.ToString())
