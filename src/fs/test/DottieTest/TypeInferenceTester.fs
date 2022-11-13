@@ -2,10 +2,8 @@
 
 open Xunit
 open Tokenizer
-open Expressions
 open ExpressionParser
 open TypeInferencer
-open FSharpx.Choice
 
 let get choice =
     match choice with
@@ -13,33 +11,22 @@ let get choice =
     | Choice2Of2 x -> failwith x
 
 
+type Parser =
+    static member Parse(scope: Scope, expression: string) =
+        let strings = tokenize expression
+        let parsed, _ = parseExpression strings
+        let t = scope.Infer(parsed)
+        t
 
-let assertSpec' (scope: Scope, expression, expectedSpec) =
-    let strings = tokenize expression
-    let parsed, _ = parseExpression strings
-    let t = scope.Infer(parsed)
-    let spec = t.ToString()
-    Assert.StrictEqual(expectedSpec, spec)
+    static member Parse(vars: list<string * T>, expression: string) =
+        let scope =
+            vars
+            |> List.fold (fun (s: Scope) (k, v: T) -> s.AddVar(k, v)) Scope.Empty
 
-let assertSpec'' (existing, expression, otherSpec) =
-    let scope =
-        existing
-        |> List.fold (fun (s: Scope) (k, v: T) -> s.AddVar(k, v)) Scope.Empty
+        Parser.Parse(scope, expression)
 
-    assertSpec' (scope, expression, otherSpec)
-
-//let assertSpec'(existing, expression, expectedSpec) =
-//  match choose
-//    {
-//      let strings = tokenize expectedSpec
-//      let parsed, _ = parseRawSpec strings
-//      return parsed
-//    } with
-//  | Choice1Of2 otherSpec -> assertSpec''(existing, expression, otherSpec)
-//  | Choice2Of2 s -> failwith s
-
-let assertSpec (expression, expectedSpec) =
-    assertSpec' (Scope.Empty, expression, expectedSpec)
+    static member Parse(expression: string) =
+        Parser.Parse([ ("inc", TFun(TNum, TNum)) ], expression)
 
 //let assertError'(existing, expression, expectedError) =
 //  let spec = choose {
@@ -60,45 +47,60 @@ let map = Map.ofList
 //  assertError("x", Errors.undefined "x")
 
 [<Fact>]
-let ``Test number`` () = assertSpec ("2", "float")
+let ``Test number`` () =
+    let t = Parser.Parse("2")
+    Assert.StrictEqual(TNum, t)
 
 [<Fact>]
-let ``Test string`` () = assertSpec ("\"test\"", "string")
+let ``Test string`` () =
+    let t = Parser.Parse("\"a\"")
+    Assert.StrictEqual(TStr, t)
 
 [<Fact>]
-let ``Test let`` () = assertSpec ("let x = 3; x", "float")
+let ``Test let`` () =
+    let t = Parser.Parse("let x = 3; x")
+    Assert.StrictEqual(TNum, t)
 
 [<Fact>]
 let ``Test let two`` () =
-    assertSpec ("let x = 3; let y = x; y", "float")
+    let t = Parser.Parse("let x = 3; let y = x; y")
+    Assert.StrictEqual(TNum, t)
 
 [<Fact>]
 let ``Test let mixed`` () =
-    assertSpec ("""let x = 3; let y = "test"; y""", "string")
+    let t = Parser.Parse("""let x = 3; let y = "test"; y""")
+    Assert.StrictEqual(TStr, t)
 
 [<Fact>]
 let ``Test let mixed 2`` () =
-    assertSpec ("""let x = 3; let y = "test"; x""", "float")
+    let t = Parser.Parse("""let x = 3; let y = "test"; x""")
+    Assert.StrictEqual(TNum, t)
 
 [<Fact>]
 let ``Test let nested`` () =
-    assertSpec ("let z = ( let x = 3; let y = x; y ); z", "float")
+    let t = Parser.Parse("let z = ( let x = 3; let y = x; y ); z")
+    Assert.StrictEqual(TNum, t)
 
 [<Fact>]
 let ``Test inc`` () =
-    assertSpec'' ([ ("inc", TFun(TNum, TNum)) ], "let x = 3; inc x", "float")
+    let t = Parser.Parse("let x = 3; inc x")
+    Assert.StrictEqual(TNum, t)
 
 [<Fact>]
 let ``Test inc let`` () =
-    assertSpec'' ([ ("inc", TFun(TNum, TNum)) ], "let dink = fn i -> inc i; let x = 3; dink x", "float")
+    let t = Parser.Parse("let dink = fn i -> let y = 5; inc i; let x = 3; dink x")
+
+    Assert.StrictEqual(TNum, t)
 
 [<Fact>]
 let ``Test inc expr`` () =
-    assertSpec'' ([ ("inc", TFun(TNum, TNum)) ], "let x = 3; (let dink = fn i -> inc i; dink) x", "float")
+    let t = Parser.Parse("let x = 3; (let dink = fn i -> inc i; dink) x")
+
+    Assert.StrictEqual(TNum, t)
 
 //[<Fact>]
 //let ``Test toStr``() =
-//  assertSpec'' (
+//  let t = Parser.Parse(
 //    ["toStr", SFn { input = EqSetNum; output = EqSetStr; generics = Set.empty }],
 //    "let x = 3; toStr x",
 //    "string")
@@ -118,43 +120,43 @@ let ``Test inc expr`` () =
 
 //[<Fact>]
 //let ``Test inc def``() =
-//  assertSpec'' (
+//  let t = Parser.Parse
 //    ["inc", SFn { input = EqSetNum; output = EqSetNum; generics = Set.empty }],
 //    "fn x -> inc x",
 //    "fn float -> float")
 
 //[<Fact>]
 //let ``Test inc inc def``() =
-//  assertSpec'' (
+//  let t = Parser.Parse
 //    ["inc", SFn { input = EqSetNum; output = EqSetNum; generics = Set.empty }],
 //    "fn x -> inc inc x",
 //    "fn float -> float")
 
 //[<Fact>]
 //let ``Test inc inc eval``() =
-//  assertSpec'' (
+//  let t = Parser.Parse
 //    ["inc", SFn { input = EqSetNum; output = EqSetNum; generics = Set.empty }],
 //    "let inc2 = fn x -> inc inc x; inc2 4",
 //    "float")
 
-[<Fact>]
-let ``Test id`` () = assertSpec ("fn x -> x", "fn 'a -> 'a")
+//[<Fact>]
+//let ``Test id`` () = let t = Parser.Parse("fn x -> x", "fn 'a -> 'a")
 
-[<Fact>]
-let ``Test id fn`` () =
-    assertSpec ("let id = fn x -> x; id", "fn 'a -> 'a")
+//[<Fact>]
+//let ``Test id fn`` () =
+//    let t = Parser.Parse("let id = fn x -> x; id", "fn 'a -> 'a")
 
-[<Fact>]
-let ``Test id float`` () =
-    assertSpec ("let id = fn x -> x; id 3", "float")
+//[<Fact>]
+//let ``Test id float`` () =
+//    let t = Parser.Parse("let id = fn x -> x; id 3", "float")
 
-[<Fact>]
-let ``Test id let float`` () =
-    assertSpec ("let id = fn x -> x; let a = id 3; a", "float")
+//[<Fact>]
+//let ``Test id let float`` () =
+//    let t = Parser.Parse("let id = fn x -> x; let a = id 3; a", "float")
 
-[<Fact>]
-let ``Test id gen`` () =
-    assertSpec ("let id = fn x -> x; let a = id 3; id", "fn 'a -> 'a")
+//[<Fact>]
+//let ``Test id gen`` () =
+//    let t = Parser.Parse("let id = fn x -> x; let a = id 3; id", "fn 'a -> 'a")
 
 //[<Fact>]
 //let ``Test id with``() =

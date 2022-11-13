@@ -2,12 +2,22 @@
 
 open Expressions
 
+let subs (i, a, b) = if i = a then b else i
+
 type TRef =
     | TRefStr
     | TRefNum
     | TRefFun of input: int * output: int
     | TRefObj of fields: Map<string, int>
     | TRefUnk
+    member this.Subs(a: int, b: int) =
+        match this with
+        | TRefStr
+        | TRefNum
+        | TRefUnk -> this
+        | TRefFun (i, o) -> TRefFun(subs (i, a, b), subs (o, a, b))
+        | TRefObj (fields) -> TRefObj(fields |> Map.map (fun k i -> subs (i, a, b)))
+
 
 type T =
     | TStr
@@ -69,6 +79,26 @@ type Scope =
         let after, index = this.AddType(t)
         after.AddVar(name, index)
 
+    member this.Subs(a: int, b: int) =
+        let vars = Map.map (fun k v -> if v = a then b else v) this.vars
+        let types = this.types |> Map.map (fun k v -> v.Subs(a, b))
+        { this with vars = vars; types = types }
+
+    member this.Unify(a: int, b: int) =
+        if a = b then
+            this
+        else
+            match this.types[a], this.types[b] with
+            | TRefUnk, _ -> this.Subs(a, b)
+            | _, TRefUnk -> this.Subs(b, a)
+            | TRefFun (i1, o1), TRefFun (i2, o2) ->
+                let s1 = this.Unify(i1, i2)
+                let s2 = s1.Unify(o1, o2)
+                s2.Subs(a, b)
+            | _ -> failwith "not done yet"
+
+
+
     member this.InferTref(e: E) : Scope * int =
         match e with
         | EStr _ -> this, 0
@@ -85,11 +115,13 @@ type Scope =
             let f = TRefFun(after.vars[argument], i)
             after.AddTRef(f)
         | EEval (fnExpr, argExpr) ->
-            let first, i = this.InferTref(argExpr)
-            let second, i2 = first.InferTref(fnExpr)
+            let first, iarg = this.InferTref(argExpr)
+            let second, ifn = first.InferTref(fnExpr)
 
-            match second.types[i2] with
-            | TRefFun (i, o) -> second, o
+            match second.types[ifn] with
+            | TRefFun (i, o) ->
+                let third = second.Unify(i, iarg)
+                third, o
             | _ -> failwith "Not a function"
 
         | EError (message) -> failwith message

@@ -1,6 +1,5 @@
 ﻿module Expressions
 
-[<ReferenceEquality>]
 type E =
     | ENum of value: float
     | EStr of value: string
