@@ -92,7 +92,7 @@ let ``Test inc let`` () =
 
 [<Fact>]
 let ``Test inc expr`` () =
-    let t = Parser.Parse("let x = 3; (let dink = fn i -> inc i; dink) x")
+    let t = Parser.Parse("let y = fn f -> f y f; y")
     Assert.StrictEqual(TNum, t)
 
 //[<Fact>]

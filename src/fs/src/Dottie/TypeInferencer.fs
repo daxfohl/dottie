@@ -102,17 +102,17 @@ type Scope =
         let types = this.types |> Map.map (fun k v -> v.Subs(a, b))
         { this with vars = vars; types = types }
 
-    member this.Unify(a: int, b: int) : Scope =
+    member this.Unify(a: int, b: int) : Scope * int =
         if a = b then
-            this
+            this, a
         else
             match this.types[a], this.types[b] with
-            | TRefUnk, _ -> this.Subs(a, b)
-            | _, TRefUnk -> this.Subs(b, a)
+            | TRefUnk, _ -> this.Subs(a, b), b
+            | _, TRefUnk -> this.Subs(b, a), a
             | TRefFun(i1, o1), TRefFun(i2, o2) ->
-                let s1 = this.Unify(i1, i2)
-                let s2 = s1.Unify(o1, o2)
-                s2.Subs(a, b)
+                let s1, i = this.Unify(i1, i2)
+                let s2, o = s1.Unify(o1, o2)
+                s2.Subs(a, b), b
             | _ -> failwith "not done yet"
 
     member this.InferTref(e: E) : Scope * int =
@@ -121,9 +121,11 @@ type Scope =
         | ENum _ -> this, 1
         | EVal(name) -> this, this.vars[name]
         | ELet(id, expr, rest) ->
-            let scope, i = this.InferTref(expr)
-            let scope1 = scope.AddVar(id, i)
-            scope1.InferTref(rest)
+            let before, i = this.AddTRef(TRefUnk)
+            let mid = before.AddVar(id, i)
+            let scope, i2 = mid.InferTref(expr)
+            let last, _ = scope.Unify(i, i2)
+            last.InferTref(rest)
         | EFn(argument, expr, isProc) ->
             let before, i = this.AddTRef(TRefUnk)
             let local = before.AddVar(argument, i)
@@ -132,17 +134,21 @@ type Scope =
             after.AddTRef(f)
         | EEval(fnExpr, argExpr) ->
             let first, iarg = this.InferTref(argExpr)
-            let second, ifn = first.InferTref(fnExpr)
-            let second1, ifn1 = second.Gen(ifn, Map.empty)
+            let second, ifn = first.InferTref(fnExpr)            
+            let blah, inew = second.AddTRef(TRefUnk)
+            let blah1, inew1 = blah.AddTRef(TRefUnk)
+            let blah2, inew2 = blah1.AddTRef(TRefFun(inew, inew1))
+            let blah3, i = blah2.Unify(ifn, inew2)
+            let second1, ifn1 = blah3.Gen(i, Map.empty)
 
             match second1.types[ifn1] with
             | TRefFun(i, o) ->
-                let third = second1.Unify(i, iarg)
+                let third, z = second1.Unify(i, iarg)
 
                 match third.types[ifn1] with
-                | TRefFun(i, o) -> third, o
-                | _ -> failwith "Not a function"
-            | _ -> failwith "Not a function"
+                | TRefFun(z, o) -> third, o
+                | _ -> failwith "Not a function 2"
+            | _ -> failwith "Not a function 1"
 
         | EError(message) -> failwith message
         | EBlock(expr) -> this.InferTref(expr)
