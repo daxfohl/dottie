@@ -7,7 +7,7 @@ open TypeInferencer
 
 let get choice =
     match choice with
-    | Choice1Of2 (x, _) -> x
+    | Choice1Of2(x, _) -> x
     | Choice2Of2 x -> failwith x
 
 
@@ -20,8 +20,7 @@ type Parser =
 
     static member Parse(vars: list<string * T>, expression: string) =
         let scope =
-            vars
-            |> List.fold (fun (s: Scope) (k, v: T) -> s.AddVar(k, v)) Scope.Empty
+            vars |> List.fold (fun (s: Scope) (k, v: T) -> s.AddVar(k, v)) Scope.Empty
 
         Parser.Parse(scope, expression)
 
@@ -94,7 +93,6 @@ let ``Test inc let`` () =
 [<Fact>]
 let ``Test inc expr`` () =
     let t = Parser.Parse("let x = 3; (let dink = fn i -> inc i; dink) x")
-
     Assert.StrictEqual(TNum, t)
 
 //[<Fact>]
@@ -141,37 +139,31 @@ let ``Test inc expr`` () =
 [<Fact>]
 let ``Test id`` () =
     let t = Parser.Parse("fn x -> x")
-
     Assert.StrictEqual(TFun(TGen, TGen), t)
 
 [<Fact>]
 let ``Test id fn`` () =
     let t = Parser.Parse("let id = fn x -> x; id")
-
     Assert.StrictEqual(TFun(TGen, TGen), t)
 
 [<Fact>]
 let ``Test id float`` () =
     let t = Parser.Parse("let id = fn x -> x; id 3")
-
     Assert.StrictEqual(TNum, t)
 
 [<Fact>]
 let ``Test id let float`` () =
     let t = Parser.Parse("let id = fn x -> x; let a = id 3; a")
-
     Assert.StrictEqual(TNum, t)
 
 [<Fact>]
 let ``Test id gen`` () =
     let t = Parser.Parse("let id = fn x -> x; let a = id 3; id")
-
     Assert.StrictEqual(TFun(TGen, TGen), t)
 
 [<Fact>]
 let ``Test id gen str`` () =
     let t = Parser.Parse("let id = fn x -> x; let a = id 3; id \"hi\"")
-
     Assert.StrictEqual(TStr, t)
 
 //[<Fact>]
