@@ -10,7 +10,7 @@ type TRef =
     | TRefFun of input: int * output: int
     | TRefObj of fields: Map<string, int>
     | TRefUnk
-    member this.Subs(a: int, b: int) =
+    member this.Subs(a: int, b: int) : TRef =
         match this with
         | TRefStr
         | TRefNum
@@ -19,17 +19,13 @@ type TRef =
         | TRefObj (fields) -> TRefObj(fields |> Map.map (fun k i -> subs (i, a, b)))
 
 
+
 type T =
     | TStr
     | TNum
     | TFun of input: T * output: T
     | TObj of fields: Map<string, T>
-    override this.ToString() =
-        match this with
-        | TNum -> "float"
-        | TStr -> "string"
-        | TFun (input, output) -> sprintf "fn %A -> %A" input output
-//| SObj x -> sprintf "{ %s }" ^% String.concat ", " (x.fields |> Map.toList |> List.map ^% fun (k, eq) -> sprintf "%s: %s" k ^% prnSpec eq gen)
+    | TGen
 
 type Scope =
     { vars: Map<string, int>
@@ -43,13 +39,13 @@ type Scope =
           types = Scope.Native |> List.indexed |> Map.ofList
           next = Scope.Native.Length }
 
-    member this.AddTRef(t: TRef) =
+    member this.AddTRef(t: TRef) : Scope * int =
         { this with
             types = this.types.Add(this.next, t)
             next = this.next + 1 },
         this.next
 
-    member this.AddType(t: T) =
+    member this.AddType(t: T) : Scope * int =
         match t with
         | TStr -> this, 0
         | TNum -> this, 1
@@ -79,12 +75,27 @@ type Scope =
         let after, index = this.AddType(t)
         after.AddVar(name, index)
 
-    member this.Subs(a: int, b: int) =
+    member this.Generics(i: int) : list<int> =
+        match this.types[i] with
+        | TRefStr
+        | TRefNum -> []
+        | TRefUnk -> [ i ]
+        | TRefObj (fields) ->
+            fields
+            |> Map.values
+            |> Seq.toList
+            |> List.collect (this.Generics)
+        | TRefFun (i, o) ->
+            let inputs = this.Generics(i) |> Set.ofList
+            let outputs = this.Generics(o) |> Set.ofList
+            Set.intersect inputs outputs |> Set.toList
+
+    member this.Subs(a: int, b: int) : Scope =
         let vars = Map.map (fun k v -> if v = a then b else v) this.vars
         let types = this.types |> Map.map (fun k v -> v.Subs(a, b))
         { this with vars = vars; types = types }
 
-    member this.Unify(a: int, b: int) =
+    member this.Unify(a: int, b: int) : Scope =
         if a = b then
             this
         else
@@ -115,13 +126,17 @@ type Scope =
             let f = TRefFun(after.vars[argument], i)
             after.AddTRef(f)
         | EEval (fnExpr, argExpr) ->
+            let zeroth = this
             let first, iarg = this.InferTref(argExpr)
             let second, ifn = first.InferTref(fnExpr)
 
             match second.types[ifn] with
             | TRefFun (i, o) ->
                 let third = second.Unify(i, iarg)
-                third, o
+
+                match third.types[ifn] with
+                | TRefFun (i, o) -> third, o
+                | _ -> failwith "Not a function"
             | _ -> failwith "Not a function"
 
         | EError (message) -> failwith message
@@ -134,10 +149,11 @@ type Scope =
         | TRefNum -> TNum
         | TRefFun (i, o) -> TFun(this.Hydrate(this.types[i]), this.Hydrate(this.types[o]))
         | TRefObj (fields) -> TObj(Map.map (fun k v -> this.Hydrate(this.types[v])) fields)
+        | TRefUnk -> TGen
 
     member this.Infer(e: E) : T =
         let scope, i = this.InferTref(e)
-        this.Hydrate(scope.types[i])
+        scope.Hydrate(scope.types[i])
 
 
 
