@@ -90,6 +90,19 @@ type Scope =
             let outputs = this.Generics(o) |> Set.ofList
             Set.intersect inputs outputs |> Set.toList
 
+    member this.Gen(i: int, m: Map<int, int>) : Scope * int =
+        if m.ContainsKey(i) then
+            this, m[i]
+        else
+            match this.types[i] with
+            | TRefStr
+            | TRefNum -> this, i
+            | TRefUnk -> this.AddTRef(TRefUnk)
+            | TRefFun (i, o) ->
+                let s1, i1 = this.Gen(i, m)
+                let s2, o1 = s1.Gen(o, m.Add(i, i1))
+                s2.AddTRef(TRefFun(i1, o1))
+
     member this.Subs(a: int, b: int) : Scope =
         let vars = Map.map (fun k v -> if v = a then b else v) this.vars
         let types = this.types |> Map.map (fun k v -> v.Subs(a, b))
@@ -108,8 +121,6 @@ type Scope =
                 s2.Subs(a, b)
             | _ -> failwith "not done yet"
 
-
-
     member this.InferTref(e: E) : Scope * int =
         match e with
         | EStr _ -> this, 0
@@ -126,15 +137,15 @@ type Scope =
             let f = TRefFun(after.vars[argument], i)
             after.AddTRef(f)
         | EEval (fnExpr, argExpr) ->
-            let zeroth = this
             let first, iarg = this.InferTref(argExpr)
             let second, ifn = first.InferTref(fnExpr)
+            let second1, ifn1 = second.Gen(ifn, Map.empty)
 
-            match second.types[ifn] with
+            match second1.types[ifn1] with
             | TRefFun (i, o) ->
-                let third = second.Unify(i, iarg)
+                let third = second1.Unify(i, iarg)
 
-                match third.types[ifn] with
+                match third.types[ifn1] with
                 | TRefFun (i, o) -> third, o
                 | _ -> failwith "Not a function"
             | _ -> failwith "Not a function"

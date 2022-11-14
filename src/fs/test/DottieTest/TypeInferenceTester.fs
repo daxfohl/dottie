@@ -156,21 +156,23 @@ let ``Test id float`` () =
 
     Assert.StrictEqual(TNum, t)
 
-//[<Fact>]
-//let ``Test id fn`` () =
-//    let t = Parser.Parse("let id = fn x -> x; id", "fn 'a -> 'a")
+[<Fact>]
+let ``Test id let float`` () =
+    let t = Parser.Parse("let id = fn x -> x; let a = id 3; a")
 
-//[<Fact>]
-//let ``Test id float`` () =
-//    let t = Parser.Parse("let id = fn x -> x; id 3", "float")
+    Assert.StrictEqual(TNum, t)
 
-//[<Fact>]
-//let ``Test id let float`` () =
-//    let t = Parser.Parse("let id = fn x -> x; let a = id 3; a", "float")
+[<Fact>]
+let ``Test id gen`` () =
+    let t = Parser.Parse("let id = fn x -> x; let a = id 3; id")
 
-//[<Fact>]
-//let ``Test id gen`` () =
-//    let t = Parser.Parse("let id = fn x -> x; let a = id 3; id", "fn 'a -> 'a")
+    Assert.StrictEqual(TFun(TGen, TGen), t)
+
+[<Fact>]
+let ``Test id gen str`` () =
+    let t = Parser.Parse("let id = fn x -> x; let a = id 3; id \"hi\"")
+
+    Assert.StrictEqual(TStr, t)
 
 //[<Fact>]
 //let ``Test id with``() =
