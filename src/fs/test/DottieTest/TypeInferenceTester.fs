@@ -7,7 +7,7 @@ open TypeInferencer
 
 let get choice =
     match choice with
-    | Choice1Of2(x, _) -> x
+    | Choice1Of2 (x, _) -> x
     | Choice2Of2 x -> failwith x
 
 
@@ -20,7 +20,8 @@ type Parser =
 
     static member Parse(vars: list<string * T>, expression: string) =
         let scope =
-            vars |> List.fold (fun (s: Scope) (k, v: T) -> s.AddVar(k, v)) Scope.Empty
+            vars
+            |> List.fold (fun (s: Scope) (k, v: T) -> s.AddVar(k, v)) Scope.Empty
 
         Parser.Parse(scope, expression)
 
@@ -91,9 +92,9 @@ let ``Test inc let`` () =
     Assert.StrictEqual(TNum, t)
 
 [<Fact>]
-let ``Test inc expr`` () =
+let ``Test y-combinator`` () =
     let t = Parser.Parse("let y = fn f -> f y f; y")
-    Assert.StrictEqual(TNum, t)
+    Assert.StrictEqual(TFun(TFun(TGen, TGen), TGen), t)
 
 //[<Fact>]
 //let ``Test toStr``() =

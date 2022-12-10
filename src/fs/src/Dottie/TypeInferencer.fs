@@ -5,6 +5,11 @@ open Expressions
 let subs (i, a, b) = if i = a then b else i
 let msubs (m, a) = if Map.containsKey a m then m[a] else a
 
+let mmerge (mfirst, msecond) =
+    mfirst
+    |> Map.map (fun k v -> msubs (msecond, v))
+    |> Map.unionMap msecond
+
 type TRef =
     | TRefStr
     | TRefNum
@@ -93,7 +98,10 @@ type Scope =
     member this.Subs(a: int, b: int) : Scope =
         let vars = Map.map (fun k v -> if v = a then b else v) this.vars
         let types = this.types |> Map.map (fun k v -> v.Subs(a, b))
-        { this with vars = vars; types = types }
+
+        { this with
+            vars = vars
+            types = types |> Map.remove a }
 
     member this.Unify(a: int, b: int) : Scope * Map<int, int> =
         if a = b then
@@ -107,11 +115,7 @@ type Scope =
                 let o1a = msubs (mi, o1)
                 let o2a = msubs (mi, o2)
                 let s2, mo = s1.Unify(o1a, o2a)
-
-                s2.Subs(a, b),
-                Map.singletonMap a b
-                |> Map.unionMap mi
-                |> Map.unionMap mo
+                s2.Subs(a, b), mmerge (mmerge (mi, mo), Map.singletonMap a b)
             | _ -> failwith "not done yet"
 
     member this.InferTref(e: E) : Scope * int =
@@ -132,20 +136,25 @@ type Scope =
             let f = TRefFun(after.vars[argument], i)
             after.AddTRef(f)
         | EEval (fnExpr, argExpr) ->
-            let first, iarg = this.InferTref(argExpr)
-            let second, ifn = first.InferTref(fnExpr)
+            let second, ifn = this.InferTref(fnExpr)
             let second, inew = second.AddTRef(TRefUnk)
             let second, inew1 = second.AddTRef(TRefUnk)
             let second, inew2 = second.AddTRef(TRefFun(inew, inew1))
             let blah3, m = second.Unify(ifn, inew2)
-            let second1, ifn1 = blah3.Gen(msubs (m, ifn), Map.empty)
+            let first, iarg = blah3.InferTref(argExpr)
+            let second1, ifn1 = first.Gen(msubs (m, ifn), Map.empty)
 
             match second1.types[ifn1] with
             | TRefFun (i, o) ->
-                let third, z = second1.Unify(i, iarg)
+                let third, m1 = second1.Unify(i, msubs (m, iarg))
+                let m = mmerge (m, m1)
 
-                match third.types[ifn1] with
-                | TRefFun (z, o) -> third, o
+                match third.types[msubs (m, ifn1)] with
+                | TRefFun (z, o1) ->
+                    let fourth, m1 = third.Unify(msubs (m, o), o1)
+                    let m = mmerge (m, m1)
+                    fourth, msubs (m, o1)
+
                 | _ -> failwith "Not a function 2"
             | _ -> failwith "Not a function 1"
 
