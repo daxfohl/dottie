@@ -32,7 +32,7 @@ type T =
     | TNum
     | TFun of input: T * output: T
     | TObj of fields: Map<string, T>
-    | TGen
+    | TGen of int
 
 type Scope =
     { vars: Map<string, int>
@@ -162,17 +162,19 @@ type Scope =
         | EBlock (expr) -> this.InferTref(expr)
         | x -> failwith (x.ToString())
 
-    member this.Hydrate(tref: TRef) : T =
+    member this.Hydrate(i: int) : T =
+        let tref = this.types[i]
+
         match tref with
         | TRefStr -> TStr
         | TRefNum -> TNum
-        | TRefFun (i, o) -> TFun(this.Hydrate(this.types[i]), this.Hydrate(this.types[o]))
-        | TRefObj (fields) -> TObj(Map.map (fun k v -> this.Hydrate(this.types[v])) fields)
-        | TRefUnk -> TGen
+        | TRefFun (i, o) -> TFun(this.Hydrate(i), this.Hydrate(o))
+        | TRefObj (fields) -> TObj(Map.map (fun k v -> this.Hydrate(v)) fields)
+        | TRefUnk -> TGen i
 
     member this.Infer(e: E) : T =
         let scope, i = this.InferTref(e)
-        scope.Hydrate(scope.types[i])
+        scope.Hydrate(i)
 
 
 

@@ -94,7 +94,7 @@ let ``Test inc let`` () =
 [<Fact>]
 let ``Test y-combinator`` () =
     let t = Parser.Parse("let y = fn f -> f y f; y")
-    Assert.StrictEqual(TFun(TFun(TGen, TGen), TGen), t)
+    Assert.StrictEqual(TFun(TFun(TGen 1, TGen 1), TGen 1), t)
 
 //[<Fact>]
 //let ``Test toStr``() =
@@ -140,12 +140,12 @@ let ``Test y-combinator`` () =
 [<Fact>]
 let ``Test id`` () =
     let t = Parser.Parse("fn x -> x")
-    Assert.StrictEqual(TFun(TGen, TGen), t)
+    Assert.StrictEqual(TFun(TGen 1, TGen 1), t)
 
 [<Fact>]
 let ``Test id fn`` () =
     let t = Parser.Parse("let id = fn x -> x; id")
-    Assert.StrictEqual(TFun(TGen, TGen), t)
+    Assert.StrictEqual(TFun(TGen 1, TGen 1), t)
 
 [<Fact>]
 let ``Test id float`` () =
@@ -160,7 +160,7 @@ let ``Test id let float`` () =
 [<Fact>]
 let ``Test id gen`` () =
     let t = Parser.Parse("let id = fn x -> x; let a = id 3; id")
-    Assert.StrictEqual(TFun(TGen, TGen), t)
+    Assert.StrictEqual(TFun(TGen 1, TGen 1), t)
 
 [<Fact>]
 let ``Test id gen str`` () =
