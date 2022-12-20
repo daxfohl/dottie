@@ -2,12 +2,12 @@
 
 open Expressions
 
-let subs (i, a, b) = if i = a then b else i
-let msubs (m, a) = if Map.containsKey a m then m[a] else a
+let subs i a b = if i = a then b else i
+let msubs m a = if Map.containsKey a m then m[a] else a
 
-let mmerge (mfirst, msecond) =
+let mmerge mfirst msecond =
     mfirst
-    |> Map.map (fun k v -> msubs (msecond, v))
+    |> Map.map (fun k v -> msubs msecond v)
     |> Map.unionMap msecond
 
 type TRef =
@@ -22,8 +22,8 @@ type TRef =
         | TRefStr
         | TRefNum
         | TRefUnk -> this
-        | TRefFun (i, o) -> TRefFun(subs (i, a, b), subs (o, a, b))
-        | TRefObj (fields) -> TRefObj(fields |> Map.map (fun k i -> subs (i, a, b)))
+        | TRefFun (i, o) -> TRefFun(subs i a b, subs o a b)
+        | TRefObj (fields) -> TRefObj(fields |> Map.map (fun k i -> subs i a b))
 
 
 
@@ -57,6 +57,8 @@ type T =
         let m, out = canonicalize Map.empty this
         out
 
+
+#nowarn "25"
 
 type Scope =
     { vars: Map<string, int>
@@ -136,10 +138,10 @@ type Scope =
             | _, TRefUnk -> this.Subs(b, a), Map.singletonMap b a
             | TRefFun (i1, o1), TRefFun (i2, o2) ->
                 let s1, mi = this.Unify(i1, i2)
-                let o1a = msubs (mi, o1)
-                let o2a = msubs (mi, o2)
+                let o1a = msubs mi o1
+                let o2a = msubs mi o2
                 let s2, mo = s1.Unify(o1a, o2a)
-                s2.Subs(a, b), mmerge (mmerge (mi, mo), Map.singletonMap a b)
+                s2.Subs(a, b), (mmerge (mmerge mi mo) (Map.singletonMap a b))
             | _ -> failwith "not done yet"
 
     member this.InferTref(e: E) : Scope * int =
@@ -160,28 +162,27 @@ type Scope =
             let f = TRefFun(after.vars[argument], i)
             after.AddTRef(f)
         | EEval (fnExpr, argExpr) ->
-            let second, ifn = this.InferTref(fnExpr)
-            let second, inew = second.AddTRef(TRefUnk)
-            let second, inew1 = second.AddTRef(TRefUnk)
-            let second, inew2 = second.AddTRef(TRefFun(inew, inew1))
-            let blah3, m = second.Unify(ifn, inew2)
-            let first, iarg = blah3.InferTref(argExpr)
-            let second1, ifn1 = first.Gen(msubs (m, ifn), Map.empty)
+            // At least set up we know `f` has to be a function
+            let ctx, ifn = this.InferTref(fnExpr)
+            let ctx, inew = ctx.AddTRef(TRefUnk)
+            let ctx, inew1 = ctx.AddTRef(TRefUnk)
+            let ctx, inew2 = ctx.AddTRef(TRefFun(inew, inew1))
+            let ctx, m = ctx.Unify(ifn, inew2)
+            let ifn = msubs m ifn
 
-            match second1.types[ifn1] with
-            | TRefFun (i, o) ->
-                let third, m1 = second1.Unify(i, msubs (m, iarg))
-                let m = mmerge (m, m1)
+            // Copy (in case generic)
+            let ctx, ifn1 = ctx.Gen(ifn, Map.empty)
 
-                match third.types[msubs (m, ifn1)] with
-                | TRefFun (z, o1) ->
-                    let fourth, m1 = third.Unify(msubs (m, o), o1)
-                    let m = mmerge (m, m1)
-                    fourth, msubs (m, o1)
+            // Get the type of the arg
+            // Seems like this should be second in case `f` appears
+            let ctx, iarg = ctx.InferTref(argExpr)
 
-                | _ -> failwith "Not a function 2"
-            | _ -> failwith "Not a function 1"
-
+            // Unify the arg and the input of `f`.
+            let (TRefFun (i, o)) = ctx.types[ifn1]
+            let ctx, m1 = ctx.Unify(i, iarg)
+            let m = mmerge m m1
+            let o = msubs m o
+            ctx, o
         | EError (message) -> failwith message
         | EBlock (expr) -> this.InferTref(expr)
         | x -> failwith (x.ToString())
