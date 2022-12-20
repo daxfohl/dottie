@@ -33,6 +33,30 @@ type T =
     | TFun of input: T * output: T
     | TObj of fields: Map<string, T>
     | TGen of int
+    member this.Canonicalize() : T =
+
+        let rec canonicalize (m: Map<int, int>) =
+            function
+            | TStr -> m, TStr
+            | TNum -> m, TNum
+            | TFun (i, o) ->
+                let m1, i1 = canonicalize m i
+                let m2, o1 = canonicalize m1 o
+                m2, TFun(i1, o1)
+            | TObj (fields) -> failwith "aosdijfaosidjf"
+            | TGen (i) ->
+                let m1 =
+                    if m.ContainsKey(i) then
+                        m
+                    else
+                        m.Add(i, m.Count)
+
+                m1, TGen(m1[i])
+
+
+        let m, out = canonicalize Map.empty this
+        out
+
 
 type Scope =
     { vars: Map<string, int>
@@ -174,7 +198,7 @@ type Scope =
 
     member this.Infer(e: E) : T =
         let scope, i = this.InferTref(e)
-        scope.Hydrate(i)
+        scope.Hydrate(i).Canonicalize()
 
 
 
